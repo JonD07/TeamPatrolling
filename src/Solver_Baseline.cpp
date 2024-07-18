@@ -1,15 +1,16 @@
-#include "Solver_Greedy.h"
+#include "Solver_Baseline.h"
 
 using json = nlohmann::json;
 
 
-GreedySolver::GreedySolver() {
+BaselineSolver::BaselineSolver() {
 	if(SANITY_PRINT)
-		printf("Hello from Greedy Solver!\n");
+		printf("Hello from Baseline Solver!\n");
+//	srand(time(NULL));
 }
 
 
-void GreedySolver::Solve(PatrollingInput* input, Solution* sol_final) {
+void BaselineSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 	if(SANITY_PRINT)
 		printf("\nStarting Greedy solver\n\n");
 

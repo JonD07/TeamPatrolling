@@ -69,7 +69,7 @@ add_executable(${CMAKE_PROJECT_NAME}
 	src/Roots.cpp
 	src/Solution.cpp
 	src/Solver.cpp
-	src/Solver_Greedy.cpp
+	src/Solver_Baseline.cpp
 	src/Utilities.cpp
 	src/VRPSolver.cpp
 )

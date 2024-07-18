@@ -7,7 +7,7 @@
 #include "PatrollingInput.h"
 #include "Solution.h"
 #include "Solver.h"
-#include "Solver_Greedy.h"
+#include "Solver_Baseline.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
 
 	switch(algorithm) {
 	case e_Algo_GREEDY: {
-		solver = new GreedySolver();
+		solver = new BaselineSolver();
 		solver->Solve(&input, &solution);
 	}
 	break;

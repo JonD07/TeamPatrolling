@@ -1,5 +1,5 @@
 /*
- * GreedySolver.h
+ * Solver_Baseline.h
  *
  * Created by:	Jonathan Diller
  * On: 			Jun 25, 2024
@@ -38,9 +38,9 @@ struct CompareArrival {
 };
 
 
-class GreedySolver : public Solver {
+class BaselineSolver : public Solver {
 public:
-	GreedySolver();
+	BaselineSolver();
 
 	void Solve(PatrollingInput* input, Solution* sol_final);
 
@@ -48,4 +48,12 @@ protected:
 private:
 	KMeansSolver mKMeansSolver;
 	VRPSolver mVRPSolver;
+
+	// Forms K clusters
+	void formClusters(std::vector<ClusteringPoint>& vctrPoIPoint, std::vector<std::vector<ClusteringPoint>>& clusters, int K);
+	// Solve VRP on centroids of each cluster with depot and m_g vehicles
+	void solveCentroidsVRP(int K, int m_g, std::vector<std::vector<ClusteringPoint>>& clusters,
+			std::vector<VRPPoint>& depots, std::vector<std::vector<int>>& depot_order, double depot_x, double depot_y);
+	// Solve VRP on cluster with |D_j| vehicles
+	void solveClusterVRP();
 };

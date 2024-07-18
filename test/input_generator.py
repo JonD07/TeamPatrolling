@@ -1,12 +1,32 @@
 import yaml
 import random
 
-# Setup
-num_files = 1  # Number of YAML files to generate
-m1 = 2  # Number of UAVs
-m2 = 1  # Number of UGVs
-n = 5   # Number of nodes
+## Setup
+# Ways in increment inputs
+INC_N = 0
+INC_ROBOTS = 1
+# What are we doing here?
+INC_TYPE = INC_N
 
+# Basics
+FIX_NUM_UAV = 2  # Number of UAVs
+FIX_NUM_UGV = 1  # Number of UGVs
+FIXED_N = 5   # Number of nodes
+
+# Increasing sizes
+NUM_FILES = 50  # Number of YAML files to generate
+MIN_UAV = 2
+MIN_UGV = 1
+MAX_UAV = 2
+MAX_UGV = 1
+MIN_N = 5
+MAX_N = 100
+INC_N_STEP = 5
+
+# Where to store files
+FILE_PATH = "Exp_01/"
+
+# Bounds on area
 MAX_X = 10000
 MAX_Y = 10000
 
@@ -80,9 +100,13 @@ def generate_yaml_file(file_name, m1, m2, n):
 		yaml.dump(data, file, sort_keys=False)
 
 
-def generate_multiple_yaml_files(num_files, m1, m2, n):
+def generate_multiple_yaml_files(num_files, ma, mg, n):
 	for i in range(1, num_files + 1):
-		file_name = f'plot_{m1:02}_{m2:02}_{n:02}_{i:02}.yaml'
-		generate_yaml_file(file_name, m1, m2, n)
+		file_name = f'{FILE_PATH}plot_{mg}_{ma}_{n}_{i}.yaml'
+		generate_yaml_file(file_name, ma, mg, n)
 
-generate_multiple_yaml_files(num_files, m1, m2, n)
+
+if INC_TYPE is INC_N:
+	for n in range(MIN_N, MAX_N+1, INC_N_STEP):
+		generate_multiple_yaml_files(NUM_FILES, FIX_NUM_UAV, FIX_NUM_UGV, n)
+
