@@ -28,34 +28,6 @@ Solution::~Solution() {
 double Solution::CalculatePar() {
 	double ret_val = 0.0;
 
-//	// Create a queue for times for each sensor
-//	std::vector< std::priority_queue<double, std::vector<double>, std::greater<double>> > Visits_i;
-//	for(int i = 0; i < m_input->GetN(); i++) {
-//		std::priority_queue<double, std::vector<double>, std::greater<double>> v_i;
-//		Visits_i.push_back(v_i);
-//	}
-//
-//	// Go through each vehicle and search for visit-node actions
-//	for(std::vector<DroneAction> action_list : m_Aa) {
-//		for(DroneAction action : action_list) {
-//			// Did the drone visit a PoI?
-//			if(action.mActionType == E_DroneActionTypes::e_MoveToNode) {
-//				// Push the completion time onto the respective PoI's queue
-//				Visits_i.at(action.mDetails).emplace(action.fCompletionTime);
-//			}
-//		}
-//	}
-//	// Check the UGVs
-//	for(std::vector<UGVAction> action_list : m_Ag) {
-//		for(UGVAction action : action_list) {
-//			// Did the UGV visit a PoI?
-//			if(action.mActionType == E_UGVActionTypes::e_MoveToNode) {
-//				// Push the completion time onto the respective PoI's queue
-//				Visits_i.at(action.mDetails).emplace(action.fCompletionTime);
-//			}
-//		}
-//	}
-
 
 	// Create a queue for times for each sensor
 	std::vector< std::priority_queue<NodeService, std::vector<NodeService>, CompareNoderService> > Visits_i;
@@ -193,13 +165,13 @@ void Solution::PrintSolution() {
 	for(int j = 0; j < m_input->GetMa(); j++) {
 		printf("Drone %d:\n", j);
 		for(DroneAction action : m_Aa.at(j)) {
-			printf("  %d(%d) : (%f, %f) - %f\n", static_cast<std::underlying_type<E_DroneActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_DroneActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 		}
 	}
 	for(int j = 0; j < m_input->GetMg(); j++) {
 		printf("UGV %d:\n", j);
 		for(UGVAction action : m_Ag.at(j)) {
-			printf("  %d(%d) : (%f, %f) - %f\n", static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 		}
 	}
 }
@@ -232,7 +204,7 @@ void Solution::PushUGVAction(int j, const UGVAction& action) {
 const DroneAction& Solution::GetLastDroneAction(int j) {
 	if(m_Aa.at(j).empty()) {
 		// No previous actions, push in some dummy action
-		DroneAction dummy(-1, E_DroneActionTypes::e_AtUGV, 0, 0, 0);
+		DroneAction dummy(E_DroneActionTypes::e_AtUGV, 0, 0, 0);
 		m_Aa.at(j).push_back(dummy);
 
 		// Print some nasty message
@@ -246,7 +218,7 @@ const DroneAction& Solution::GetLastDroneAction(int j) {
 const UGVAction& Solution::GetLastUGVAction(int j) {
 	if(m_Ag.at(j).empty()) {
 		// No previous actions, push in some dummy action
-		UGVAction dummy(-1, E_UGVActionTypes::e_AtDepot, 0, 0, 0);
+		UGVAction dummy(E_UGVActionTypes::e_AtDepot, 0, 0, 0);
 		m_Ag.at(j).push_back(dummy);
 
 		// Print some nasty message
@@ -254,6 +226,22 @@ const UGVAction& Solution::GetLastUGVAction(int j) {
 	}
 
 	return m_Ag.at(j).back();
+}
+
+// Get the current action list of drone j
+void Solution::GetDroneActionList(int j, std::vector<DroneAction>& lst) {
+	// Fill lst with all actions in drone j's list
+	for(DroneAction a : m_Aa.at(j)) {
+		lst.push_back(a);
+	}
+}
+
+// Get the current action list of UGV j
+void Solution::GetUGVActionList(int j, std::vector<UGVAction>& lst) {
+	// Fill lst with all actions in UGV j's list
+	for(UGVAction a : m_Ag.at(j)) {
+		lst.push_back(a);
+	}
 }
 
 // Completely clears the current solution (deletes all actions and completion times)

@@ -23,6 +23,24 @@
 
 #define DEBUG_SOLVER	0 || DEBUG
 
+
+// Data structure for when a drone arrives at the UGV
+struct Arrival {
+	double time;
+	int ID;
+
+	// Constructor
+	Arrival(double t, int id) : time(t), ID(id) {}
+};
+
+// Comparison function to order Arrivals by time
+struct CompareArrival {
+	bool operator()(const Arrival& a1, const Arrival& a2) {
+		return a1.time > a2.time;
+	}
+};
+
+
 class Solver {
 public:
 	Solver();

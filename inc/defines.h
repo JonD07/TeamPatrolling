@@ -46,6 +46,7 @@
 #define DRONE_PER_UGV	2
 
 enum {
-	e_Algo_GREEDY = 0,
-	e_Algo_COMP = 1,
+	e_Algo_COMP = 0,
+	e_Algo_GREEDY = 1,
+	e_Algo_OPTLAUNCH = 2,
 };

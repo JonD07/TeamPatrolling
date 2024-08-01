@@ -47,8 +47,11 @@ struct DroneAction {
 	// When applicable, this field holds the node ID
 	int mDetails;
 
-	DroneAction(int id, E_DroneActionTypes actionType, double x, double y, double t, int details = -1) {
-		mActionID = id;
+	DroneAction(E_DroneActionTypes actionType, double x, double y, double t, int details = -1) {
+		// Track how many actions have been created
+		static int action_count = 0;
+
+		mActionID = action_count++;
 		mActionType = actionType;
 		fX = x;
 		fY = y;
@@ -74,8 +77,11 @@ struct UGVAction {
 	// When applicable, this field holds the node ID
 	int mDetails;
 
-	UGVAction(int id, E_UGVActionTypes actionType, double x, double y, double t, int details = -1) {
-		mActionID = id;
+	UGVAction(E_UGVActionTypes actionType, double x, double y, double t, int details = -1) {
+		// Track how many actions have been created
+		static int action_count = 0;
+
+		mActionID = action_count++;
 		mActionType = actionType;
 		fX = x;
 		fY = y;
@@ -133,6 +139,10 @@ public:
 	const DroneAction& GetLastDroneAction(int j);
 	// Get the last action for UGV j
 	const UGVAction& GetLastUGVAction(int j);
+	// Get the current action list of drone j
+	void GetDroneActionList(int j, std::vector<DroneAction>& lst);
+	// Get the current action list of UGV j
+	void GetUGVActionList(int j, std::vector<UGVAction>& lst);
 	// Completely clears the current solution (deletes all actions and completion times)
 	void ClearSolution();
 	// Deletes the current plan (actions and completion times) for drone j
@@ -146,8 +156,4 @@ private:
 	// Lists of actions for each robot
 	std::vector<std::vector<DroneAction>> m_Aa;
 	std::vector<std::vector<UGVAction>> m_Ag;
-	// List of times for corresponding actions for each robot
-	// ..... Do I need to store times separately..? Probably better not to
-//	std::vector<std::vector<double>> m_Ta;
-//	std::vector<std::vector<double>> m_Tg;
 };

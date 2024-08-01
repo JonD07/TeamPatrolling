@@ -8,6 +8,7 @@
 #include "Solution.h"
 #include "Solver.h"
 #include "Solver_Baseline.h"
+#include "Solver_OptLaunch.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -62,23 +63,23 @@ int main(int argc, char *argv[]) {
 	switch(algorithm) {
 	case e_Algo_GREEDY: {
 		solver = new BaselineSolver();
-		solver->Solve(&input, &solution);
 	}
 	break;
 
-	case e_Algo_COMP: {
-//		solver = new MASPComp();
-//		solver->Solve(&input, &solution);
+	case e_Algo_OPTLAUNCH: {
+		solver = new OptLaunchSolver();
 	}
 	break;
 
-
+	case e_Algo_COMP:
 	default:
 		// No valid algorithm given
 		fprintf(stderr, "[ERROR][main] : \n\tInvalid algorithm identifier!\n");
 		exit(1);
-
 	}
+
+	// Run the solver
+	solver->Solve(&input, &solution);
 
 	// Capture end time
 	auto stop = std::chrono::high_resolution_clock::now();
