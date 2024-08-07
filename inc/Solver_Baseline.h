@@ -15,8 +15,6 @@
 
 #include "Utilities.h"
 #include "Solver.h"
-#include "KMeansSolver.h"
-#include "VRPSolver.h"
 
 #define DEBUG_GREEDY	DEBUG || 1
 
@@ -29,6 +27,4 @@ public:
 
 protected:
 private:
-	KMeansSolver mKMeansSolver;
-	VRPSolver mVRPSolver;
 };

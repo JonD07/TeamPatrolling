@@ -244,6 +244,14 @@ void Solution::GetUGVActionList(int j, std::vector<UGVAction>& lst) {
 	}
 }
 
+// Returns the time of the last action of UGV j
+double Solution::GetTotalTourTime(int j) {
+	if(!m_Ag.at(j).empty()) {
+		return m_Ag.at(j).back().fCompletionTime;
+	}
+	return 0.0;
+}
+
 // Completely clears the current solution (deletes all actions and completion times)
 void Solution::ClearSolution() {
 	// Clear all action vectors

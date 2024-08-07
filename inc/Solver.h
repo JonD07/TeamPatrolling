@@ -20,6 +20,8 @@
 #include "PatrollingInput.h"
 #include "Utilities.h"
 #include "Roots.h"
+#include "KMeansSolver.h"
+#include "VRPSolver.h"
 
 #define DEBUG_SOLVER	0 || DEBUG
 
@@ -47,7 +49,12 @@ public:
 	virtual ~Solver();
 
 	virtual void Solve(PatrollingInput* input, Solution* sol_final) = 0;
+	// Runs the baseline solver, setting an initial solution to build off of
+	void RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
 
 protected:
 	double calcChargeTime(double J);
+private:
+	KMeansSolver mKMeansSolver;
+	VRPSolver mVRPSolver;
 };

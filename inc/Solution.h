@@ -44,7 +44,7 @@ struct DroneAction {
 	E_DroneActionTypes mActionType;
 	double fX, fY;
 	double fCompletionTime;
-	// When applicable, this field holds the node ID
+	// When applicable, this field holds the node ID or drones
 	int mDetails;
 
 	DroneAction(E_DroneActionTypes actionType, double x, double y, double t, int details = -1) {
@@ -143,6 +143,8 @@ public:
 	void GetDroneActionList(int j, std::vector<DroneAction>& lst);
 	// Get the current action list of UGV j
 	void GetUGVActionList(int j, std::vector<UGVAction>& lst);
+	// Returns the time of the last action of UGV j
+	double GetTotalTourTime(int j);
 	// Completely clears the current solution (deletes all actions and completion times)
 	void ClearSolution();
 	// Deletes the current plan (actions and completion times) for drone j

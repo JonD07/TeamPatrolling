@@ -81,7 +81,4 @@ public:
 	void Solve(PatrollingInput* input, Solution* sol_final);
 
 protected:
-private:
-	KMeansSolver mKMeansSolver;
-	VRPSolver mVRPSolver;
 };
