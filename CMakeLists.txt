@@ -69,11 +69,13 @@ add_executable(${CMAKE_PROJECT_NAME}
 	${sources}
 	src/Input.cpp
 	src/KMeansSolver.cpp
+	src/LaunchOptimizer.cpp
 	src/PatrollingInput.cpp
 	src/Roots.cpp
 	src/Solution.cpp
 	src/Solver.cpp
 	src/Solver_Baseline.cpp
+	src/Solver_ILO.cpp
 	src/Solver_OptLaunch.cpp
 	src/Utilities.cpp
 	src/VRPSolver.cpp

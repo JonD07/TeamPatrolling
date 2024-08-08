@@ -49,4 +49,5 @@ enum {
 	e_Algo_COMP = 0,
 	e_Algo_GREEDY = 1,
 	e_Algo_OPTLAUNCH = 2,
+	e_Algo_ILO = 3,
 };
