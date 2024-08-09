@@ -387,7 +387,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							double chargeTime = calcChargeTime(joules);
 							chargeTimes.at(drone) = chargeTime;
 							// Record how much the UGV has given away
-							ugvEnergySpent.at(ugv_num) += joules;
+							ugvEnergySpent.at(ugv_num) += joules/CHARGE_EFFICIENCY;
 
 							if(DEBUG_SOLVER)
 								printf("    Energy used: %f, charge time: %f\n", joules, chargeTime);

@@ -15,6 +15,7 @@
 #include <cmath>
 #include <queue>
 
+#include "Utilities.h"
 #include "PatrollingInput.h"
 
 #define DEBUG_SOL	DEBUG || 0
@@ -127,6 +128,8 @@ public:
 
 	// Prints this solution
 	void PrintSolution();
+	// Prints the current solution into a yaml file (for testing with ARL)
+	void GenerateYAML(const std::string& filename);
 	// Calculates the Penalty Accumulation Rate of the current solution stored in this solution object.
 	double Benchmark();
 	// Determines if this is a valid solution (doesn't break constraints)
@@ -158,4 +161,9 @@ private:
 	// Lists of actions for each robot
 	std::vector<std::vector<DroneAction>> m_Aa;
 	std::vector<std::vector<UGVAction>> m_Ag;
+
+	// Helper function to convert DroneActionType enum to string
+	std::string droneActionTypeToString(E_DroneActionTypes actionType);
+	// Helper function to convert UGVActionType enum to string
+	std::string ugvActionTypeToString(E_UGVActionTypes actionType);
 };

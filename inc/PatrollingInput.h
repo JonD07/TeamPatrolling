@@ -82,6 +82,12 @@ public:
 	const std::vector<Node>& GetNodes() {return nodes;}
 	// Get the location of the depot (we assume a single depot)
 	void GetDepot(int j, double* x, double* y);
+	// Get the designated name for node i
+	std::string GetNodeID(int i) {return nodes.at(i).ID;}
+	// Get the designated name for drone j
+	std::string GetDroneID(int j) {return mRa.at(j).ID;}
+	// Get the designated name for UGV j
+	std::string GetUGVID(int j) {return mRg.at(j).ID;}
 
 	// Determines a theoretical upper bound on a possible solution
 	double LowerBound();
