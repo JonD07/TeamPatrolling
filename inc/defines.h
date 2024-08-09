@@ -29,6 +29,7 @@
 #define SLOW_CHARGE_POINT	244537.0
 #define FAST_CHARGE_A	0.06384091
 #define FAST_CHARGE_B	403.886
+#define CHARGE_EFFICIENCY	0.9
 #define T_MAX	991.4
 #define T_STAR	555.6
 #define ALPHA	0.003
@@ -46,6 +47,8 @@
 #define DRONE_PER_UGV	2
 
 enum {
-	e_Algo_GREEDY = 0,
-	e_Algo_COMP = 1,
+	e_Algo_COMP = 0,
+	e_Algo_GREEDY = 1,
+	e_Algo_OPTLAUNCH = 2,
+	e_Algo_ILO = 3,
 };

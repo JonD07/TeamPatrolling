@@ -20,8 +20,28 @@
 #include "PatrollingInput.h"
 #include "Utilities.h"
 #include "Roots.h"
+#include "KMeansSolver.h"
+#include "VRPSolver.h"
 
 #define DEBUG_SOLVER	0 || DEBUG
+
+
+// Data structure for when a drone arrives at the UGV
+struct Arrival {
+	double time;
+	int ID;
+
+	// Constructor
+	Arrival(double t, int id) : time(t), ID(id) {}
+};
+
+// Comparison function to order Arrivals by time
+struct CompareArrival {
+	bool operator()(const Arrival& a1, const Arrival& a2) {
+		return a1.time > a2.time;
+	}
+};
+
 
 class Solver {
 public:
@@ -29,7 +49,12 @@ public:
 	virtual ~Solver();
 
 	virtual void Solve(PatrollingInput* input, Solution* sol_final) = 0;
+	// Runs the baseline solver, setting an initial solution to build off of
+	void RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
 
 protected:
 	double calcChargeTime(double J);
+private:
+	KMeansSolver mKMeansSolver;
+	VRPSolver mVRPSolver;
 };

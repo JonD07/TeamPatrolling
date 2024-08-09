@@ -8,6 +8,8 @@
 #include "Solution.h"
 #include "Solver.h"
 #include "Solver_Baseline.h"
+#include "Solver_ILO.h"
+#include "Solver_OptLaunch.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -24,6 +26,7 @@ int main(int argc, char *argv[]) {
 	bool printResults;
 	const char* outputPath;
 	int runnum = 0;
+	bool print_actions = false;
 
 	// Verify user input
 	if(argc == 3) {
@@ -47,8 +50,15 @@ int main(int argc, char *argv[]) {
 		outputPath = argv[4];
 		runnum = atoi(argv[5]);
 	}
+	else if(argc == 7) {
+		algorithm = atoi(argv[2]);
+		printResults = atoi(argv[3]);
+		outputPath = argv[4];
+		runnum = atoi(argv[5]);
+		print_actions = atoi(argv[6]);
+	}
 	else {
-		printf("Received %d args, expected 1 or more.\nExpected use:\t./find-assignment <file path> <algorithm> [print results] [output path] [run number]\n\n", argc - 1);
+		printf("Received %d args, expected 1 or more.\nExpected use:\t./find-assignment <file path> <algorithm> [print results] [output path] [run number] [print actions file]\n\n", argc - 1);
 		return 1;
 	}
 
@@ -62,23 +72,28 @@ int main(int argc, char *argv[]) {
 	switch(algorithm) {
 	case e_Algo_GREEDY: {
 		solver = new BaselineSolver();
-		solver->Solve(&input, &solution);
 	}
 	break;
 
-	case e_Algo_COMP: {
-//		solver = new MASPComp();
-//		solver->Solve(&input, &solution);
+	case e_Algo_OPTLAUNCH: {
+		solver = new OptLaunchSolver();
 	}
 	break;
 
+	case e_Algo_ILO: {
+		solver = new Solver_ILO();
+	}
+	break;
 
+	case e_Algo_COMP:
 	default:
 		// No valid algorithm given
 		fprintf(stderr, "[ERROR][main] : \n\tInvalid algorithm identifier!\n");
 		exit(1);
-
 	}
+
+	// Run the solver
+	solver->Solve(&input, &solution);
 
 	// Capture end time
 	auto stop = std::chrono::high_resolution_clock::now();
@@ -106,6 +121,10 @@ int main(int argc, char *argv[]) {
 		fprintf(pOutputFile, "%f %f", par, duration_s);
 		fprintf(pOutputFile, " %d\n", solution.ValidSolution());
 		fclose(pOutputFile);
+	}
+
+	if(print_actions) {
+		solution.GenerateYAML("output_plan.yaml");
 	}
 
 	delete solver;

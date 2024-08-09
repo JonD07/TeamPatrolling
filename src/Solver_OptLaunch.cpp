@@ -1,14 +1,18 @@
-#include "Solver_Baseline.h"
+#include "Solver_OptLaunch.h"
+
+//using json = nlohmann::json;
 
 
-BaselineSolver::BaselineSolver() {
+OptLaunchSolver::OptLaunchSolver() {
 	if(SANITY_PRINT)
-		printf("Hello from Baseline Solver!\n");
+		printf("Hello from Opt-Launch Solver!\n");
 //	srand(time(NULL));
 }
 
+OptLaunchSolver::~OptLaunchSolver() { }
 
-void BaselineSolver::Solve(PatrollingInput* input, Solution* sol_final) {
+
+void OptLaunchSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 	if(SANITY_PRINT)
 		printf("\nStarting Greedy solver\n\n");
 
@@ -28,7 +32,7 @@ void BaselineSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 	 */
 
 	/*
-	 * Current Baseline Algorithm:
+	 * Current Agnostic Algorithm:
 	 * 1. k = 1
 	 * 2. Form k clusters
 	 * 3. Solve VRP on centroids of each cluster with depot and m_g vehicles
@@ -40,6 +44,7 @@ void BaselineSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 	 * 9.   If there exists UGV-tour A such that energy(A) > E^g_max, increase k and repeat steps 2-9
 	 * 10 Return
 	 */
+
 
 	// Get the POI Nodes from the input
 	std::vector<Node> vctrPOINodes = input->GetNodes();
@@ -68,7 +73,7 @@ void BaselineSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 	}
 
 	// Sanity print
-	if(DEBUG_GREEDY) {
+	if(DEBUG_OPTLAUNCH) {
 		printf("UGVs-to-Drones:\n");
 		for(int j_g = 0; j_g < input->GetMg(); j_g++) {
 			printf(" UGV %d:\n  ", j_g);
@@ -79,13 +84,29 @@ void BaselineSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 		}
 	}
 
-	// Run the baseline solver
+	// Run the baseline solver to get an initial solution
 	RunBaseline(input, sol_final, drones_to_UGV);
 
-	// Verify that each drone can start with enough energy
-	if(DEBUG_GREEDY) {
+
+	if(DEBUG_OPTLAUNCH) {
 		printf("\nFinal Solution:\n");
 		sol_final->PrintSolution();
 		printf("\n");
+		// Record this so we can watch how well the optimizer is improving things
+		FILE * pOutputFile;
+		pOutputFile = fopen("qp_improvement.dat", "a");
+		fprintf(pOutputFile, "%d %f ", input->GetN(), sol_final->GetTotalTourTime(0));
+		fclose(pOutputFile);
+	}
+
+
+	// For each UGV...
+	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
+		// Run the optimizer on the found solution
+		optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+	}
+
+	if(DEBUG_OPTLAUNCH) {
+		sol_final->PrintSolution();
 	}
 }

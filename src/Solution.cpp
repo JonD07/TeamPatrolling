@@ -28,34 +28,6 @@ Solution::~Solution() {
 double Solution::CalculatePar() {
 	double ret_val = 0.0;
 
-//	// Create a queue for times for each sensor
-//	std::vector< std::priority_queue<double, std::vector<double>, std::greater<double>> > Visits_i;
-//	for(int i = 0; i < m_input->GetN(); i++) {
-//		std::priority_queue<double, std::vector<double>, std::greater<double>> v_i;
-//		Visits_i.push_back(v_i);
-//	}
-//
-//	// Go through each vehicle and search for visit-node actions
-//	for(std::vector<DroneAction> action_list : m_Aa) {
-//		for(DroneAction action : action_list) {
-//			// Did the drone visit a PoI?
-//			if(action.mActionType == E_DroneActionTypes::e_MoveToNode) {
-//				// Push the completion time onto the respective PoI's queue
-//				Visits_i.at(action.mDetails).emplace(action.fCompletionTime);
-//			}
-//		}
-//	}
-//	// Check the UGVs
-//	for(std::vector<UGVAction> action_list : m_Ag) {
-//		for(UGVAction action : action_list) {
-//			// Did the UGV visit a PoI?
-//			if(action.mActionType == E_UGVActionTypes::e_MoveToNode) {
-//				// Push the completion time onto the respective PoI's queue
-//				Visits_i.at(action.mDetails).emplace(action.fCompletionTime);
-//			}
-//		}
-//	}
-
 
 	// Create a queue for times for each sensor
 	std::vector< std::priority_queue<NodeService, std::vector<NodeService>, CompareNoderService> > Visits_i;
@@ -193,16 +165,315 @@ void Solution::PrintSolution() {
 	for(int j = 0; j < m_input->GetMa(); j++) {
 		printf("Drone %d:\n", j);
 		for(DroneAction action : m_Aa.at(j)) {
-			printf("  %d(%d) : (%f, %f) - %f\n", static_cast<std::underlying_type<E_DroneActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_DroneActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 		}
 	}
 	for(int j = 0; j < m_input->GetMg(); j++) {
 		printf("UGV %d:\n", j);
 		for(UGVAction action : m_Ag.at(j)) {
-			printf("  %d(%d) : (%f, %f) - %f\n", static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 		}
 	}
 }
+
+// Prints the current solution into a yaml file (for testing with ARL)
+void Solution::GenerateYAML(const std::string& filename) {
+//	m_input
+	YAML::Emitter out;
+	out << YAML::Comment("API Version: 0.9.1");
+	out << YAML::BeginMap;
+	out << YAML::Key << "ID" << YAML::Value << "plan_every_UAV_action_02";
+	out << YAML::Key << "state_ID" << YAML::Value << "state_every_UAV_action_02";
+	out << YAML::Key << "description" << YAML::Value << "Team Patrolling";
+	out << YAML::Key << "start_time" << YAML::Value << 0.0;
+
+	double longest_end = 0.0;
+	for(int a_j = 0; a_j < boost::numeric_cast<int>(m_Ag.size()); a_j++) {
+		if(m_Ag.at(a_j).back().fCompletionTime > longest_end) {
+			longest_end = m_Ag.at(a_j).back().fCompletionTime;
+		}
+	}
+	out << YAML::Key << "end_time" << YAML::Value << longest_end;
+
+	out << YAML::Key << "individual_plans" << YAML::Value << YAML::BeginSeq;
+
+	// UAV Plans
+	for(int a_j = 0; a_j < boost::numeric_cast<int>(m_Aa.size()); a_j++) {
+		out << YAML::BeginMap;
+		out << YAML::Key << "agent_ID" << YAML::Value << m_input->GetDroneID(a_j);
+		out << YAML::Key << "actions" << YAML::Value << YAML::BeginSeq;
+
+		// Track the time of the last action
+		double last_t = 0.0;
+		double prev_x = 0.0, prev_y = 0.0;
+
+		// Create a generic "start" actions
+		{
+			out << YAML::BeginMap;
+			out << YAML::Key << "type" << YAML::Value << "start";
+			out << YAML::Key << "start_time" << YAML::Value << last_t;
+			out << YAML::Key << "end_time" << YAML::Value << last_t;
+			out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+			out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+			out << YAML::Key << "x" << YAML::Value << m_Aa.at(a_j).front().fX;
+			out << YAML::Key << "y" << YAML::Value << m_Aa.at(a_j).front().fY;
+			out << YAML::EndMap;
+			out << YAML::EndMap;
+			out << YAML::EndMap;
+
+			prev_x = m_Aa.at(a_j).front().fX;
+			prev_y = m_Aa.at(a_j).front().fY;
+		}
+
+		for(const auto& action : m_Aa.at(a_j)) {
+			if(action.mActionType == E_DroneActionTypes::e_LaunchFromUGV) {
+				// Record that the drone was purched on the UGV
+				out << YAML::BeginMap;
+				out << YAML::Key << "type" << YAML::Value << "perch_on_UGV";
+				out << YAML::Key << "start_time" << YAML::Value << last_t;
+				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime - UAV_LAUNCH_TIME;
+				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
+				out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << prev_x;
+				out << YAML::Key << "y" << YAML::Value << prev_y;
+				out << YAML::EndMap;
+				out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << action.fX;
+				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+				// Launch the drone
+				out << YAML::BeginMap;
+				out << YAML::Key << "type" << YAML::Value << "takeoff_from_UGV";;
+				out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime - UAV_LAUNCH_TIME;
+				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
+				out << YAML::Key << "start_progress" << YAML::Value << 0.0;
+				out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+				out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << action.fX;
+				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+			}
+			else if(action.mActionType == E_DroneActionTypes::e_MoveToNode || action.mActionType == E_DroneActionTypes::e_MoveToUGV) {
+				// First move to the node
+				out << YAML::BeginMap;
+				out << YAML::Key << "type" << YAML::Value << "move_to_location";
+				out << YAML::Key << "start_time" << YAML::Value << last_t;
+				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << prev_x;
+				out << YAML::Key << "y" << YAML::Value << prev_y;
+				out << YAML::EndMap;
+				out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << action.fX;
+				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+				// Did we move to a node?
+				if(action.mActionType == E_DroneActionTypes::e_MoveToNode) {
+					// Service the node
+					out << YAML::BeginMap;
+					out << YAML::Key << "type" << YAML::Value << "service_node";;
+					out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime;
+					out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "node_ID" << YAML::Value << m_input->GetNodeID(action.mDetails);
+					out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "x" << YAML::Value << action.fX;
+					out << YAML::Key << "y" << YAML::Value << action.fY;
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+				}
+			}
+			else if(action.mActionType == E_DroneActionTypes::e_LandOnUGV) {
+				// Land on UGV
+				out << YAML::BeginMap;
+				out << YAML::Key << "type" << YAML::Value << "land_on_UGV";;
+				out << YAML::Key << "start_time" << YAML::Value << last_t;
+				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
+				out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << action.fX;
+				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::EndMap;
+				out << YAML::Key << "start_progress" << YAML::Value << 0.0;
+				out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+			}
+
+			// Update previous location
+			prev_x = action.fX;
+			prev_y = action.fY;
+			last_t = action.fCompletionTime;
+		}
+
+		// Create a generic "end" actions
+		{
+			out << YAML::BeginMap;
+			out << YAML::Key << "type" << YAML::Value << "end";
+			out << YAML::Key << "start_time" << YAML::Value << m_Aa.at(a_j).back().fCompletionTime;
+			out << YAML::Key << "end_time" << YAML::Value << m_Aa.at(a_j).back().fCompletionTime;
+			out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+			out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+			out << YAML::Key << "x" << YAML::Value << m_Aa.at(a_j).back().fX;
+			out << YAML::Key << "y" << YAML::Value << m_Aa.at(a_j).back().fY;
+			out << YAML::EndMap;
+			out << YAML::EndMap;
+			out << YAML::EndMap;
+		}
+
+		out << YAML::EndSeq;
+		out << YAML::EndMap;
+	}
+
+	// UGV Plans m_Ag
+	for(int a_j = 0; a_j < boost::numeric_cast<int>(m_Ag.size()); a_j++) {
+		out << YAML::BeginMap;
+		out << YAML::Key << "agent_ID" << YAML::Value << m_input->GetDroneID(a_j);
+		out << YAML::Key << "actions" << YAML::Value << YAML::BeginSeq;
+
+		// Track the time of the last action
+		double last_t = 0.0;
+		double prev_x = 0.0, prev_y = 0.0;
+
+		// Create a generic "start" actions
+		{
+			out << YAML::BeginMap;
+			out << YAML::Key << "type" << YAML::Value << "start";
+			out << YAML::Key << "start_time" << YAML::Value << last_t;
+			out << YAML::Key << "end_time" << YAML::Value << last_t;
+			out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+			out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+			out << YAML::Key << "x" << YAML::Value << m_Ag.at(a_j).front().fX;
+			out << YAML::Key << "y" << YAML::Value << m_Ag.at(a_j).front().fY;
+			out << YAML::EndMap;
+			out << YAML::EndMap;
+			out << YAML::EndMap;
+
+			prev_x = m_Ag.at(a_j).front().fX;
+			prev_y = m_Ag.at(a_j).front().fY;
+		}
+
+		for(const auto& action : m_Ag.at(a_j)) {
+			if(action.mActionType == E_UGVActionTypes::e_MoveToWaypoint || action.mActionType == E_UGVActionTypes::e_MoveToDepot) {
+				out << YAML::BeginMap;
+				out << YAML::Key << "type" << YAML::Value << "move_to_location";
+				out << YAML::Key << "start_time" << YAML::Value << last_t;
+				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << prev_x;
+				out << YAML::Key << "y" << YAML::Value << prev_y;
+				out << YAML::EndMap;
+				out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << action.fX;
+				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+
+				// Did we go to the depot?
+				if(action.mActionType == E_UGVActionTypes::e_MoveToDepot) {
+					// Swap-out batteries
+					out << YAML::BeginMap;
+					out << YAML::Key << "type" << YAML::Value << "swap_battery";
+					out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime + UGV_BAT_SWAP_TIME;
+					out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "start_progress" << YAML::Value << 0.0;
+					out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+					out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "x" << YAML::Value << action.fX;
+					out << YAML::Key << "y" << YAML::Value << action.fY;
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+				}
+			}
+			else if(action.mActionType == E_UGVActionTypes::e_LaunchDrone) {
+				out << YAML::BeginMap;
+				out << YAML::Key << "type" << YAML::Value << "allow_takeoff_by_UAV";
+				out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime - UAV_LAUNCH_TIME;
+				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "UAV_ID" << YAML::Value << m_input->GetDroneID(action.mDetails);
+				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
+				out << YAML::Key << "start_progress" << YAML::Value << 0.0;
+				out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+				out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << action.fX;
+				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+			}
+			else if(action.mActionType == E_UGVActionTypes::e_ReceiveDrone) {
+				out << YAML::BeginMap;
+				out << YAML::Key << "type" << YAML::Value << "allow_landing_by_UAV";
+				out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime - UAV_LAND_TIME;
+				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "UAV_ID" << YAML::Value << m_input->GetDroneID(action.mDetails);
+				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
+				out << YAML::Key << "start_progress" << YAML::Value << 0.0;
+				out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+				out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+				out << YAML::Key << "x" << YAML::Value << action.fX;
+				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+				out << YAML::EndMap;
+			}
+
+			// Update previous location
+			prev_x = action.fX;
+			prev_y = action.fY;
+			last_t = action.fCompletionTime;
+		}
+
+		// Create a generic "end" actions
+		{
+			out << YAML::BeginMap;
+			out << YAML::Key << "type" << YAML::Value << "end";
+			out << YAML::Key << "start_time" << YAML::Value << m_Aa.at(a_j).back().fCompletionTime;
+			out << YAML::Key << "end_time" << YAML::Value << m_Aa.at(a_j).back().fCompletionTime;
+			out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+			out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
+			out << YAML::Key << "x" << YAML::Value << m_Aa.at(a_j).back().fX;
+			out << YAML::Key << "y" << YAML::Value << m_Aa.at(a_j).back().fY;
+			out << YAML::EndMap;
+			out << YAML::EndMap;
+			out << YAML::EndMap;
+		}
+
+		out << YAML::EndSeq;
+		out << YAML::EndMap;
+	}
+
+	out << YAML::EndSeq;
+	out << YAML::EndMap;
+
+	std::ofstream fout(filename);
+	fout << out.c_str();
+	fout.close();
+}
+
+
+
+
+
+
 
 // Calculates the Penalty Accumulation Rate of the current solution stored in this solution object.
 double Solution::Benchmark() {
@@ -232,7 +503,7 @@ void Solution::PushUGVAction(int j, const UGVAction& action) {
 const DroneAction& Solution::GetLastDroneAction(int j) {
 	if(m_Aa.at(j).empty()) {
 		// No previous actions, push in some dummy action
-		DroneAction dummy(-1, E_DroneActionTypes::e_AtUGV, 0, 0, 0);
+		DroneAction dummy(E_DroneActionTypes::e_AtUGV, 0, 0, 0);
 		m_Aa.at(j).push_back(dummy);
 
 		// Print some nasty message
@@ -246,7 +517,7 @@ const DroneAction& Solution::GetLastDroneAction(int j) {
 const UGVAction& Solution::GetLastUGVAction(int j) {
 	if(m_Ag.at(j).empty()) {
 		// No previous actions, push in some dummy action
-		UGVAction dummy(-1, E_UGVActionTypes::e_AtDepot, 0, 0, 0);
+		UGVAction dummy(E_UGVActionTypes::e_AtDepot, 0, 0, 0);
 		m_Ag.at(j).push_back(dummy);
 
 		// Print some nasty message
@@ -254,6 +525,30 @@ const UGVAction& Solution::GetLastUGVAction(int j) {
 	}
 
 	return m_Ag.at(j).back();
+}
+
+// Get the current action list of drone j
+void Solution::GetDroneActionList(int j, std::vector<DroneAction>& lst) {
+	// Fill lst with all actions in drone j's list
+	for(DroneAction a : m_Aa.at(j)) {
+		lst.push_back(a);
+	}
+}
+
+// Get the current action list of UGV j
+void Solution::GetUGVActionList(int j, std::vector<UGVAction>& lst) {
+	// Fill lst with all actions in UGV j's list
+	for(UGVAction a : m_Ag.at(j)) {
+		lst.push_back(a);
+	}
+}
+
+// Returns the time of the last action of UGV j
+double Solution::GetTotalTourTime(int j) {
+	if(!m_Ag.at(j).empty()) {
+		return m_Ag.at(j).back().fCompletionTime;
+	}
+	return 0.0;
 }
 
 // Completely clears the current solution (deletes all actions and completion times)
@@ -275,4 +570,31 @@ void Solution::ClearDroneSolution(int j) {
 // Deletes the current plan (actions and completion times) for UGV j
 void Solution::ClearUGVSolution(int j) {
 	m_Ag.at(j).clear();
+}
+
+// Helper function to convert DroneActionType enum to string
+std::string Solution::droneActionTypeToString(E_DroneActionTypes actionType) {
+    switch (actionType) {
+//        case E_DroneActionTypes::Start: return "start";
+        case E_DroneActionTypes::e_AtUGV: return "perch_on_UGV";
+        case E_DroneActionTypes::e_LaunchFromUGV: return "takeoff_from_UGV";
+//        case E_DroneActionTypes::MoveToLocation: return "move_to_location";
+//        case E_DroneActionTypes::ServiceNode: return "service_node";
+        case E_DroneActionTypes::e_LandOnUGV: return "land_on_UGV";
+        case E_DroneActionTypes::e_KernelEnd: return "end";
+        default:return "unknown";
+    }
+}
+
+// Helper function to convert UGVActionType enum to string
+std::string Solution::ugvActionTypeToString(E_UGVActionTypes actionType) {
+    switch (actionType) {
+//        case E_UGVActionTypes::Start: return "start";
+        case E_UGVActionTypes::e_MoveToWaypoint: return "move_to_location";
+        case E_UGVActionTypes::e_LaunchDrone: return "allow_takeoff_by_UAV";
+//        case E_UGVActionTypes::ServiceNode: return "service_node";
+        case E_UGVActionTypes::e_ReceiveDrone: return "allow_landing_by_UAV";
+        case E_UGVActionTypes::e_KernelEnd: return "end";
+        default:return "unknown";
+    }
 }

@@ -54,7 +54,11 @@ if(MSVC AND MT)
 	set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd -O0 -ggdb -g -Wall -Werror")
 endif()
 
+# Get Gurobi
+find_package(GUROBI REQUIRED)
+
 include_directories(
+	${GUROBI_INCLUDE_DIRS}
 	${CMAKE_CURRENT_LIST_DIR}/inc
 )
 
@@ -65,23 +69,32 @@ add_executable(${CMAKE_PROJECT_NAME}
 	${sources}
 	src/Input.cpp
 	src/KMeansSolver.cpp
+	src/LaunchOptimizer.cpp
 	src/PatrollingInput.cpp
 	src/Roots.cpp
 	src/Solution.cpp
 	src/Solver.cpp
 	src/Solver_Baseline.cpp
+	src/Solver_ILO.cpp
+	src/Solver_OptLaunch.cpp
 	src/Utilities.cpp
 	src/VRPSolver.cpp
 )
+
+if(CXX)
+	set(CMAKE_CXX_STANDARD 11)
+	target_link_libraries(${CMAKE_PROJECT_NAME} optimized ${GUROBI_CXX_LIBRARY} debug ${GUROBI_CXX_DEBUG_LIBRARY})
+endif()
+
+# Link Gurobi
+target_link_libraries(${CMAKE_PROJECT_NAME} ${GUROBI_LIBRARY})
+# Link yaml-cpp library
+target_link_libraries(${CMAKE_PROJECT_NAME} yaml-cpp::yaml-cpp)
+# Link nlohmann_json
+target_link_libraries(${CMAKE_PROJECT_NAME} nlohmann_json::nlohmann_json)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	include(FeatureSummary)
 	feature_summary(WHAT ALL)
 endif()
-
-# Link yaml-cpp library
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC yaml-cpp::yaml-cpp)
-# Link nlohmann_json
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
-
 
