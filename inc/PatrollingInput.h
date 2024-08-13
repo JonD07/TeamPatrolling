@@ -88,6 +88,14 @@ public:
 	std::string GetDroneID(int j) {return mRa.at(j).ID;}
 	// Get the designated name for UGV j
 	std::string GetUGVID(int j) {return mRg.at(j).ID;}
+	// Get the max battery capacity of drone j
+	double GetDroneBatCap(int j) {return mRa.at(j).battery_state.max_battery_energy;}
+	// Get the max battery capacity of drone j
+	double GetUGVBatCap(int j) {return mRg.at(j).battery_state.max_battery_energy;}
+	// Get the max range of drone j (on a full charge)
+	double GetDroneMaxDist(int j);
+	// Get the max range of drone j (on a full charge)
+	double GetUGVMaxDist(int j);
 
 	// Determines a theoretical upper bound on a possible solution
 	double LowerBound();

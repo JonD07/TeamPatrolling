@@ -314,6 +314,11 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			model.addQConstr(d_e*d_e >= (x_j-end_x)*(x_j-end_x) + (y_j-end_y)*(y_j-end_y), "d_e"+itos(sub_tours.at(tour).ID)+"_geq_xm_xj");
 			if(DEBUG_LAUNCHOPT)
 				printf("* d_e%d*d_e%d >= (x_%d - end_x%d)*(x_%d - end_x%d) + (y_%d - end_y%d)*(y_%d - end_y%d)\n",  tour, tour, j, tour, j, tour, j, tour, j, tour);
+
+			// Constrain total drone sub-tour distance
+			model.addConstr(input->GetDroneMaxDist(DRONE_I) >= d_s + sub_tours.at(tour).tour_dist + d_e, "d_s"+itos(sub_tours.at(tour).launch_ID)+"_+_d_e"+itos(sub_tours.at(tour).land_ID)+"_leq_d_max");
+			if(DEBUG_LAUNCHOPT)
+				printf("* %f >= d_s%d + %f + d_e%d\n",  input->GetDroneMaxDist(DRONE_I), tour, sub_tours.at(tour).tour_dist, tour);
 		}
 
 		// Set objective

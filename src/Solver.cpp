@@ -162,7 +162,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 
 					/// 7. If there exists drone-tour A such that dist(A) > d^a_max, increase k and repeat steps 2-8
-					if(tour_length > UAV_MAX_D) {
+					if(tour_length > input->GetDroneMaxDist(DRONE_I)) {
 						if(DEBUG_SOLVER)
 							printf("Tour too long -> increase k\n");
 
@@ -260,7 +260,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					// Add in energy required to launch and to land
 					joules += LAUNCH_ENERGY + LAND_ENERGY;
 					// Determine how long the drone must charge
-					double finalChargeTime = calcChargeTime(joules);
+					double finalChargeTime = calcChargeTime(input, drone, joules);
 
 					// Determine time required to move to base
 					double dist_to_base = distAtoB(depots.at(depot_order.at(ugv_num).back()).x, depots.at(depot_order.at(ugv_num).back()).y, depots.back().x, depots.back().y);
@@ -384,7 +384,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							// Add in energy required to launch and to land
 							joules += LAUNCH_ENERGY + LAND_ENERGY;
 							// Determine how long the drone must charge
-							double chargeTime = calcChargeTime(joules);
+							double chargeTime = calcChargeTime(input, drone, joules);
 							chargeTimes.at(drone) = chargeTime;
 							// Record how much the UGV has given away
 							ugvEnergySpent.at(ugv_num) += joules/CHARGE_EFFICIENCY;
@@ -460,7 +460,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 
 					// 9. If there exists UGV-tour A such that energy(A) > E^g_max, increase k and repeat steps 2-9
-					if(ugvEnergySpent.at(ugv_num) > UGV_TOTAL_BAT) {
+					if(ugvEnergySpent.at(ugv_num) > input->GetUGVBatCap(ugv_num)) {
 						if(DEBUG_SOLVER) {
 							printf("\nUGV %d will run out of energy!\nIncrease k, start over...\n", ugv_num);
 						}
@@ -484,8 +484,8 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 }
 
 
-double Solver::calcChargeTime(double J) {
-	double batt_charge = DRONE_TOTAL_BAT - J;
+double Solver::calcChargeTime(PatrollingInput* input, int drone_j, double J) {
+	double batt_charge = input->GetDroneBatCap(drone_j) - J;
 	double time = 0;
 
 	// Will we be fast-charging?
@@ -513,3 +513,203 @@ double Solver::calcChargeTime(double J) {
 
 	return time;
 }
+
+/*
+ * Solves TSP on on vertices held in lst and stores found ordering in result. The multiplier
+ * variable can be set to force the solver to solver a fixed-HPP (forcing the first and last
+ * vertices in lst to be connected in the TSP solution).
+ */
+void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& result, double multiplier) {
+	if(DEBUG_SOLVER)
+		printf("Creating LKH Data Files\n");
+
+	// Mark which vertices are the depot and terminal (assumed to be last and second to last)
+	int depot_id = lst.front().nID;
+	int terminal_id= lst.back().nID;
+	int depot_index = 0;
+	int terminal_index= boost::numeric_cast<int>(lst.size()-1);
+	if(DEBUG_SOLVER)
+		printf(" Depot: %d, Terminal: %d, Multiplier: %f\n", depot_id, terminal_id, multiplier);
+
+	// Print solver parameter file
+	if(DEBUG_SOLVER)
+		printf(" Creating parameter file\n");
+	FILE * pParFile;
+	char buff1[100];
+	sprintf(buff1, "FixedHPP.par");
+	if(DEBUG_SOLVER)
+		printf("  %s\n", buff1);
+	pParFile = fopen(buff1, "w");
+
+	fprintf(pParFile, "PROBLEM_FILE = FixedHPP.tsp\n");
+	fprintf(pParFile, "COMMENT Fixed Hamiltonian Path Problem\n");
+	fprintf(pParFile, "TOUR_FILE = LKH_output.dat\n");
+	fprintf(pParFile, "TRACE_LEVEL = 0\n");
+
+	if(DEBUG_SOLVER)
+		printf("  Done!\n");
+	fclose(pParFile);
+
+	// Print node data to file
+	if(DEBUG_SOLVER)
+		printf(" Creating node data file\n");
+	FILE * pDataFile;
+	char buff2[100];
+	sprintf(buff2, "FixedHPP.tsp");
+	if(DEBUG_SOLVER)
+		printf("  %s\n", buff2);
+	pDataFile = fopen(buff2, "w");
+
+	if(DEBUG_SOLVER)
+		printf("  Adding graph specification data\n");
+	fprintf(pDataFile, "NAME : FixedHPP \n");
+	fprintf(pDataFile, "COMMENT : Fixed Hamiltonian Path Problem \n");
+	fprintf(pDataFile, "TYPE : TSP \n");
+	fprintf(pDataFile, "DIMENSION : %ld \n", lst.size());
+	fprintf(pDataFile, "EDGE_WEIGHT_TYPE : EXPLICIT \n");
+	fprintf(pDataFile, "EDGE_WEIGHT_FORMAT : FULL_MATRIX\n");
+
+	if(DEBUG_SOLVER)
+		printf("  Adding NxN weights matrix\n");
+	fprintf(pDataFile, "EDGE_WEIGHT_SECTION\n");
+	for(TSPVertex v : lst) {
+		for(TSPVertex u : lst) {
+			if((v.nID == depot_id && u.nID == terminal_id) || (v.nID == terminal_id && u.nID == depot_id)) {
+				fprintf(pDataFile, "%f\t", 0.0);
+			}
+			else if((v.nID == depot_id) || (u.nID == depot_id) || (u.nID == terminal_id) || (v.nID == terminal_id)) {
+				fprintf(pDataFile, "%f\t", distAtoB(v.x, v.y, u.x, u.y)*multiplier );
+			}
+			else {
+				fprintf(pDataFile, "%.5f\t", distAtoB(v.x, v.y, u.x, u.y));
+			}
+		}
+		fprintf(pDataFile, "\n");
+	}
+
+	if(DEBUG_SOLVER)
+		printf("  Done!\n");
+	fprintf(pDataFile, "EOF\n");
+	fclose(pDataFile);
+
+	if(DEBUG_SOLVER)
+		printf("Running LKH\n");
+
+	// Run TSP solver on this sub-tour
+	int sys_output = std::system("LKH FixedHPP.par > trash.out");
+
+	if(DEBUG_SOLVER)
+		printf("System Call returned: %d\nFound the following solution:\n", sys_output);
+
+	// Open file with results
+	std::ifstream file("LKH_output.dat");
+	// Remove the first few lines...
+	std::string line;
+	for(int i = 0; i < 6; i++) {
+		std::getline(file, line);
+	}
+
+	/// Make list of total-tour minus depot and terminal
+	std::list<int> totalPath;
+
+	// Start parsing the data
+	for(int i = 0; i < boost::numeric_cast<int>(lst.size()); i++) {
+		std::getline(file, line);
+		std::stringstream lineStreamN(line);
+		// Parse the way-point from the line
+		int n;
+		lineStreamN >> n;
+		totalPath.push_back(n-1);
+		if(DEBUG_SOLVER)
+			printf(" %d", n-1);
+	}
+	if(DEBUG_SOLVER)
+		printf("\n");
+
+	file.close();
+
+	/// Correct the returned list from the LKH solver
+	// Check for weird (easy) edge-cases
+	if((totalPath.front() == depot_index) && (totalPath.back() == terminal_index)) {
+		// Nothing to fix...
+	}
+	else if((totalPath.front() == terminal_index) && (totalPath.back() == depot_index)) {
+		// Easy fix, just reverse the list
+		totalPath.reverse();
+	}
+	else {
+		// Correcting the path will take a little more work...
+		// Scan totalPath to determine the given order
+		bool reverseList = true;
+		{
+			std::list<int>::iterator it = totalPath.begin();
+
+			while((*it != depot_index) && (it != totalPath.end())) {
+				if(*it == terminal_index) {
+					reverseList = false;
+				}
+				it++;
+			}
+		}
+
+		// Rotate list so that it starts at the closest-to-depot way-point,
+		//  and ends with the closest-to-ideal-stop
+		bool rotate_again = true;
+		while(rotate_again) {
+			if(totalPath.front() == depot_index) {
+				// Total path has been corrected
+				rotate_again = false;
+			}
+			else {
+				// Keep rotating list
+				int temp = totalPath.front();
+				totalPath.pop_front();
+				totalPath.push_back(temp);
+			}
+		}
+
+		if(reverseList) {
+			// We were given the list "backwards", we need to reverse it
+			int temp = totalPath.front();
+			totalPath.pop_front();
+			totalPath.push_back(temp);
+
+			totalPath.reverse();
+		}
+	}
+
+	// Verify that the list is correct
+	if((totalPath.front() != depot_index) || (totalPath.back() != terminal_index)) {
+		// Something went wrong...
+		fprintf(stderr, "[ERROR] : Solver::solverTSP_LKH() : totalPath order is not as expected\n");
+		for(int n : totalPath) {
+			fprintf(stderr, " %d", n);
+		}
+		fprintf(stderr, "\n");
+		exit(1);
+	}
+
+	// Sanity print
+	if(DEBUG_SOLVER) {
+		printf("Fixed total path:\n");
+		for(int n : totalPath) {
+			printf(" %d", n);
+		}
+		printf("\n");
+	}
+
+	// Store the solution in Results
+	for(int i : totalPath) {
+		result.push_back(lst.at(i));
+	}
+
+	// Sanity print
+	if(DEBUG_SOLVER) {
+		printf("Returning result:\n");
+		for(TSPVertex v : result) {
+			printf(" %d", v.nID);
+		}
+		printf("\n\n");
+	}
+}
+
