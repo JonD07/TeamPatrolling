@@ -340,7 +340,7 @@ void Solution::GenerateYAML(const std::string& filename) {
 	// UGV Plans m_Ag
 	for(int a_j = 0; a_j < boost::numeric_cast<int>(m_Ag.size()); a_j++) {
 		out << YAML::BeginMap;
-		out << YAML::Key << "agent_ID" << YAML::Value << m_input->GetDroneID(a_j);
+		out << YAML::Key << "agent_ID" << YAML::Value << m_input->GetUGVID(a_j);
 		out << YAML::Key << "actions" << YAML::Value << YAML::BeginSeq;
 
 		// Track the time of the last action

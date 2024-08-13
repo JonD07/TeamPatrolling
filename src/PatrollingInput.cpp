@@ -165,6 +165,26 @@ void PatrollingInput::GetDepot(int j, double* x, double* y) {
 	}
 }
 
+// Get the max range of drone j (on a full charge)
+double PatrollingInput::GetDroneMaxDist(int j) {
+	// Determine energy efficiency at optimal speed (Watts -- Jules per second)
+	double efficiency_v_opt = 396.743 - 1.695*UAV_V_OPT;
+	// Determine max operation time (bat-capacity / efficiency) (based on full battery)
+	double max_t = GetDroneBatCap(j)/efficiency_v_opt;
+	// Max-dist = v_opt * max-t
+	return UAV_V_OPT * max_t;
+}
+
+// Get the max range of drone j (on a full charge)
+double PatrollingInput::GetUGVMaxDist(int j) {
+	// Determine energy efficiency at optimal speed (Watts -- Jules per second)
+	double efficiency_v_opt = 464.8*UGV_V_OPT + 356.3;
+	// Determine max operation time (bat-capacity / efficiency) (based on full battery)
+	double max_t = GetUGVBatCap(j)/efficiency_v_opt;
+	// Max-dist = v_opt * max-t
+	return UGV_V_OPT * max_t;
+}
+
 // Determines a theoretical lower-bound on a possible solution
 double PatrollingInput::LowerBound() {
 	return 0;

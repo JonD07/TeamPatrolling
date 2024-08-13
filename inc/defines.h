@@ -16,16 +16,16 @@
 #define INF				1000000000000
 #define PI				3.14159265
 
-#define UAV_MAX_D		11477.0
+//#define UAV_MAX_D		11477.0
 #define UAV_V_MAX		12.0
 #define UAV_LAUNCH_TIME	10.0
 #define UAV_LAND_TIME	60.0
-#define UGV_V_MAX		4.5
-#define UGV_V_CRG		3.0
+#define UGV_V_MAX		1.5
+#define UGV_V_CRG		1.5
 #define LAUNCH_ENERGY	4000.0
 #define LAND_ENERGY		7200.0
 #define DRONE_JOULES_PER_SECONDS	376.4
-#define DRONE_TOTAL_BAT	360381.0
+//#define DRONE_TOTAL_BAT	360381.0
 #define SLOW_CHARGE_POINT	244537.0
 #define FAST_CHARGE_A	0.06384091
 #define FAST_CHARGE_B	403.886
@@ -37,11 +37,16 @@
 #define E_STAR	244537
 #define UGV_JOULES_PER_SECONDS_DRIVE	1750.7
 #define UGV_JOULES_PER_SECONDS_WAIT	200.0
-#define UGV_TOTAL_BAT	25010000.0
+//#define UGV_TOTAL_BAT	25010000.0
 #define UGV_BAT_SWAP_TIME	300
 
 // Number of simulation trials to run
 #define N_S	3
+
+// TODO: Remove these when you have better data!!
+#define UAV_V_OPT		UAV_V_MAX
+#define UGV_V_OPT		UGV_V_MAX // NOT TRUE! UGV is most efficient while stationary (or moving slowly)
+#define DRONE_I			0
 
 
 #define DRONE_PER_UGV	2

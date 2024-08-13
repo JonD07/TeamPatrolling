@@ -42,6 +42,12 @@ struct CompareArrival {
 	}
 };
 
+struct TSPVertex {
+	int nID;
+	double x;
+	double y;
+};
+
 
 class Solver {
 public:
@@ -53,7 +59,14 @@ public:
 	void RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
 
 protected:
-	double calcChargeTime(double J);
+	// Determines how long it will take to recharge a drone J jules.
+	double calcChargeTime(PatrollingInput* input, int drone_j, double J);
+	/*
+	 * Solves TSP on on vertices held in lst and stores found ordering in result. The multiplier
+	 * variable can be set to force the solver to solver a fixed-HPP (forcing the first and last
+	 * vertices in lst to be connected in the TSP solution).
+	 */
+	void solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& result, double multiplier);
 private:
 	KMeansSolver mKMeansSolver;
 	VRPSolver mVRPSolver;
