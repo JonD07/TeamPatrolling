@@ -135,7 +135,9 @@ void PatrollingInput::parseScenario(const YAML::Node& scenario) {
 		node.location.y = nodeNode["location"]["y"].as<double>();
 		node.time_last_service = nodeNode["time_last_service"].as<double>();
 
-		nodes.push_back(node);
+		if(node.type == "air_only") {
+			nodes.push_back(node);
+		}
 
         if(DEBUG_PATROLINPUT) {
             std::cout << "  Node ID: " << node.ID << std::endl;
