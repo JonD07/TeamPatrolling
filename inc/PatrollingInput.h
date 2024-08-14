@@ -17,6 +17,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include "Input.h"
+#include "Roots.h"
 
 
 #define DEBUG_PATROLINPUT	DEBUG || 0
@@ -96,6 +97,12 @@ public:
 	double GetDroneMaxDist(int j);
 	// Get the max range of drone j (on a full charge)
 	double GetUGVMaxDist(int j);
+	// Determines the time required to charge drone j for J jules
+	double calcChargeTime(int drone_j, double J);
+	// Get the maximum time required to fully charge drone j
+	double GetTMax(int drone_j);
+	// Get the maximum speed of drone j
+	double GetDroneVMax(int drone_j);
 
 	// Determines a theoretical upper bound on a possible solution
 	double LowerBound();

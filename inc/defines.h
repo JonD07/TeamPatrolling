@@ -17,7 +17,6 @@
 #define PI				3.14159265
 
 //#define UAV_MAX_D		11477.0
-#define UAV_V_MAX		12.0
 #define UAV_LAUNCH_TIME	10.0
 #define UAV_LAND_TIME	60.0
 #define UGV_V_MAX		1.5
@@ -47,6 +46,8 @@
 #define UAV_V_OPT		UAV_V_MAX
 #define UGV_V_OPT		UGV_V_MAX // NOT TRUE! UGV is most efficient while stationary (or moving slowly)
 #define DRONE_I			0
+#define UAV_V_MAX		12.0
+#define UAV_V_MAX_AFIELD	5.0
 
 
 #define DRONE_PER_UGV	2
