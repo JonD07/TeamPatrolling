@@ -29,6 +29,7 @@
 #define FAST_CHARGE_A	0.06384091
 #define FAST_CHARGE_B	403.886
 #define CHARGE_EFFICIENCY	0.9
+#define CHARGE_STARTUP_T	10.0
 #define T_MAX	991.4
 #define T_STAR	555.6
 #define ALPHA	0.003

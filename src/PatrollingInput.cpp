@@ -142,6 +142,10 @@ void PatrollingInput::parseScenario(const YAML::Node& scenario) {
 		if(node.type == "air_only") {
 			nodes.push_back(node);
 		}
+		else if(node.type == "depot_a") {
+			depot_x = nodeNode["location"]["x"].as<double>();
+			depot_y = nodeNode["location"]["y"].as<double>();
+		}
 
         if(DEBUG_PATROLINPUT) {
             std::cout << "  Node ID: " << node.ID << std::endl;
@@ -159,6 +163,34 @@ PatrollingInput::~PatrollingInput() {
 
 // Get the location of the depot for UGV j
 void PatrollingInput::GetDepot(int j, double* x, double* y) {
+	// Bounds checking on j
+	if(j >= 0 && j < boost::numeric_cast<int>(mRg.size())) {
+		*x = mRg.at(j).location.x;
+		*y = mRg.at(j).location.y;
+	}
+	else {
+		// They asked for some non-existing vehicle... just return 0;
+		*x = 0;
+		*y = 0;
+	}
+}
+
+// Get the initial location of drone j
+void PatrollingInput::GetDroneInitLocal(int j, double* x, double* y) {
+	// Bounds checking on j
+	if(j >= 0 && j < boost::numeric_cast<int>(mRa.size())) {
+		*x = mRa.at(j).location.x;
+		*y = mRa.at(j).location.y;
+	}
+	else {
+		// They asked for some non-existing vehicle... just return 0;
+		*x = 0;
+		*y = 0;
+	}
+}
+
+// Get the initial location of UGV j
+void PatrollingInput::GetUGVInitLocal(int j, double* x, double* y) {
 	// Bounds checking on j
 	if(j >= 0 && j < boost::numeric_cast<int>(mRg.size())) {
 		*x = mRg.at(j).location.x;
@@ -193,7 +225,7 @@ double PatrollingInput::GetUGVMaxDist(int j) {
 
 // Determines the time required to charge drone j for J jules
 double PatrollingInput::calcChargeTime(int drone_j, double J) {
-	double time = 0;
+	double time = CHARGE_STARTUP_T;
 
 	// Which type of drone is this?
 	if(mRa.at(drone_j).subtype == "standard") {
@@ -209,7 +241,7 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 			roots.FindRoots(FAST_CHARGE_A, FAST_CHARGE_B, (-1*fast_charge_joules));
 			if(!roots.imaginary) {
 				double fast_charge_time = std::max(roots.root1, roots.root2);
-				time = fast_charge_time + (T_MAX - T_STAR);
+				time += fast_charge_time + (T_MAX - T_STAR);
 			}
 			else {
 				// Not expected to be here...
@@ -220,7 +252,7 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 		else {
 			// We are in the slow charging range. Find time to charge to where we are..
 			double charge_to_current = T_STAR - (log(1+(ALPHA/P_STAR)*(E_STAR - J)))/ALPHA;
-			time = T_MAX - charge_to_current;
+			time += T_MAX - charge_to_current;
 
 		}
 	}
@@ -230,7 +262,7 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 		Roots roots;
 		roots.FindRoots(FAST_CHARGE_A, FAST_CHARGE_B, (-1*J));
 		if(!roots.imaginary) {
-			time = std::max(roots.root1, roots.root2);
+			time += std::max(roots.root1, roots.root2);
 		}
 		else {
 			// Not expected to be here...

@@ -83,6 +83,10 @@ public:
 	const std::vector<Node>& GetNodes() {return nodes;}
 	// Get the location of the depot (we assume a single depot)
 	void GetDepot(int j, double* x, double* y);
+	// Get the initial location of drone j
+	void GetDroneInitLocal(int j, double* x, double* y);
+	// Get the initial location of UGV j
+	void GetUGVInitLocal(int j, double* x, double* y);
 	// Get the designated name for node i
 	std::string GetNodeID(int i) {return nodes.at(i).ID;}
 	// Get the designated name for drone j
@@ -111,6 +115,8 @@ private:
 	std::vector<Agent> mRa;
 	std::vector<Agent> mRg;
 	std::vector<Node> nodes;
+	double depot_x;
+	double depot_y;
 
 	void parseAgents(const YAML::Node& agents);
 	void parseScenario(const YAML::Node& scenario);
