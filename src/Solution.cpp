@@ -367,14 +367,69 @@ void Solution::GenerateYAML(const std::string& filename) {
 
 		for(const auto& action : m_Ag.at(a_j)) {
 			if(action.mActionType == E_UGVActionTypes::e_MoveToWaypoint || action.mActionType == E_UGVActionTypes::e_MoveToDepot) {
+				// We need to break this up into smaller legs
+				double crnt_x = prev_x;
+				double crnt_y = prev_y;
+
+				// While we are further than the max spline segment distance
+				while(distAtoB(crnt_x, crnt_y, action.fX, action.fY) > UGV_SPLINE_SEG_DIST) {
+					// Increment forward
+					double delta_X = action.fX - prev_x;
+					double delta_Y = action.fY - prev_y;
+					double theta = 0.0;
+					if(!isZero(delta_X)) {
+						theta = atan(delta_Y/delta_X);
+						if(delta_X < 0) {
+							theta += PI;
+						}
+					}
+					else {
+						if(delta_Y > 0) {
+							theta = PI/2.0;
+						}
+						else {
+							theta = PI/-2.0;
+						}
+					}
+					double delta_x = cos(theta)*UGV_SPLINE_SEG_DIST;
+					double delta_y = sin(theta)*UGV_SPLINE_SEG_DIST;
+					// How far are we going? (we expect this to be 10 m)
+					double seg_dist = distAtoB(crnt_x, crnt_y, crnt_x + delta_x, crnt_y + delta_y);
+					double seg_t = seg_dist/UGV_V_CRG;
+
+					// Move the UGV over this distance
+					out << YAML::BeginMap;
+					out << YAML::Key << "type" << YAML::Value << "move_to_location";
+					out << YAML::Key << "start_time" << YAML::Value << last_t;
+					out << YAML::Key << "end_time" << YAML::Value << last_t + seg_t;
+					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "x" << YAML::Value << crnt_x;
+					out << YAML::Key << "y" << YAML::Value << crnt_y;
+					out << YAML::EndMap;
+					out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "x" << YAML::Value << crnt_x + delta_x;
+					out << YAML::Key << "y" << YAML::Value << crnt_y + delta_y;
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+
+					// Update for next iteration
+					crnt_x += delta_x;
+					crnt_y += delta_y;
+					last_t += seg_t;
+
+				}
+
+				// Add in the last leg (will be less than UGV_SPLINE_SEG_DIST in distance)
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "move_to_location";
 				out << YAML::Key << "start_time" << YAML::Value << last_t;
 				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << prev_x;
-				out << YAML::Key << "y" << YAML::Value << prev_y;
+				out << YAML::Key << "x" << YAML::Value << crnt_x;
+				out << YAML::Key << "y" << YAML::Value << crnt_y;
 				out << YAML::EndMap;
 				out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "x" << YAML::Value << action.fX;
@@ -388,8 +443,8 @@ void Solution::GenerateYAML(const std::string& filename) {
 					// Swap-out batteries
 					out << YAML::BeginMap;
 					out << YAML::Key << "type" << YAML::Value << "swap_battery";
-					out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime + UGV_BAT_SWAP_TIME;
-					out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+					out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime;
+					out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime + UGV_BAT_SWAP_TIME;
 					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 					out << YAML::Key << "start_progress" << YAML::Value << 0.0;
 					out << YAML::Key << "end_progress" << YAML::Value << 1.0;
