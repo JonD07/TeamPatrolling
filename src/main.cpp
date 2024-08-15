@@ -124,6 +124,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	if(print_actions) {
+//		Solution runtime_solution(&input);
+//		runtime_solution.CreateRuntimeSolution(solution);
+//		runtime_solution.GenerateYAML("output_plan.yaml");
+
 		solution.GenerateYAML("output_plan.yaml");
 	}
 
