@@ -39,6 +39,7 @@
 #define UGV_JOULES_PER_SECONDS_WAIT	200.0
 //#define UGV_TOTAL_BAT	25010000.0
 #define UGV_BAT_SWAP_TIME	300
+#define CREATE_SPLINES	0
 #define UGV_SPLINE_SEG_DIST	10.0
 
 // Number of simulation trials to run
@@ -53,6 +54,7 @@
 
 
 #define DRONE_PER_UGV	2
+
 
 enum {
 	e_Algo_COMP = 0,

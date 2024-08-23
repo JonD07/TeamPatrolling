@@ -14,73 +14,88 @@
 
 #define DEBUG_MAIN	DEBUG || 0
 
-#define PRINT_RESULTS	0
+#define DEFAULT_PRINT_ACTIONS	false
+#define DEFAULT_PRINT_RESULTS	0
 #define DATA_LOG_FORMAT	"alg_%d.dat"
-#define DATA_LOG_DEFLT_PATH	""
+#define DEFAULT_DATA_LOG_PATH	""
+#define DEFAULT_RUN_NUM	0
 
 
 int main(int argc, char *argv[]) {
 	srand(time(NULL));
 
-	int algorithm = 3;
+	const char* inputPath;
+	int algorithm;
+	bool print_actions;
 	bool printResults;
 	const char* outputPath;
-	int runnum = 0;
-	bool print_actions = false;
+	int runnum;
 
 	// Verify user input
 	if(argc == 3) {
+		inputPath = argv[1];
 		algorithm = atoi(argv[2]);
-		printResults = PRINT_RESULTS;
-		outputPath = DATA_LOG_DEFLT_PATH;
+		print_actions = DEFAULT_PRINT_ACTIONS;
+		printResults = DEFAULT_PRINT_RESULTS;
+		outputPath = DEFAULT_DATA_LOG_PATH;
+		runnum = DEFAULT_RUN_NUM;
 	}
 	else if(argc == 4) {
+		inputPath = argv[1];
 		algorithm = atoi(argv[2]);
-		printResults = atoi(argv[3]);
-		outputPath = DATA_LOG_DEFLT_PATH;
+		print_actions = atoi(argv[3]);
+		printResults = DEFAULT_PRINT_RESULTS;
+		outputPath = DEFAULT_DATA_LOG_PATH;
+		runnum = DEFAULT_RUN_NUM;
 	}
 	else if(argc == 5) {
+		inputPath = argv[1];
 		algorithm = atoi(argv[2]);
-		printResults = atoi(argv[3]);
-		outputPath = argv[4];
+		print_actions = atoi(argv[3]);
+		printResults = atoi(argv[4]);
+		outputPath = DEFAULT_DATA_LOG_PATH;
+		runnum = DEFAULT_RUN_NUM;
 	}
 	else if(argc == 6) {
+		inputPath = argv[1];
 		algorithm = atoi(argv[2]);
-		printResults = atoi(argv[3]);
-		outputPath = argv[4];
-		runnum = atoi(argv[5]);
+		print_actions = atoi(argv[3]);
+		printResults = atoi(argv[4]);
+		outputPath = argv[5];
+		runnum = DEFAULT_RUN_NUM;
 	}
 	else if(argc == 7) {
+		inputPath = argv[1];
 		algorithm = atoi(argv[2]);
-		printResults = atoi(argv[3]);
-		outputPath = argv[4];
-		runnum = atoi(argv[5]);
-		print_actions = atoi(argv[6]);
+		print_actions = atoi(argv[3]);
+		printResults = atoi(argv[4]);
+		outputPath = argv[5];
+		runnum = atoi(argv[6]);
 	}
 	else {
-		printf("Received %d args, expected 1 or more.\nExpected use:\t./find-assignment <file path> <algorithm> [print results] [output path] [run number] [print actions file]\n\n", argc - 1);
+		printf("Received %d args, expected 1 or more.\nExpected use:\t./find-assignment <file path> <algorithm> [print actions] [print results] [result output path] [run number]\n\n", argc - 1);
 		return 1;
 	}
 
 	Solver* solver = NULL;
-	PatrollingInput input(argv[1]);
+	PatrollingInput input(inputPath);
 	Solution solution(&input);
 
 	// Capture start time
 	auto start = std::chrono::high_resolution_clock::now();
 
 	switch(algorithm) {
-	case e_Algo_GREEDY: {
+	case e_Algo_GREEDY: {		// algo: 1
 		solver = new BaselineSolver();
 	}
 	break;
 
-	case e_Algo_OPTLAUNCH: {
+	case e_Algo_OPTLAUNCH: {	// algo: 2
 		solver = new OptLaunchSolver();
 	}
 	break;
 
-	case e_Algo_ILO: {
+	case e_Algo_ILO: { 			// algo: 3
 		solver = new Solver_ILO();
 	}
 	break;

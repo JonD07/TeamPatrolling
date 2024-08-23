@@ -16,7 +16,7 @@
 #include "Utilities.h"
 #include "Solver.h"
 
-#define DEBUG_GREEDY	DEBUG || 1
+#define DEBUG_GREEDY	DEBUG || 0
 
 
 class BaselineSolver : public Solver {
