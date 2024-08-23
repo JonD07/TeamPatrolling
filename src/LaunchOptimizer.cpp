@@ -183,9 +183,9 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				if(prev_action_id.at(action.ID) >= 0) {
 					// Require that the start time comes after charging is completed
 					GRBVar t_j = action_time_vars.at(prev_action_id.at(action.ID));
-					model.addConstr(t_i >= t_j + T_MAX, "t_"+itos(action_cout)+"_geq_t_"+itos(prev_action_id.at(action.ID)));
+					model.addConstr(t_i >= t_j + input->GetTMax(DRONE_I), "t_"+itos(action_cout)+"_geq_t_"+itos(prev_action_id.at(action.ID)));
 					if(DEBUG_LAUNCHOPT)
-						printf("* t_%d >= t_%d + %f\n", action_cout, prev_action_id.at(action.ID), T_MAX);
+						printf("* t_%d >= t_%d + %f\n", action_cout, prev_action_id.at(action.ID), input->GetTMax(DRONE_I));
 				}
 				// Must be the first launch
 				else {
@@ -233,9 +233,9 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				// Make sure the first action comes after the fully recharging from the last action
 				GRBVar t_1 = action_time_vars.at(first_action_id.at(drone_id));
 				GRBVar t_n = action_time_vars.at(prev_action_id.at(drone_id));
-				model.addConstr(t_1 >= T_MAX - (UGV_BAT_SWAP_TIME + t_base - t_n), "t_f"+itos(drone_id)+"_geq_t_l"+itos(drone_id));
+				model.addConstr(t_1 >= input->GetTMax(DRONE_I) - (UGV_BAT_SWAP_TIME + t_base - t_n), "t_f"+itos(drone_id)+"_geq_t_l"+itos(drone_id));
 				if(DEBUG_LAUNCHOPT)
-					printf("* t_%d >= %f - t_%d + t_%d\n", first_action_id.at(drone_id), T_MAX, action_cout, prev_action_id.at(drone_id));
+					printf("* t_%d >= %f - t_%d + t_%d\n", first_action_id.at(drone_id), input->GetTMax(DRONE_I), action_cout, prev_action_id.at(drone_id));
 			}
 		}
 
@@ -293,9 +293,9 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			GRBVar t_j = action_time_vars.at(j);
 			GRBVar d_s = sub_tour_dist_vars.at(tour).at(0);
 			GRBVar d_e = sub_tour_dist_vars.at(tour).at(1);
-			model.addConstr(t_j == t_i + d_s/UAV_V_MAX + sub_tours.at(tour).tour_dist/UAV_V_MAX + d_e/UAV_V_MAX + UAV_LAND_TIME, "t_"+itos(sub_tours.at(tour).launch_ID)+"_geq_t_"+itos(sub_tours.at(tour).land_ID)+"_+_td");
+			model.addConstr(t_j == t_i + d_s/input->GetDroneVMax(DRONE_I) + sub_tours.at(tour).tour_dist/input->GetDroneVMax(DRONE_I) + d_e/input->GetDroneVMax(DRONE_I) + UAV_LAND_TIME, "t_"+itos(sub_tours.at(tour).launch_ID)+"_geq_t_"+itos(sub_tours.at(tour).land_ID)+"_+_td");
 			if(DEBUG_LAUNCHOPT)
-				printf("* t_%d == t_%d + d_s%d/%f + %f + d_e%d/%f + %f\n", j, i, tour, UAV_V_MAX, sub_tours.at(tour).tour_dist/UAV_V_MAX, tour, UAV_V_MAX, UAV_LAND_TIME);
+				printf("* t_%d == t_%d + d_s%d/%f + %f + d_e%d/%f + %f\n", j, i, tour, input->GetDroneVMax(DRONE_I), sub_tours.at(tour).tour_dist/input->GetDroneVMax(DRONE_I), tour, input->GetDroneVMax(DRONE_I), UAV_LAND_TIME);
 
 			// Add constraint on sub-tour start/end leg distances
 			auto coord_i = action_coord_vars.at(sub_tours.at(tour).launch_ID);
@@ -454,7 +454,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 						int node_id = next_action.mDetails;
 						double x_j = vctrPOINodes.at(node_id).location.x, y_j = vctrPOINodes.at(node_id).location.y;
 						double dist_i_j = distAtoB(drone_x_i, drone_y_i, x_j, y_j);
-						double time_i_j = dist_i_j/UAV_V_MAX;
+						double time_i_j = dist_i_j/input->GetDroneVMax(DRONE_I);
 						double t_j = drone_t_i + time_i_j;
 
 						// Add visit node action
@@ -500,7 +500,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				// Move the drone to this point
 				int drone_id = action_i.ID;
 				double dist_drone_j = distAtoB(drone_pos_x_y_t.at(drone_id).at(0), drone_pos_x_y_t.at(drone_id).at(1), x_j, y_j);
-				double t_drone_j = drone_pos_x_y_t.at(drone_id).at(2) + dist_drone_j/UAV_V_MAX;
+				double t_drone_j = drone_pos_x_y_t.at(drone_id).at(2) + dist_drone_j/input->GetDroneVMax(DRONE_I);
 				double drone_arrives = std::max(t_drone_j, t_j);
 
 				// Move drone to UGV

@@ -86,7 +86,7 @@ def generate_yaml_file(file_name, m1, m2, n):
 	for i in range(1, n + 1):
 		node = {
 			'ID': f'n_{i:04}',
-			'type': 'standard',
+			'type': 'air_only',
 			'location': {
 				'x': round(random.uniform(MAX_X/-2.0, MAX_X/2.0), 1),
 				'y': round(random.uniform(MAX_Y/-2.0, MAX_Y/2.0), 1)

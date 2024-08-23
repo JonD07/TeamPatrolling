@@ -59,8 +59,6 @@ public:
 	void RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
 
 protected:
-	// Determines how long it will take to recharge a drone J jules.
-	double calcChargeTime(PatrollingInput* input, int drone_j, double J);
 	/*
 	 * Solves TSP on on vertices held in lst and stores found ordering in result. The multiplier
 	 * variable can be set to force the solver to solver a fixed-HPP (forcing the first and last

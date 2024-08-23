@@ -17,9 +17,65 @@ Solution::Solution(PatrollingInput* input) {
 
 Solution::Solution(const Solution &other) {
 	m_input = other.m_input;
+	// Copy over the action lists
+	for(std::vector<DroneAction> act_list : other.m_Aa) {
+		// Create a new list locally
+		m_Aa.push_back(act_list);
+	}
+	for(std::vector<UGVAction> act_list : other.m_Ag) {
+		// Create a new list locally
+		m_Ag.push_back(act_list);
+	}
 }
 
 Solution::~Solution() {
+}
+
+// Takes in an existing solution and generates a runtime version (clears any existing solution stored here)
+void Solution::CreateRuntimeSolution(const Solution &other) {
+//	m_input = other.m_input;
+//	// Copy over the action lists
+//	m_Aa.clear();
+//	for(std::vector<DroneAction> act_list : other.m_Aa) {
+//		// Create a new list locally
+//		m_Aa.push_back(act_list);
+//	}
+//	m_Ag.clear();
+//	for(std::vector<UGVAction> act_list : other.m_Ag) {
+//		// Create a new list locally
+//		m_Ag.push_back(act_list);
+//	}
+//
+//	// For each UGV
+//	for(int ugv_num = 0; ugv_num < m_input->GetMg(); ugv_num++) {
+//		// Determine which starting point will reduce the total penalty (assume that it is the start of the tour)
+//		double best_penalty = std::numeric_limits<double>::max();
+//		int best_start_action = m_Ag.at(ugv_num).front().mActionID;
+//
+//		// Check each launch point
+//		// TODO: ONLY WORKS WITH SINGLE DRONE!!
+//		for(int act_i = 0; act_i < boost::numeric_cast<int>(m_Ag.at(ugv_num).size()); act_i++) {
+//			if(m_Ag.at(ugv_num).at(act_i).mActionType == E_UGVActionTypes::e_LaunchDrone) {
+//				// Create a new set of actions based on this being your starting point
+//				std::vector<UGVAction> newUGVTour;
+//				double prev_t = 0.0;
+//				double prev_x;
+//				double prev_y;
+//				m_input->GetUGVInitLocal(ugv_num, &prev_x, &prev_y);
+//
+//				// Move from your location to this action
+//				UGVAction inital_action(E_UGVActionTypes::e_MoveToWaypoint, m_Ag.at(ugv_num).at(act_i).fX, m_Ag.at(ugv_num).at(act_i).fY, prev_t);
+//
+//				// Add in the rest of the action list (including this first action)
+//				for(int act_ii = act_i; act_ii < boost::numeric_cast<int>(m_Ag.at(ugv_num).size()); act_ii++) {
+//
+//				}
+//			}
+//			else {
+//				// Don't consider this action as the starting point
+//			}
+//		}
+//	}
 }
 
 
@@ -27,7 +83,6 @@ Solution::~Solution() {
 // Calculates the average penalty accumulation rate
 double Solution::CalculatePar() {
 	double ret_val = 0.0;
-
 
 	// Create a queue for times for each sensor
 	std::vector< std::priority_queue<NodeService, std::vector<NodeService>, CompareNoderService> > Visits_i;
@@ -185,7 +240,7 @@ void Solution::GenerateYAML(const std::string& filename) {
 	out << YAML::Key << "ID" << YAML::Value << "plan_every_UAV_action_02";
 	out << YAML::Key << "state_ID" << YAML::Value << "state_every_UAV_action_02";
 	out << YAML::Key << "description" << YAML::Value << "Team Patrolling";
-	out << YAML::Key << "start_time" << YAML::Value << 0.0;
+	out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(0.0);
 
 	double longest_end = 0.0;
 	for(int a_j = 0; a_j < boost::numeric_cast<int>(m_Ag.size()); a_j++) {
@@ -193,7 +248,7 @@ void Solution::GenerateYAML(const std::string& filename) {
 			longest_end = m_Ag.at(a_j).back().fCompletionTime;
 		}
 	}
-	out << YAML::Key << "end_time" << YAML::Value << longest_end;
+	out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(longest_end);
 
 	out << YAML::Key << "individual_plans" << YAML::Value << YAML::BeginSeq;
 
@@ -211,12 +266,12 @@ void Solution::GenerateYAML(const std::string& filename) {
 		{
 			out << YAML::BeginMap;
 			out << YAML::Key << "type" << YAML::Value << "start";
-			out << YAML::Key << "start_time" << YAML::Value << last_t;
-			out << YAML::Key << "end_time" << YAML::Value << last_t;
+			out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
+			out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(last_t);
 			out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 			out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-			out << YAML::Key << "x" << YAML::Value << m_Aa.at(a_j).front().fX;
-			out << YAML::Key << "y" << YAML::Value << m_Aa.at(a_j).front().fY;
+			out << YAML::Key << "x" << YAML::Value << floatingPointToString(m_Aa.at(a_j).front().fX);
+			out << YAML::Key << "y" << YAML::Value << floatingPointToString(m_Aa.at(a_j).front().fY);
 			out << YAML::EndMap;
 			out << YAML::EndMap;
 			out << YAML::EndMap;
@@ -230,32 +285,32 @@ void Solution::GenerateYAML(const std::string& filename) {
 				// Record that the drone was purched on the UGV
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "perch_on_UGV";
-				out << YAML::Key << "start_time" << YAML::Value << last_t;
-				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime - UAV_LAUNCH_TIME;
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
+				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
 				out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << prev_x;
-				out << YAML::Key << "y" << YAML::Value << prev_y;
+				out << YAML::Key << "x" << YAML::Value << floatingPointToString(prev_x);
+				out << YAML::Key << "y" << YAML::Value << floatingPointToString(prev_y);
 				out << YAML::EndMap;
 				out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << action.fX;
-				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+				out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
 				out << YAML::EndMap;
 				out << YAML::EndMap;
 				out << YAML::EndMap;
 				// Launch the drone
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "takeoff_from_UGV";;
-				out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime - UAV_LAUNCH_TIME;
-				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
+				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
-				out << YAML::Key << "start_progress" << YAML::Value << 0.0;
-				out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+				out << YAML::Key << "start_progress" << YAML::Value << floatingPointToString(0.0);
+				out << YAML::Key << "end_progress" << YAML::Value << floatingPointToString(1.0);
 				out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << action.fX;
-				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+				out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
 				out << YAML::EndMap;
 				out << YAML::EndMap;
 				out << YAML::EndMap;
@@ -264,16 +319,16 @@ void Solution::GenerateYAML(const std::string& filename) {
 				// First move to the node
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "move_to_location";
-				out << YAML::Key << "start_time" << YAML::Value << last_t;
-				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
+				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << prev_x;
-				out << YAML::Key << "y" << YAML::Value << prev_y;
+				out << YAML::Key << "x" << YAML::Value << floatingPointToString(prev_x);
+				out << YAML::Key << "y" << YAML::Value << floatingPointToString(prev_y);
 				out << YAML::EndMap;
 				out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << action.fX;
-				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+				out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
 				out << YAML::EndMap;
 				out << YAML::EndMap;
 				out << YAML::EndMap;
@@ -282,13 +337,13 @@ void Solution::GenerateYAML(const std::string& filename) {
 					// Service the node
 					out << YAML::BeginMap;
 					out << YAML::Key << "type" << YAML::Value << "service_node";;
-					out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime;
-					out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+					out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
+					out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 					out << YAML::Key << "node_ID" << YAML::Value << m_input->GetNodeID(action.mDetails);
 					out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-					out << YAML::Key << "x" << YAML::Value << action.fX;
-					out << YAML::Key << "y" << YAML::Value << action.fY;
+					out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+					out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
 					out << YAML::EndMap;
 					out << YAML::EndMap;
 					out << YAML::EndMap;
@@ -298,16 +353,16 @@ void Solution::GenerateYAML(const std::string& filename) {
 				// Land on UGV
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "land_on_UGV";;
-				out << YAML::Key << "start_time" << YAML::Value << last_t;
-				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
+				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
 				out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << action.fX;
-				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+				out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
 				out << YAML::EndMap;
-				out << YAML::Key << "start_progress" << YAML::Value << 0.0;
-				out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+				out << YAML::Key << "start_progress" << YAML::Value << floatingPointToString(0.0);
+				out << YAML::Key << "end_progress" << YAML::Value << floatingPointToString(1.0);
 				out << YAML::EndMap;
 				out << YAML::EndMap;
 			}
@@ -322,12 +377,12 @@ void Solution::GenerateYAML(const std::string& filename) {
 		{
 			out << YAML::BeginMap;
 			out << YAML::Key << "type" << YAML::Value << "end";
-			out << YAML::Key << "start_time" << YAML::Value << m_Aa.at(a_j).back().fCompletionTime;
-			out << YAML::Key << "end_time" << YAML::Value << m_Aa.at(a_j).back().fCompletionTime;
+			out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(m_Aa.at(a_j).back().fCompletionTime);
+			out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(m_Aa.at(a_j).back().fCompletionTime);
 			out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 			out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-			out << YAML::Key << "x" << YAML::Value << m_Aa.at(a_j).back().fX;
-			out << YAML::Key << "y" << YAML::Value << m_Aa.at(a_j).back().fY;
+			out << YAML::Key << "x" << YAML::Value << floatingPointToString(m_Aa.at(a_j).back().fX);
+			out << YAML::Key << "y" << YAML::Value << floatingPointToString(m_Aa.at(a_j).back().fY);
 			out << YAML::EndMap;
 			out << YAML::EndMap;
 			out << YAML::EndMap;
@@ -351,12 +406,12 @@ void Solution::GenerateYAML(const std::string& filename) {
 		{
 			out << YAML::BeginMap;
 			out << YAML::Key << "type" << YAML::Value << "start";
-			out << YAML::Key << "start_time" << YAML::Value << last_t;
-			out << YAML::Key << "end_time" << YAML::Value << last_t;
+			out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
+			out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(last_t);
 			out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 			out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-			out << YAML::Key << "x" << YAML::Value << m_Ag.at(a_j).front().fX;
-			out << YAML::Key << "y" << YAML::Value << m_Ag.at(a_j).front().fY;
+			out << YAML::Key << "x" << YAML::Value << floatingPointToString(m_Ag.at(a_j).front().fX);
+			out << YAML::Key << "y" << YAML::Value << floatingPointToString(m_Ag.at(a_j).front().fY);
 			out << YAML::EndMap;
 			out << YAML::EndMap;
 			out << YAML::EndMap;
@@ -367,35 +422,110 @@ void Solution::GenerateYAML(const std::string& filename) {
 
 		for(const auto& action : m_Ag.at(a_j)) {
 			if(action.mActionType == E_UGVActionTypes::e_MoveToWaypoint || action.mActionType == E_UGVActionTypes::e_MoveToDepot) {
-				out << YAML::BeginMap;
-				out << YAML::Key << "type" << YAML::Value << "move_to_location";
-				out << YAML::Key << "start_time" << YAML::Value << last_t;
-				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
-				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << prev_x;
-				out << YAML::Key << "y" << YAML::Value << prev_y;
-				out << YAML::EndMap;
-				out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << action.fX;
-				out << YAML::Key << "y" << YAML::Value << action.fY;
-				out << YAML::EndMap;
-				out << YAML::EndMap;
-				out << YAML::EndMap;
+				if(CREATE_SPLINES) {
+					// We need to break this up into smaller legs
+					double crnt_x = prev_x;
+					double crnt_y = prev_y;
+
+					// While we are further than the max spline segment distance
+					while(distAtoB(crnt_x, crnt_y, action.fX, action.fY) > UGV_SPLINE_SEG_DIST) {
+						// Increment forward
+						double delta_X = action.fX - prev_x;
+						double delta_Y = action.fY - prev_y;
+						double theta = 0.0;
+						if(!isZero(delta_X)) {
+							theta = atan(delta_Y/delta_X);
+							if(delta_X < 0) {
+								theta += PI;
+							}
+						}
+						else {
+							if(delta_Y > 0) {
+								theta = PI/2.0;
+							}
+							else {
+								theta = PI/-2.0;
+							}
+						}
+						double delta_x = cos(theta)*UGV_SPLINE_SEG_DIST;
+						double delta_y = sin(theta)*UGV_SPLINE_SEG_DIST;
+						// How far are we going? (we expect this to be 10 m)
+						double seg_dist = distAtoB(crnt_x, crnt_y, crnt_x + delta_x, crnt_y + delta_y);
+						double seg_t = seg_dist/UGV_V_CRG;
+
+						// Move the UGV over this distance
+						out << YAML::BeginMap;
+						out << YAML::Key << "type" << YAML::Value << "move_to_location";
+						out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
+						out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(last_t + seg_t);
+						out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+						out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
+						out << YAML::Key << "x" << YAML::Value << floatingPointToString(crnt_x);
+						out << YAML::Key << "y" << YAML::Value << floatingPointToString(crnt_y);
+						out << YAML::EndMap;
+						out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
+						out << YAML::Key << "x" << YAML::Value << floatingPointToString(crnt_x + delta_x);
+						out << YAML::Key << "y" << YAML::Value << floatingPointToString(crnt_y + delta_y);
+						out << YAML::EndMap;
+						out << YAML::EndMap;
+						out << YAML::EndMap;
+
+						// Update for next iteration
+						crnt_x += delta_x;
+						crnt_y += delta_y;
+						last_t += seg_t;
+
+					}
+
+					// Add in the last leg (will be less than UGV_SPLINE_SEG_DIST in distance)
+					out << YAML::BeginMap;
+					out << YAML::Key << "type" << YAML::Value << "move_to_location";
+					out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
+					out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
+					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "x" << YAML::Value << floatingPointToString(crnt_x);
+					out << YAML::Key << "y" << YAML::Value << floatingPointToString(crnt_y);
+					out << YAML::EndMap;
+					out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+					out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+				}
+				else {
+					// Just go directly to the next point
+					out << YAML::BeginMap;
+					out << YAML::Key << "type" << YAML::Value << "move_to_location";
+					out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
+					out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
+					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "x" << YAML::Value << floatingPointToString(prev_x);
+					out << YAML::Key << "y" << YAML::Value << floatingPointToString(prev_y);
+					out << YAML::EndMap;
+					out << YAML::Key << "destination" << YAML::Value << YAML::BeginMap;
+					out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+					out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+					out << YAML::EndMap;
+				}
 
 				// Did we go to the depot?
 				if(action.mActionType == E_UGVActionTypes::e_MoveToDepot) {
 					// Swap-out batteries
 					out << YAML::BeginMap;
 					out << YAML::Key << "type" << YAML::Value << "swap_battery";
-					out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime + UGV_BAT_SWAP_TIME;
-					out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+					out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
+					out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime + UGV_BAT_SWAP_TIME);
 					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
-					out << YAML::Key << "start_progress" << YAML::Value << 0.0;
-					out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+					out << YAML::Key << "start_progress" << YAML::Value << floatingPointToString(0.0);
+					out << YAML::Key << "end_progress" << YAML::Value << floatingPointToString(1.0);
 					out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-					out << YAML::Key << "x" << YAML::Value << action.fX;
-					out << YAML::Key << "y" << YAML::Value << action.fY;
+					out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+					out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
 					out << YAML::EndMap;
 					out << YAML::EndMap;
 					out << YAML::EndMap;
@@ -404,16 +534,16 @@ void Solution::GenerateYAML(const std::string& filename) {
 			else if(action.mActionType == E_UGVActionTypes::e_LaunchDrone) {
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "allow_takeoff_by_UAV";
-				out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime - UAV_LAUNCH_TIME;
-				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
+				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "UAV_ID" << YAML::Value << m_input->GetDroneID(action.mDetails);
 				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
-				out << YAML::Key << "start_progress" << YAML::Value << 0.0;
-				out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+				out << YAML::Key << "start_progress" << YAML::Value << floatingPointToString(0.0);
+				out << YAML::Key << "end_progress" << YAML::Value << floatingPointToString(1.0);
 				out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << action.fX;
-				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+				out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
 				out << YAML::EndMap;
 				out << YAML::EndMap;
 				out << YAML::EndMap;
@@ -421,16 +551,16 @@ void Solution::GenerateYAML(const std::string& filename) {
 			else if(action.mActionType == E_UGVActionTypes::e_ReceiveDrone) {
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "allow_landing_by_UAV";
-				out << YAML::Key << "start_time" << YAML::Value << action.fCompletionTime - UAV_LAND_TIME;
-				out << YAML::Key << "end_time" << YAML::Value << action.fCompletionTime;
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAND_TIME);
+				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "UAV_ID" << YAML::Value << m_input->GetDroneID(action.mDetails);
 				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
-				out << YAML::Key << "start_progress" << YAML::Value << 0.0;
-				out << YAML::Key << "end_progress" << YAML::Value << 1.0;
+				out << YAML::Key << "start_progress" << YAML::Value << floatingPointToString(0.0);
+				out << YAML::Key << "end_progress" << YAML::Value << floatingPointToString(1.0);
 				out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-				out << YAML::Key << "x" << YAML::Value << action.fX;
-				out << YAML::Key << "y" << YAML::Value << action.fY;
+				out << YAML::Key << "x" << YAML::Value << floatingPointToString(action.fX);
+				out << YAML::Key << "y" << YAML::Value << floatingPointToString(action.fY);
 				out << YAML::EndMap;
 				out << YAML::EndMap;
 				out << YAML::EndMap;
@@ -446,12 +576,12 @@ void Solution::GenerateYAML(const std::string& filename) {
 		{
 			out << YAML::BeginMap;
 			out << YAML::Key << "type" << YAML::Value << "end";
-			out << YAML::Key << "start_time" << YAML::Value << m_Aa.at(a_j).back().fCompletionTime;
-			out << YAML::Key << "end_time" << YAML::Value << m_Aa.at(a_j).back().fCompletionTime;
+			out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(m_Aa.at(a_j).back().fCompletionTime);
+			out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(m_Aa.at(a_j).back().fCompletionTime);
 			out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 			out << YAML::Key << "location" << YAML::Value << YAML::BeginMap;
-			out << YAML::Key << "x" << YAML::Value << m_Aa.at(a_j).back().fX;
-			out << YAML::Key << "y" << YAML::Value << m_Aa.at(a_j).back().fY;
+			out << YAML::Key << "x" << YAML::Value << floatingPointToString(m_Aa.at(a_j).back().fX);
+			out << YAML::Key << "y" << YAML::Value << floatingPointToString(m_Aa.at(a_j).back().fY);
 			out << YAML::EndMap;
 			out << YAML::EndMap;
 			out << YAML::EndMap;
@@ -468,11 +598,6 @@ void Solution::GenerateYAML(const std::string& filename) {
 	fout << out.c_str();
 	fout.close();
 }
-
-
-
-
-
 
 
 // Calculates the Penalty Accumulation Rate of the current solution stored in this solution object.
@@ -597,4 +722,11 @@ std::string Solution::ugvActionTypeToString(E_UGVActionTypes actionType) {
         case E_UGVActionTypes::e_KernelEnd: return "end";
         default:return "unknown";
     }
+}
+
+// Reduce precision of floating point number
+std::string Solution::floatingPointToString(double val) {
+	std::stringstream stream;
+	stream << std::fixed << std::setprecision(1) << val;
+	return stream.str();
 }

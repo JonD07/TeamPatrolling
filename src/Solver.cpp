@@ -247,20 +247,20 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					for(int stop : depots_tours.at(depot_order.at(ugv_num).back()).at(drone_i)) {
 						// Determine time required to move to node
 						double dist_prev_next = distAtoB(prev_x, prev_y, vctrPOINodes.at(stop).location.x, vctrPOINodes.at(stop).location.y);
-						totalFlyTime += dist_prev_next/UAV_V_MAX;
+						totalFlyTime += dist_prev_next/input->GetDroneVMax(DRONE_I);
 						// Update for next stop
 						prev_x = vctrPOINodes.at(stop).location.x;
 						prev_y = vctrPOINodes.at(stop).location.y;
 					}
 					// Move back to UGV
 					double dist_to_ugv = distAtoB(prev_x, prev_y, depots.at(depot_order.at(ugv_num).back()).x, depots.at(depot_order.at(ugv_num).back()).y);
-					totalFlyTime += dist_to_ugv/UAV_V_MAX;
+					totalFlyTime += dist_to_ugv/input->GetDroneVMax(DRONE_I);
 					// Energy from flying
 					double joules = totalFlyTime*DRONE_JOULES_PER_SECONDS;
 					// Add in energy required to launch and to land
 					joules += LAUNCH_ENERGY + LAND_ENERGY;
 					// Determine how long the drone must charge
-					double finalChargeTime = calcChargeTime(input, drone, joules);
+					double finalChargeTime = input->calcChargeTime(drone, joules);
 
 					// Determine time required to move to base
 					double dist_to_base = distAtoB(depots.at(depot_order.at(ugv_num).back()).x, depots.at(depot_order.at(ugv_num).back()).y, depots.back().x, depots.back().y);
@@ -348,7 +348,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							DroneAction drone_last = sol_final->GetLastDroneAction(drone);
 							// Determine time required to move to node
 							double dist_prev_next = distAtoB(drone_last.fX, drone_last.fY, vctrPOINodes.at(stop).location.x, vctrPOINodes.at(stop).location.y);
-							double t_duration = dist_prev_next/UAV_V_MAX;
+							double t_duration = dist_prev_next/input->GetDroneVMax(DRONE_I);
 							double visit_time = drone_last.fCompletionTime + t_duration;
 							totalFlyTime += t_duration;
 							DroneAction moveToNode(E_DroneActionTypes::e_MoveToNode, vctrPOINodes.at(stop).location.x,
@@ -364,7 +364,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
 							// Determine time required to move to node
 							double dist_prev_next = distAtoB(drone_last.fX, drone_last.fY, ugv_last.fX, ugv_last.fY);
-							double t_duration = dist_prev_next/UAV_V_MAX;
+							double t_duration = dist_prev_next/input->GetDroneVMax(DRONE_I);
 							totalFlyTime += t_duration;
 							double arrival_time = drone_last.fCompletionTime + t_duration;
 							DroneAction moveToUGV(E_DroneActionTypes::e_MoveToUGV, ugv_last.fX, ugv_last.fY, arrival_time, ugv_num);
@@ -384,7 +384,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							// Add in energy required to launch and to land
 							joules += LAUNCH_ENERGY + LAND_ENERGY;
 							// Determine how long the drone must charge
-							double chargeTime = calcChargeTime(input, drone, joules);
+							double chargeTime = input->calcChargeTime(drone, joules);
 							chargeTimes.at(drone) = chargeTime;
 							// Record how much the UGV has given away
 							ugvEnergySpent.at(ugv_num) += joules/CHARGE_EFFICIENCY;
@@ -481,37 +481,6 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 			}
 		}
 	}
-}
-
-
-double Solver::calcChargeTime(PatrollingInput* input, int drone_j, double J) {
-	double batt_charge = input->GetDroneBatCap(drone_j) - J;
-	double time = 0;
-
-	// Will we be fast-charging?
-	if(batt_charge < SLOW_CHARGE_POINT) {
-		// How many joules can we fast charge?
-		double fast_charge_joules = SLOW_CHARGE_POINT - batt_charge;
-		// Find roots of polynomial
-		Roots roots;
-		roots.FindRoots(FAST_CHARGE_A, FAST_CHARGE_B, (-1*fast_charge_joules));
-		if(!roots.imaginary) {
-			double fast_charge_time = std::max(roots.root1, roots.root2);
-			time = fast_charge_time + (T_MAX - T_STAR);
-		}
-		else {
-			// Not expected to be here...
-			fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Roots of charge time are imaginary!\n");
-		}
-	}
-	else {
-		// We are in the slow charging range. Find time to charge to where we are..
-		double charge_to_current = T_STAR - (log(1+(ALPHA/P_STAR)*(E_STAR - J)))/ALPHA;
-		time = T_MAX - charge_to_current;
-
-	}
-
-	return time;
 }
 
 /*

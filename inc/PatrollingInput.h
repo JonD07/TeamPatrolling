@@ -17,6 +17,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include "Input.h"
+#include "Roots.h"
 
 
 #define DEBUG_PATROLINPUT	DEBUG || 0
@@ -82,6 +83,10 @@ public:
 	const std::vector<Node>& GetNodes() {return nodes;}
 	// Get the location of the depot (we assume a single depot)
 	void GetDepot(int j, double* x, double* y);
+	// Get the initial location of drone j
+	void GetDroneInitLocal(int j, double* x, double* y);
+	// Get the initial location of UGV j
+	void GetUGVInitLocal(int j, double* x, double* y);
 	// Get the designated name for node i
 	std::string GetNodeID(int i) {return nodes.at(i).ID;}
 	// Get the designated name for drone j
@@ -96,6 +101,12 @@ public:
 	double GetDroneMaxDist(int j);
 	// Get the max range of drone j (on a full charge)
 	double GetUGVMaxDist(int j);
+	// Determines the time required to charge drone j for J jules
+	double calcChargeTime(int drone_j, double J);
+	// Get the maximum time required to fully charge drone j
+	double GetTMax(int drone_j);
+	// Get the maximum speed of drone j
+	double GetDroneVMax(int drone_j);
 
 	// Determines a theoretical upper bound on a possible solution
 	double LowerBound();
@@ -104,6 +115,8 @@ private:
 	std::vector<Agent> mRa;
 	std::vector<Agent> mRg;
 	std::vector<Node> nodes;
+	double depot_x;
+	double depot_y;
 
 	void parseAgents(const YAML::Node& agents);
 	void parseScenario(const YAML::Node& scenario);

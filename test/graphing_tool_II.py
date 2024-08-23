@@ -65,7 +65,6 @@ def plot_paths_from_yaml(yaml_file):
                 # plt.plot([local['x']], [local['y']], 'ro', label=task_params['node_ID'], color='black')
                 plt.annotate(text="depot", xy=(local['x'], local['y']), textcoords="offset points", xytext=(0, 10), ha='center', label="")
                 
-
         # # Plot the path
         # plt.plot(path_x, path_y, marker='o', label=agent_id, color=colors(i))
 

@@ -76,7 +76,7 @@ void PatrollingInput::parseAgents(const YAML::Node& agentsNode) {
 		}
 
 		// What type of agent is this?
-		if (agentNode["type"].as<std::string>() == "UAV") {
+		if(agentNode["type"].as<std::string>() == "UAV") {
 			// Drone type agent
             agent.stratum = agentNode["stratum"].as<std::string>();
             agent.charging_pad_ID = agentNode["charging_pad_ID"].as<std::string>();
@@ -84,6 +84,10 @@ void PatrollingInput::parseAgents(const YAML::Node& agentsNode) {
 			if(DEBUG_PATROLINPUT) {
 				std::cout << "  Stratum: " << agent.stratum << std::endl;
 				std::cout << "  Charging Pad ID: " << agent.charging_pad_ID << std::endl;
+			}
+
+			if(agentNode["subtype"].as<std::string>() == "standard") {
+				// TODO: something dynamic
 			}
 
 	        mRa.push_back(agent);
@@ -138,6 +142,10 @@ void PatrollingInput::parseScenario(const YAML::Node& scenario) {
 		if(node.type == "air_only") {
 			nodes.push_back(node);
 		}
+		else if(node.type == "depot_a") {
+			depot_x = nodeNode["location"]["x"].as<double>();
+			depot_y = nodeNode["location"]["y"].as<double>();
+		}
 
         if(DEBUG_PATROLINPUT) {
             std::cout << "  Node ID: " << node.ID << std::endl;
@@ -155,6 +163,34 @@ PatrollingInput::~PatrollingInput() {
 
 // Get the location of the depot for UGV j
 void PatrollingInput::GetDepot(int j, double* x, double* y) {
+	// Bounds checking on j
+	if(j >= 0 && j < boost::numeric_cast<int>(mRg.size())) {
+		*x = mRg.at(j).location.x;
+		*y = mRg.at(j).location.y;
+	}
+	else {
+		// They asked for some non-existing vehicle... just return 0;
+		*x = 0;
+		*y = 0;
+	}
+}
+
+// Get the initial location of drone j
+void PatrollingInput::GetDroneInitLocal(int j, double* x, double* y) {
+	// Bounds checking on j
+	if(j >= 0 && j < boost::numeric_cast<int>(mRa.size())) {
+		*x = mRa.at(j).location.x;
+		*y = mRa.at(j).location.y;
+	}
+	else {
+		// They asked for some non-existing vehicle... just return 0;
+		*x = 0;
+		*y = 0;
+	}
+}
+
+// Get the initial location of UGV j
+void PatrollingInput::GetUGVInitLocal(int j, double* x, double* y) {
 	// Bounds checking on j
 	if(j >= 0 && j < boost::numeric_cast<int>(mRg.size())) {
 		*x = mRg.at(j).location.x;
@@ -185,6 +221,83 @@ double PatrollingInput::GetUGVMaxDist(int j) {
 	double max_t = GetUGVBatCap(j)/efficiency_v_opt;
 	// Max-dist = v_opt * max-t
 	return UGV_V_OPT * max_t;
+}
+
+// Determines the time required to charge drone j for J jules
+double PatrollingInput::calcChargeTime(int drone_j, double J) {
+	double time = CHARGE_STARTUP_T;
+
+	// Which type of drone is this?
+	if(mRa.at(drone_j).subtype == "standard") {
+		// Standard drone, use default settings
+		double batt_charge = GetDroneBatCap(drone_j) - J;
+
+		// Will we be fast-charging?
+		if(batt_charge < SLOW_CHARGE_POINT) {
+			// How many jules can we fast charge?
+			double fast_charge_joules = SLOW_CHARGE_POINT - batt_charge;
+			// Find roots of polynomial
+			Roots roots;
+			roots.FindRoots(FAST_CHARGE_A, FAST_CHARGE_B, (-1*fast_charge_joules));
+			if(!roots.imaginary) {
+				double fast_charge_time = std::max(roots.root1, roots.root2);
+				time += fast_charge_time + (T_MAX - T_STAR);
+			}
+			else {
+				// Not expected to be here...
+				fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Roots of charge time are imaginary (subtype standard)!\n");
+				exit(0);
+			}
+		}
+		else {
+			// We are in the slow charging range. Find time to charge to where we are..
+			double charge_to_current = T_STAR - (log(1+(ALPHA/P_STAR)*(E_STAR - J)))/ALPHA;
+			time += T_MAX - charge_to_current;
+
+		}
+	}
+	else if(mRa.at(drone_j).subtype == "a_field") {
+		// This is the dummed-down drone used on A field - assume that we remain in the linear range
+		// Find roots of polynomial
+		Roots roots;
+		roots.FindRoots(FAST_CHARGE_A, FAST_CHARGE_B, (-1*J));
+		if(!roots.imaginary) {
+			time += std::max(roots.root1, roots.root2);
+		}
+		else {
+			// Not expected to be here...
+			fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Roots of charge time are imaginary (subtype a_field)!\n");
+			exit(0);
+		}
+	}
+	else {
+		// Not expected to be here...
+		fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Drone subtype not recognized!\n");
+		exit(0);
+	}
+
+	return time;
+}
+
+// Get the maximum time required to fully charge drone j
+double PatrollingInput::GetTMax(int drone_j) {
+	return calcChargeTime(drone_j, GetDroneBatCap(drone_j));
+}
+
+// Get the maximum speed of drone j
+double PatrollingInput::GetDroneVMax(int drone_j) {
+	// Which type of drone is this?
+	if(mRa.at(drone_j).subtype == "standard") {
+		return UAV_V_MAX;
+	}
+	else if(mRa.at(drone_j).subtype == "a_field") {
+		return UAV_V_MAX_AFIELD;
+	}
+	else {
+		// Not expected to be here...
+		fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Drone subtype not recognized!\n");
+		exit(0);
+	}
 }
 
 // Determines a theoretical lower-bound on a possible solution

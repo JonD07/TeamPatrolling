@@ -14,6 +14,8 @@
 #include <vector>
 #include <cmath>
 #include <queue>
+#include <iomanip>
+#include <sstream>
 
 #include "Utilities.h"
 #include "PatrollingInput.h"
@@ -120,8 +122,11 @@ struct CompareNoderService {
 class Solution {
 public:
 	Solution(PatrollingInput* input);
-	virtual ~Solution();
 	Solution(const Solution &other);
+	virtual ~Solution();
+
+	// Takes in an existing solution and generates a runtime version (clears any existing solution stored here)
+	void CreateRuntimeSolution(const Solution &other);
 
 	// Prints this solution
 	double CalculatePar();
@@ -166,4 +171,6 @@ private:
 	std::string droneActionTypeToString(E_DroneActionTypes actionType);
 	// Helper function to convert UGVActionType enum to string
 	std::string ugvActionTypeToString(E_UGVActionTypes actionType);
+	// Reduce precision of floating point number and convert to string
+	std::string floatingPointToString(double val);
 };

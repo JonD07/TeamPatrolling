@@ -23,7 +23,7 @@
 #include "defines.h"
 #include "Utilities.h"
 
-#define DEBUG_VRP	DEBUG || 1
+#define DEBUG_VRP	DEBUG || 0
 
 using json = nlohmann::json;
 
