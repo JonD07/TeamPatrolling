@@ -1,0 +1,106 @@
+ID: state_every_UAV_action_Exp_01/plot_1_2_10_4.yaml
+time: 0.0
+description: Generated scenario for UAV and UGV planning problem
+agents:
+- ID: UAV_01
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_01
+- ID: UAV_02
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_02
+- ID: UGV_01
+  type: UGV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 25010000.0
+    current_battery_energy: 25010000.0
+  charging_pads:
+  - ID: pad_01
+    mode: occupied
+    UAV_ID: UAV_01
+    is_charging: true
+scenario:
+  description: Generated scenario
+  type: persistent_surveillance
+  subtype: standard
+  nodes:
+  - ID: n_0001
+    type: air_only
+    location:
+      x: 3354.5
+      y: 1651.0
+    time_last_service: 0.0
+  - ID: n_0002
+    type: air_only
+    location:
+      x: -4397.5
+      y: -4532.6
+    time_last_service: 0.0
+  - ID: n_0003
+    type: air_only
+    location:
+      x: 4257.5
+      y: -673.1
+    time_last_service: 0.0
+  - ID: n_0004
+    type: air_only
+    location:
+      x: -3404.7
+      y: -3561.1
+    time_last_service: 0.0
+  - ID: n_0005
+    type: air_only
+    location:
+      x: -4307.2
+      y: 3638.0
+    time_last_service: 0.0
+  - ID: n_0006
+    type: air_only
+    location:
+      x: -1295.7
+      y: 910.4
+    time_last_service: 0.0
+  - ID: n_0007
+    type: air_only
+    location:
+      x: -1733.4
+      y: 4003.9
+    time_last_service: 0.0
+  - ID: n_0008
+    type: air_only
+    location:
+      x: -4240.6
+      y: -52.9
+    time_last_service: 0.0
+  - ID: n_0009
+    type: air_only
+    location:
+      x: 1201.7
+      y: 4942.0
+    time_last_service: 0.0
+  - ID: n_0010
+    type: air_only
+    location:
+      x: -2321.5
+      y: -1795.3
+    time_last_service: 0.0
+  connections: []

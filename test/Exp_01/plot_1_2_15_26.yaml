@@ -1,0 +1,136 @@
+ID: state_every_UAV_action_Exp_01/plot_1_2_15_26.yaml
+time: 0.0
+description: Generated scenario for UAV and UGV planning problem
+agents:
+- ID: UAV_01
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_01
+- ID: UAV_02
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_02
+- ID: UGV_01
+  type: UGV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 25010000.0
+    current_battery_energy: 25010000.0
+  charging_pads:
+  - ID: pad_01
+    mode: occupied
+    UAV_ID: UAV_01
+    is_charging: true
+scenario:
+  description: Generated scenario
+  type: persistent_surveillance
+  subtype: standard
+  nodes:
+  - ID: n_0001
+    type: air_only
+    location:
+      x: -854.9
+      y: 1450.0
+    time_last_service: 0.0
+  - ID: n_0002
+    type: air_only
+    location:
+      x: -525.2
+      y: -1262.2
+    time_last_service: 0.0
+  - ID: n_0003
+    type: air_only
+    location:
+      x: -1766.1
+      y: 3646.9
+    time_last_service: 0.0
+  - ID: n_0004
+    type: air_only
+    location:
+      x: 2799.1
+      y: 2410.9
+    time_last_service: 0.0
+  - ID: n_0005
+    type: air_only
+    location:
+      x: 3910.7
+      y: -1211.3
+    time_last_service: 0.0
+  - ID: n_0006
+    type: air_only
+    location:
+      x: -1788.8
+      y: -3084.7
+    time_last_service: 0.0
+  - ID: n_0007
+    type: air_only
+    location:
+      x: -1885.2
+      y: 4404.8
+    time_last_service: 0.0
+  - ID: n_0008
+    type: air_only
+    location:
+      x: -2817.4
+      y: -3463.8
+    time_last_service: 0.0
+  - ID: n_0009
+    type: air_only
+    location:
+      x: -4673.1
+      y: -2157.0
+    time_last_service: 0.0
+  - ID: n_0010
+    type: air_only
+    location:
+      x: 2941.9
+      y: -3437.0
+    time_last_service: 0.0
+  - ID: n_0011
+    type: air_only
+    location:
+      x: 2312.7
+      y: -673.1
+    time_last_service: 0.0
+  - ID: n_0012
+    type: air_only
+    location:
+      x: -2973.5
+      y: -3081.4
+    time_last_service: 0.0
+  - ID: n_0013
+    type: air_only
+    location:
+      x: -542.7
+      y: 3292.0
+    time_last_service: 0.0
+  - ID: n_0014
+    type: air_only
+    location:
+      x: -4642.4
+      y: 1039.3
+    time_last_service: 0.0
+  - ID: n_0015
+    type: air_only
+    location:
+      x: -2646.2
+      y: 3491.1
+    time_last_service: 0.0
+  connections: []
