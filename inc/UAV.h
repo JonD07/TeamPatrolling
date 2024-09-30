@@ -3,6 +3,7 @@
 #include "Agent.h"
 #include <cmath>
 #include "defines.h"
+
 #pragma once
 
 class UAV : public Agent{
@@ -24,9 +25,16 @@ public:
     double speed_squared_coefficient;
     double speed_linear_coefficient;
     double speed_const;
-    // double const t_max; // Time required for full charge
-    // double const p_max;
-    // double const t_star; //cross over point from fast to slow charging in seconds
+    double charge_startup_t;
+    
+    // Defining battery attributes statically. These will need to be changed in the future given a new battery.
+    #define FAST_CHARGE_A 0.06384091
+    #define FAST_CHARGE_B	403.886 
+    #define T_MAX	991.4 
+    #define T_STAR	555.6
+    #define P_STAR	476.407
+    #define E_STAR	244537 
+ 
 
 
     double getJoulesAtSpeed(double v);

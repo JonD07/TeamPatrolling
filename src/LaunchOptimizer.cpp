@@ -235,7 +235,9 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				// Make sure the first action comes after the fully recharging from the last action
 				GRBVar t_1 = action_time_vars.at(first_action_id.at(drone_id));
 				GRBVar t_n = action_time_vars.at(prev_action_id.at(drone_id));
-				model.addConstr(t_1 >= input->GetTMax(DRONE_I) - (UGV_BAT_SWAP_TIME + t_base - t_n), "t_f"+itos(drone_id)+"_geq_t_l"+itos(drone_id));
+				UGV ugv = input->getUGV(ugv_num);
+				model.addConstr(t_1 >= input->GetTMax(DRONE_I) - (ugv.batterySwapTime + t_base - t_n), "t_f"+itos(drone_id)+"_geq_t_l"+itos(drone_id));
+				// model.addConstr(t_1 >= input->GetTMax(DRONE_I) - (UGV_BAT_SWAP_TIME + t_base - t_n), "t_f"+itos(drone_id)+"_geq_t_l"+itos(drone_id));
 				if(DEBUG_LAUNCHOPT)
 					printf("* t_%d >= %f - t_%d + t_%d\n", first_action_id.at(drone_id), input->GetTMax(DRONE_I), action_cout, prev_action_id.at(drone_id));
 			}
@@ -564,7 +566,9 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			sol_final->PushUGVAction(ugv_num, bsUGVAction);
 
 			// The kernel ends after the battery swap
-			double kernel_complete_time = t_b + UGV_BAT_SWAP_TIME;
+			UGV ugv = input->getUGV(ugv_num);
+			double kernel_complete_time = t_b + ugv.batterySwapTime;
+			// double kernel_complete_time = t_b + UGV_BAT_SWAP_TIME;
 			// Add in end-of-kernel action for the UGV and each of its drones
 			UGVAction ugvEndAction(E_UGVActionTypes::e_KernelEnd, x_b, y_b, kernel_complete_time);
 			sol_final->PushUGVAction(ugv_num, ugvEndAction);

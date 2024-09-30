@@ -17,30 +17,30 @@
 #define PI				3.14159265
 
 //#define UAV_MAX_D		11477.
-#define UAV_LAUNCH_TIME	10.0 //DEFINED IN UAS TABLE as min
-#define UAV_LAND_TIME	60.0 //DEFINED IN UAS TABLE as min
-#define UGV_V_MAX		1.5 //Not sure where this is from? Velocity max? why not 4.5mps?
-#define UGV_V_CRG		1.5 //Not sure where this is from? 
-#define LAUNCH_ENERGY	4000.0 //given/const in the UAS specifications table
-#define LAND_ENERGY		7200.0 // given/const
-#define DRONE_JOULES_PER_SECONDS	376.4 // per drone at max speed of 12mps
-//#define DRONE_TOTAL_BAT	360381.0 // = Emax which is given
-#define SLOW_CHARGE_POINT	244537.0 //const = E*
-#define FAST_CHARGE_A	0.06384091 //calculated from equations.
-#define FAST_CHARGE_B	403.886 //const CALCULATED FROM EQUATIONS ONCE E* GIVEN
-#define CHARGE_EFFICIENCY	0.9 // EVERY JOULE TRANSFERED TO UAS INCURS A 10% ADDITIONAL TRANSFER LOSS.
-#define CHARGE_STARTUP_T	10.0 //Not sure where this is from? Const?
-#define T_MAX	991.4 //calculated 
-#define T_STAR	555.6 //calculated 
-#define ALPHA	0.003 //const
-#define P_STAR	476.407 // CALCULATED
-#define E_STAR	244537 //given
-#define UGV_JOULES_PER_SECONDS_DRIVE	1750.7 //USING ONLY 3 MP NOT 4.5 MP SO IT CAN ALWAYS CHARGE. Need to be calculated based on UGV vmax
-#define UGV_JOULES_PER_SECONDS_WAIT	200.0 //given per UGV
-//#define UGV_TOTAL_BAT	25010000.0
-#define UGV_BAT_SWAP_TIME	300 //depot specific time to be input
+// #define UAV_LAUNCH_TIME	10.0 //DEFINED IN UAS TABLE as min
+// #define UAV_LAND_TIME	60.0 //DEFINED IN UAS TABLE as min
+// #define UGV_V_MAX		1.5 //Not sure where this is from? Velocity max? why not 4.5mps?
+// #define UGV_V_CRG		1.5 //Not sure where this is from? 
+// #define LAUNCH_ENERGY	4000.0 //given/const in the UAS specifications table
+// #define LAND_ENERGY		7200.0 // given/const
+// #define DRONE_JOULES_PER_SECONDS	376.4 // per drone at max speed of 12mps
+// //#define DRONE_TOTAL_BAT	360381.0 // = Emax which is given
+// #define SLOW_CHARGE_POINT	244537.0 //const = E*
+// // #define FAST_CHARGE_A	0.06384091 //calculated from equations.
+// // #define FAST_CHARGE_B	403.886 //const CALCULATED FROM EQUATIONS ONCE E* GIVEN
+// #define CHARGE_EFFICIENCY	0.9 // EVERY JOULE TRANSFERED TO UAS INCURS A 10% ADDITIONAL TRANSFER LOSS.
+// #define CHARGE_STARTUP_T	10.0 //Not sure where this is from? Const?
+// #define T_MAX	991.4 //calculated 
+// #define T_STAR	555.6 //calculated 
+#define ALPHA	0.003 //const leave here
+// #define P_STAR	476.407 // CALCULATED
+// #define E_STAR	244537 //given
+// #define UGV_JOULES_PER_SECONDS_DRIVE	1750.7 //USING ONLY 3 MP NOT 4.5 MP SO IT CAN ALWAYS CHARGE. Need to be calculated based on UGV vmax
+// #define UGV_JOULES_PER_SECONDS_WAIT	200.0 //given per UGV
+// //#define UGV_TOTAL_BAT	25010000.0
+// #define UGV_BAT_SWAP_TIME	300 //depot specific time to be input
 #define CREATE_SPLINES	0
-#define UGV_SPLINE_SEG_DIST	10.0
+// #define UGV_SPLINE_SEG_DIST	10.0
 
 // Number of simulation trials to run
 #define N_S	3
@@ -117,3 +117,5 @@ enum {
 // 		YAML
 
 //9/19 Solution 458, how to get UGV index?
+
+//9/30: CREATE_SPLINES? UAV_V_OPT & UGV_V_OPT

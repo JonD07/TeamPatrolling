@@ -257,9 +257,9 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					double dist_to_ugv = distAtoB(prev_x, prev_y, depots.at(depot_order.at(ugv_num).back()).x, depots.at(depot_order.at(ugv_num).back()).y);
 					totalFlyTime += dist_to_ugv/input->GetDroneVMax(DRONE_I);
 					// Energy from flying
-					double joules = totalFlyTime*DRONE_JOULES_PER_SECONDS;
-					// double energyPerSecond = uav.getJoulesPerSecondFlying(uav.maxSpeed);
-					// double joules = totalFlyTime*energyPerSecond;
+					// double joules = totalFlyTime*DRONE_JOULES_PER_SECONDS;
+					double energyPerSecond = uav.getJoulesPerSecondFlying(uav.maxSpeed);
+					double joules = totalFlyTime*energyPerSecond;
 					// Add in energy required to launch and to land
 					joules += uav.energyToTakeOff + uav.energyToLand;
 					// joules += LAUNCH_ENERGY + LAND_ENERGY;
@@ -271,7 +271,9 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					// double time_to_base = dist_to_base/UGV_V_CRG;
 					double time_to_base = dist_to_base/input->getUGV(ugv_num).ugv_v_crg;
 					// How long has the drone been charging by the end of the kernel?
-					double kernel_end_time = time_to_base + UGV_BAT_SWAP_TIME;
+					UGV ugv = input->getUGV(ugv_num);
+					double kernel_end_time = time_to_base + ugv.batterySwapTime;
+					// double kernel_end_time = time_to_base + UGV_BAT_SWAP_TIME;
 					double charge_time_at_start = std::max(finalChargeTime - kernel_end_time, 0.0);
 					chargeTimes.at(drone) = charge_time_at_start;
 
@@ -313,10 +315,10 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						UGVAction moveToDepot(E_UGVActionTypes::e_MoveToWaypoint, depots.at(n).x, depots.at(n).y, ugv_arrival_time, n);
 						sol_final->PushUGVAction(ugv_num, moveToDepot);
 						// Calculate how much energy we used
-						// UGV ugv = input->getUGV(ugv_num);
-						double moveEnergy = UGV_JOULES_PER_SECONDS_DRIVE*t_duration;
-						// double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
-						// double moveEnergy = drivingEnergy*t_duration;
+						UGV ugv = input->getUGV(ugv_num);
+						// double moveEnergy = UGV_JOULES_PER_SECONDS_DRIVE*t_duration;
+						double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
+						double moveEnergy = drivingEnergy*t_duration;
 						ugvEnergySpent.at(ugv_num) += moveEnergy;
 
 						if(DEBUG_SOLVER)
@@ -391,9 +393,9 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						// Determine how many joules of energy each drone has consumed
 						{
 							// Energy from launching and landing
-							double joules = totalFlyTime*DRONE_JOULES_PER_SECONDS;
-							// double energyPerSecond = uav.getJoulesPerSecondFlying(uav.maxSpeed);
-							// double joules = totalFlyTime*energyPerSecond;
+							// double joules = totalFlyTime*DRONE_JOULES_PER_SECONDS;
+							double energyPerSecond = uav.getJoulesPerSecondFlying(uav.maxSpeed);
+							double joules = totalFlyTime*energyPerSecond;
 							// Add in energy required to launch and to land
 							UAV uav = input->getUAV(drone);
 							joules += uav.energyToTakeOff + uav.energyToLand;
@@ -447,7 +449,9 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 					// Calculate how much energy we used while waiting
 					double ugv_wait_time = ugv_exit_time - ugv_arrival_time;
-					double ugv_wait_energy = UGV_JOULES_PER_SECONDS_WAIT*ugv_wait_time;
+					UGV ugv = input->getUGV(ugv_num);
+					double ugv_wait_energy = ugv.joulesPerSecondWhileWaiting*ugv_wait_time;
+					// double ugv_wait_energy = UGV_JOULES_PER_SECONDS_WAIT*ugv_wait_time;
 					ugvEnergySpent.at(ugv_num) += ugv_wait_energy;
 					if(DEBUG_SOLVER)
 						printf("   UGV energy waiting: %f\n", ugv_wait_energy);
@@ -467,15 +471,16 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					sol_final->PushUGVAction(ugv_num, moveToDepot);
 
 					// Calculate how much energy we used
-					// UGV ugv = input->getUGV(ugv_num);
-					// double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
-					// double moveEnergy = drivingEnergy*t_duration; 
-					// double energy_to_return = moveEnergy*t_duration;
-					double energy_to_return = UGV_JOULES_PER_SECONDS_DRIVE*t_duration;
+					UGV ugv = input->getUGV(ugv_num);
+					double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
+					double moveEnergy = drivingEnergy*t_duration; 
+					double energy_to_return = moveEnergy*t_duration;
+					// double energy_to_return = UGV_JOULES_PER_SECONDS_DRIVE*t_duration;
 					ugvEnergySpent.at(ugv_num) += energy_to_return;
 
 					// Swap UGV battery
-					kernel_complete_time = arrive_time+UGV_BAT_SWAP_TIME;
+					kernel_complete_time = arrive_time+ugv.batterySwapTime;
+					// kernel_complete_time = arrive_time+UGV_BAT_SWAP_TIME;
 					UGVAction ugvChargeAction(E_UGVActionTypes::e_AtDepot, depots.back().x, depots.back().y, kernel_complete_time);
 					sol_final->PushUGVAction(ugv_num, ugvChargeAction);
 

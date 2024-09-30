@@ -101,9 +101,10 @@ void PatrollingInput::parseUAVs(const YAML::Node& uavList){
 				drone.maxSpeed = droneStatObject["UAV_V_MAX"].as<double>();
 				drone.maxSpeedAfield = droneStatObject["UAV_V_MAX_AFIELD"].as<double>();
 				drone.speed_cubed_coefficient = droneStatObject["SPEED_CUBED_COEFFICIENT"].as<double>();
-				drone.speed_cubed_coefficient = droneStatObject["SPEED_SQUARED_COEFFICIENT"].as<double>();
-				drone.speed_cubed_coefficient = droneStatObject["SPEED_LINEAR_COEFFICIENT"].as<double>();
-				drone.speed_cubed_coefficient = droneStatObject["SPEED_CONST"].as<double>();
+				drone.speed_squared_coefficient = droneStatObject["SPEED_SQUARED_COEFFICIENT"].as<double>();
+				drone.speed_linear_coefficient = droneStatObject["SPEED_LINEAR_COEFFICIENT"].as<double>();
+				drone.speed_const = droneStatObject["SPEED_CONST"].as<double>();
+				drone.charge_startup_t = droneStatObject["CHARGE_STARTUP_T"].as<double>();
 				break;
 			}
 		}
@@ -318,26 +319,32 @@ void PatrollingInput::GetUGVInitLocal(int j, double* x, double* y) {
 // Get the max range of drone j (on a full charge)
 double PatrollingInput::GetDroneMaxDist(int j) {
 	// Determine energy efficiency at optimal speed (Watts -- Jules per second)
-	double efficiency_v_opt = 396.743 - 1.695*UAV_V_OPT;
+	// double efficiency_v_opt = 396.743 - 1.695*UAV_V_OPT;
+	UAV uav = mRa.at(j);
+	double efficiency_v_opt = 396.743 - 1.695*uav.maxSpeed;
+
 	// Determine max operation time (bat-capacity / efficiency) (based on full battery)
 	double max_t = GetDroneBatCap(j)/efficiency_v_opt;
 	// Max-dist = v_opt * max-t
-	return UAV_V_OPT * max_t;
+	return uav.maxSpeed * max_t;
 }
 
 // Get the max range of drone j (on a full charge)
 double PatrollingInput::GetUGVMaxDist(int j) {
 	// Determine energy efficiency at optimal speed (Watts -- Jules per second)
-	double efficiency_v_opt = 464.8*UGV_V_OPT + 356.3;
+	UGV ugv = mRg.at(j);
+	// double efficiency_v_opt = 464.8*UGV_V_OPT + 356.3;
+	double efficiency_v_opt = 464.8*ugv.maxDriveSpeed+ 356.3;
 	// Determine max operation time (bat-capacity / efficiency) (based on full battery)
 	double max_t = GetUGVBatCap(j)/efficiency_v_opt;
 	// Max-dist = v_opt * max-t
-	return UGV_V_OPT * max_t;
+	return ugv.maxDriveSpeed * max_t;
 }
 
 // Determines the time required to charge drone j for J jules
 double PatrollingInput::calcChargeTime(int drone_j, double J) {
-	double time = CHARGE_STARTUP_T;
+	// double time = CHARGE_STARTUP_T;
+	double time = mRa.at(drone_j).charge_startup_t;
 
 	// Which type of drone is this?
 	if(mRa.at(drone_j).subtype == "standard") {

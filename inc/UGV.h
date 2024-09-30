@@ -24,6 +24,8 @@ public:
     double speed_squared_coefficient;
     double speed_linear_coefficient;
     double speed_const;
+    
+
 
     double getJoulesSpentAtSpeed(double v);
 

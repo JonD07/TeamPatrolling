@@ -431,7 +431,9 @@ void Solution::GenerateYAML(const std::string& filename) {
 					double crnt_y = prev_y;
 
 					// While we are further than the max spline segment distance
-					while(distAtoB(crnt_x, crnt_y, action.fX, action.fY) > UGV_SPLINE_SEG_DIST) {
+					// while(distAtoB(crnt_x, crnt_y, action.fX, action.fY) > UGV_SPLINE_SEG_DIST) {
+					double ugv_spline_seg_d = m_input->getUGV(a_j).SPlineSegDist;
+					while(distAtoB(crnt_x, crnt_y, action.fX, action.fY) > ugv_spline_seg_d) {
 						// Increment forward
 						double delta_X = action.fX - prev_x;
 						double delta_Y = action.fY - prev_y;
@@ -450,8 +452,8 @@ void Solution::GenerateYAML(const std::string& filename) {
 								theta = PI/-2.0;
 							}
 						}
-						double delta_x = cos(theta)*UGV_SPLINE_SEG_DIST;
-						double delta_y = sin(theta)*UGV_SPLINE_SEG_DIST;
+						double delta_x = cos(theta)*ugv_spline_seg_d;
+						double delta_y = sin(theta)*ugv_spline_seg_d;
 						// How far are we going? (we expect this to be 10 m)
 						double seg_dist = distAtoB(crnt_x, crnt_y, crnt_x + delta_x, crnt_y + delta_y);
 					
@@ -525,7 +527,9 @@ void Solution::GenerateYAML(const std::string& filename) {
 					out << YAML::BeginMap;
 					out << YAML::Key << "type" << YAML::Value << "swap_battery";
 					out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
-					out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime + UGV_BAT_SWAP_TIME);
+					UGV ugv = m_input->getUGV(a_j);	
+					out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime + ugv.batterySwapTime);
+					// out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime + UGV_BAT_SWAP_TIME);
 					out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 					out << YAML::Key << "start_progress" << YAML::Value << floatingPointToString(0.0);
 					out << YAML::Key << "end_progress" << YAML::Value << floatingPointToString(1.0);
