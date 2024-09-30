@@ -25,10 +25,6 @@ public:
     double speed_linear_coefficient;
     double speed_const;
     
-
-
-    double getJoulesSpentAtSpeed(double v);
-
     void printInfo(){
         std::cout << "UGV " << this->ID << std::endl;
         std::cout << "Type: " << this->type << std::endl;

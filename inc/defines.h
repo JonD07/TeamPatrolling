@@ -15,6 +15,7 @@
 #define EPSILON			0.000001
 #define INF				1000000000000
 #define PI				3.14159265
+#define ALPHA	0.003 
 
 //#define UAV_MAX_D		11477.
 // #define UAV_LAUNCH_TIME	10.0 //DEFINED IN UAS TABLE as min
@@ -32,7 +33,6 @@
 // #define CHARGE_STARTUP_T	10.0 //Not sure where this is from? Const?
 // #define T_MAX	991.4 //calculated 
 // #define T_STAR	555.6 //calculated 
-#define ALPHA	0.003 //const leave here
 // #define P_STAR	476.407 // CALCULATED
 // #define E_STAR	244537 //given
 // #define UGV_JOULES_PER_SECONDS_DRIVE	1750.7 //USING ONLY 3 MP NOT 4.5 MP SO IT CAN ALWAYS CHARGE. Need to be calculated based on UGV vmax
@@ -46,8 +46,8 @@
 #define N_S	3
 
 // TODO: Remove these when you have better data!!
-#define UAV_V_OPT		UAV_V_MAX
-#define UGV_V_OPT		UGV_V_MAX // NOT TRUE! UGV is most efficient while stationary (or moving slowly)
+// #define UAV_V_OPT		UAV_V_MAX
+// #define UGV_V_OPT		UGV_V_MAX // NOT TRUE! UGV is most efficient while stationary (or moving slowly)
 #define DRONE_I			0
 #define UAV_V_MAX		12.0
 #define UAV_V_MAX_AFIELD	5.0
@@ -116,6 +116,9 @@ enum {
 // 		Launch Optimizer actions overall drones and such, not specific drone. Use the same functional form cubed - constant and define these values in
 // 		YAML
 
-//9/19 Solution 458, how to get UGV index?
+//9/19 Solution 458, how to get UGV index? use a_j
 
-//9/30: CREATE_SPLINES? UAV_V_OPT & UGV_V_OPT
+//9/30: CREATE_SPLINES? UAV_V_OPT & UGV_V_OPT?, Drone_Per_UGV not used anywhere?, DRONE_I?
+// 			Assuming a polynomial of the form ax^2 + bx, I could add those constants to the yaml and calculate 
+
+//Cleanup: remove all comments in defines. Remove all commented lines with the old defines values from code.

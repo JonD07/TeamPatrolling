@@ -2,6 +2,8 @@
 #include <vector>
 #ifndef AGENT_H_
 #define AGENT_H_
+
+#define E_MIN 0 //minimum energy in a battery
 struct Location {
 	double x;
 	double y;

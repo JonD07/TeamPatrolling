@@ -31,13 +31,10 @@ public:
     #define FAST_CHARGE_A 0.06384091
     #define FAST_CHARGE_B	403.886 
     #define T_MAX	991.4 
-    #define T_STAR	555.6
-    #define P_STAR	476.407
-    #define E_STAR	244537 
- 
-
-
-    double getJoulesAtSpeed(double v);
+    #define T_STAR	555.6 //gvien from the battery work done in the paper
+    #define P_STAR	476.407 // power given from derivative of equation 3 and using time = 555.6
+    #define E_STAR	244537 //gvien from the battery polynomial equation #3 where time = 555.6
+    
     void printInfo(){
         // Print UAV information
         std::cout << "UAV " << this->ID << std::endl;
@@ -66,7 +63,4 @@ public:
         return T_STAR - ((1 + ((ALPHA/P_STAR)*(E_STAR - this->battery_state.max_battery_energy)))/ALPHA);
     }
 
-    // double timeAtCrossOverPoint(){ //T_STAR
-    //     double root = 
-    // }
 };

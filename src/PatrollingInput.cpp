@@ -410,10 +410,12 @@ double PatrollingInput::GetTMax(int drone_j) {
 double PatrollingInput::GetDroneVMax(int drone_j) {
 	// Which type of drone is this?
 	if(mRa.at(drone_j).subtype == "standard") {
-		return UAV_V_MAX;
+		return mRa.at(drone_j).maxSpeed;
+		// return UAV_V_MAX;
 	}
 	else if(mRa.at(drone_j).subtype == "a_field") {
-		return UAV_V_MAX_AFIELD;
+		return mRa.at(drone_j).maxSpeedAfield;
+		// return UAV_V_MAX_AFIELD;
 	}
 	else {
 		// Not expected to be here...

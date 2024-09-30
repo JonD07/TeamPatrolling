@@ -4,6 +4,4 @@ UGV::UGV(){
 
 }
 
-double UGV::getJoulesSpentAtSpeed(double v){
-    return 0;
-}
+
