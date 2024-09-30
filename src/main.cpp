@@ -19,6 +19,8 @@
 #define DATA_LOG_FORMAT	"alg_%d.dat"
 #define DEFAULT_DATA_LOG_PATH	""
 #define DEFAULT_RUN_NUM	0
+#define DEFAULT_VEHICLE_DEFINE_LOCATION "../../VehicleInputs/StandardDefinitionVehicle.yaml"
+
 
 
 int main(int argc, char *argv[]) {
@@ -30,6 +32,7 @@ int main(int argc, char *argv[]) {
 	bool printResults;
 	const char* outputPath;
 	int runnum;
+	const char* vehiclePath;
 
 	// Verify user input
 	if(argc == 3) {
@@ -39,6 +42,7 @@ int main(int argc, char *argv[]) {
 		printResults = DEFAULT_PRINT_RESULTS;
 		outputPath = DEFAULT_DATA_LOG_PATH;
 		runnum = DEFAULT_RUN_NUM;
+		vehiclePath = DEFAULT_VEHICLE_DEFINE_LOCATION;
 	}
 	else if(argc == 4) {
 		inputPath = argv[1];
@@ -47,6 +51,7 @@ int main(int argc, char *argv[]) {
 		printResults = DEFAULT_PRINT_RESULTS;
 		outputPath = DEFAULT_DATA_LOG_PATH;
 		runnum = DEFAULT_RUN_NUM;
+		vehiclePath = DEFAULT_VEHICLE_DEFINE_LOCATION;
 	}
 	else if(argc == 5) {
 		inputPath = argv[1];
@@ -55,6 +60,7 @@ int main(int argc, char *argv[]) {
 		printResults = atoi(argv[4]);
 		outputPath = DEFAULT_DATA_LOG_PATH;
 		runnum = DEFAULT_RUN_NUM;
+		vehiclePath = DEFAULT_VEHICLE_DEFINE_LOCATION;
 	}
 	else if(argc == 6) {
 		inputPath = argv[1];
@@ -63,6 +69,7 @@ int main(int argc, char *argv[]) {
 		printResults = atoi(argv[4]);
 		outputPath = argv[5];
 		runnum = DEFAULT_RUN_NUM;
+		vehiclePath = DEFAULT_VEHICLE_DEFINE_LOCATION;
 	}
 	else if(argc == 7) {
 		inputPath = argv[1];
@@ -71,6 +78,16 @@ int main(int argc, char *argv[]) {
 		printResults = atoi(argv[4]);
 		outputPath = argv[5];
 		runnum = atoi(argv[6]);
+		vehiclePath = DEFAULT_VEHICLE_DEFINE_LOCATION;
+	}
+	else if(argc == 8){
+		inputPath = argv[1];
+		algorithm = atoi(argv[2]);
+		print_actions = atoi(argv[3]);
+		printResults = atoi(argv[4]);
+		outputPath = argv[5];
+		runnum = atoi(argv[6]);
+		vehiclePath = argv[7];
 	}
 	else {
 		printf("Received %d args, expected 1 or more.\nExpected use:\t./find-assignment <file path> <algorithm> [print actions] [print results] [result output path] [run number]\n\n", argc - 1);
@@ -78,7 +95,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	Solver* solver = NULL;
-	PatrollingInput input(inputPath);
+	PatrollingInput input(inputPath,vehiclePath);
 	Solution solution(&input);
 
 	// Capture start time

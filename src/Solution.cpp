@@ -283,10 +283,12 @@ void Solution::GenerateYAML(const std::string& filename) {
 		for(const auto& action : m_Aa.at(a_j)) {
 			if(action.mActionType == E_DroneActionTypes::e_LaunchFromUGV) {
 				// Record that the drone was purched on the UGV
+				UAV uav = m_input->getUAV(a_j);
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "perch_on_UGV";
 				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(last_t);
-				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
+				// out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
+				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime - uav.timeNeededToLaunch);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
 				out << YAML::Key << "origin" << YAML::Value << YAML::BeginMap;
@@ -302,7 +304,8 @@ void Solution::GenerateYAML(const std::string& filename) {
 				// Launch the drone
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "takeoff_from_UGV";;
-				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
+				// out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - uav.timeNeededToLaunch);
 				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "pad_ID" << YAML::Value << "pad_01";
@@ -451,7 +454,10 @@ void Solution::GenerateYAML(const std::string& filename) {
 						double delta_y = sin(theta)*UGV_SPLINE_SEG_DIST;
 						// How far are we going? (we expect this to be 10 m)
 						double seg_dist = distAtoB(crnt_x, crnt_y, crnt_x + delta_x, crnt_y + delta_y);
-						double seg_t = seg_dist/UGV_V_CRG;
+					
+						// double seg_t = seg_dist/UGV_V_CRG; 
+						double seg_t = seg_dist/m_input->getUGV(a_j).ugv_v_crg;
+
 
 						// Move the UGV over this distance
 						out << YAML::BeginMap;
@@ -532,9 +538,11 @@ void Solution::GenerateYAML(const std::string& filename) {
 				}
 			}
 			else if(action.mActionType == E_UGVActionTypes::e_LaunchDrone) {
+				UAV uav = m_input->getUAV(a_j);
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "allow_takeoff_by_UAV";
-				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
+				// out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAUNCH_TIME);
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - uav.timeNeededToLaunch);
 				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "UAV_ID" << YAML::Value << m_input->GetDroneID(action.mDetails);
@@ -549,9 +557,11 @@ void Solution::GenerateYAML(const std::string& filename) {
 				out << YAML::EndMap;
 			}
 			else if(action.mActionType == E_UGVActionTypes::e_ReceiveDrone) {
+				UAV uav = m_input->getUAV(a_j);
 				out << YAML::BeginMap;
 				out << YAML::Key << "type" << YAML::Value << "allow_landing_by_UAV";
-				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAND_TIME);
+				// out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - UAV_LAND_TIME);
+				out << YAML::Key << "start_time" << YAML::Value << floatingPointToString(action.fCompletionTime - uav.timeNeededToLand);
 				out << YAML::Key << "end_time" << YAML::Value << floatingPointToString(action.fCompletionTime);
 				out << YAML::Key << "task_parameters" << YAML::Value << YAML::BeginMap;
 				out << YAML::Key << "UAV_ID" << YAML::Value << m_input->GetDroneID(action.mDetails);

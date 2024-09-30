@@ -142,7 +142,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					printf("VRP solver finished, checking tours\n");
 
 				// Calculate the longest sub-tour distance
-				for(const std::vector<int> subtour : subtours) {
+				for(const std::vector<int> &subtour : subtours) {
 					// Find distance from depot to first stop
 					double tour_length = distAtoB(depot.x, depot.y, vctrPOINodes.at(subtour.front()).location.x, vctrPOINodes.at(subtour.front()).location.y);
 					std::vector<int>::const_iterator prev = subtour.begin();
@@ -240,6 +240,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				// Determine how long each drone should have been charged from previous tour
 				for(long unsigned int drone_i = 0; drone_i < depots_tours.at(depot_order.at(ugv_num).back()).size(); drone_i++) {
 					int drone = drones_to_UGV.at(ugv_num).at(drone_i);
+					UAV uav = input->getUAV(drone);
 					double totalFlyTime = 0.0;
 					double prev_x = depots.at(depot_order.at(ugv_num).back()).x;
 					double prev_y = depots.at(depot_order.at(ugv_num).back()).y;
@@ -257,14 +258,18 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					totalFlyTime += dist_to_ugv/input->GetDroneVMax(DRONE_I);
 					// Energy from flying
 					double joules = totalFlyTime*DRONE_JOULES_PER_SECONDS;
+					// double energyPerSecond = uav.getJoulesPerSecondFlying(uav.maxSpeed);
+					// double joules = totalFlyTime*energyPerSecond;
 					// Add in energy required to launch and to land
-					joules += LAUNCH_ENERGY + LAND_ENERGY;
+					joules += uav.energyToTakeOff + uav.energyToLand;
+					// joules += LAUNCH_ENERGY + LAND_ENERGY;
 					// Determine how long the drone must charge
 					double finalChargeTime = input->calcChargeTime(drone, joules);
 
 					// Determine time required to move to base
 					double dist_to_base = distAtoB(depots.at(depot_order.at(ugv_num).back()).x, depots.at(depot_order.at(ugv_num).back()).y, depots.back().x, depots.back().y);
-					double time_to_base = dist_to_base/UGV_V_CRG;
+					// double time_to_base = dist_to_base/UGV_V_CRG;
+					double time_to_base = dist_to_base/input->getUGV(ugv_num).ugv_v_crg;
 					// How long has the drone been charging by the end of the kernel?
 					double kernel_end_time = time_to_base + UGV_BAT_SWAP_TIME;
 					double charge_time_at_start = std::max(finalChargeTime - kernel_end_time, 0.0);
@@ -301,13 +306,17 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						// Determine how long it took to move to the next depot
 						UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
 						double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, depots.at(n).x, depots.at(n).y);
-						double t_duration = dist_prev_next/UGV_V_CRG;
+						// double t_duration = dist_prev_next/UGV_V_CRG;
+						double t_duration = dist_prev_next/input->getUGV(ugv_num).ugv_v_crg;
 						ugv_arrival_time = ugv_last.fCompletionTime + t_duration;
 						// Create action for moving here
 						UGVAction moveToDepot(E_UGVActionTypes::e_MoveToWaypoint, depots.at(n).x, depots.at(n).y, ugv_arrival_time, n);
 						sol_final->PushUGVAction(ugv_num, moveToDepot);
 						// Calculate how much energy we used
+						// UGV ugv = input->getUGV(ugv_num);
 						double moveEnergy = UGV_JOULES_PER_SECONDS_DRIVE*t_duration;
+						// double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
+						// double moveEnergy = drivingEnergy*t_duration;
 						ugvEnergySpent.at(ugv_num) += moveEnergy;
 
 						if(DEBUG_SOLVER)
@@ -321,7 +330,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						Arrival next_drone = charging_queue.top();
 						charging_queue.pop();
 						int drone = next_drone.ID;
-
+						UAV uav = input->getUAV(drone);
 						double totalFlyTime = 0.0;
 						// Launch the drone
 						{
@@ -331,7 +340,9 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							double time_to_charge = chargeTimes.at(drone);
 							double done_charging = drone_last.fCompletionTime+time_to_charge;
 							double launch_start_time = std::max(ugv_last.fCompletionTime, done_charging);
-							double completion_time = launch_start_time + UAV_LAUNCH_TIME;
+							// double completion_time = launch_start_time + UAV_LAUNCH_TIME;
+							double completion_time = launch_start_time + uav.timeNeededToLaunch;
+
 
 							// Launch the drone (needs actions for both the drone and the UGV)
 							DroneAction launchFromUGV(E_DroneActionTypes::e_LaunchFromUGV, ugv_last.fX, ugv_last.fY, completion_time, ugv_num);
@@ -381,13 +392,19 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						{
 							// Energy from launching and landing
 							double joules = totalFlyTime*DRONE_JOULES_PER_SECONDS;
+							// double energyPerSecond = uav.getJoulesPerSecondFlying(uav.maxSpeed);
+							// double joules = totalFlyTime*energyPerSecond;
 							// Add in energy required to launch and to land
-							joules += LAUNCH_ENERGY + LAND_ENERGY;
+							UAV uav = input->getUAV(drone);
+							joules += uav.energyToTakeOff + uav.energyToLand;
+							// joules += LAUNCH_ENERGY + LAND_ENERGY;
 							// Determine how long the drone must charge
 							double chargeTime = input->calcChargeTime(drone, joules);
 							chargeTimes.at(drone) = chargeTime;
 							// Record how much the UGV has given away
-							ugvEnergySpent.at(ugv_num) += joules/CHARGE_EFFICIENCY;
+							UGV ugv = input->getUGV(ugv_num);
+							// ugvEnergySpent.at(ugv_num) += joules/CHARGE_EFFICIENCY;
+							ugvEnergySpent.at(ugv_num) += joules/ugv.chargeEfficiency;
 
 							if(DEBUG_SOLVER)
 								printf("    Energy used: %f, charge time: %f\n", joules, chargeTime);
@@ -406,8 +423,12 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							// Get the last action by the UGV
 							UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
 							// What time did we land?
-							double landOnArrival = next_arrival.time + UAV_LAND_TIME;
-							double landWhenReady = ugv_last.fCompletionTime + UAV_LAND_TIME;
+							int drone = next_arrival.ID;
+							UAV uav = input->getUAV(drone);
+							// double landOnArrival = next_arrival.time + UAV_LAND_TIME;
+							// double landWhenReady = ugv_last.fCompletionTime + UAV_LAND_TIME;
+							double landOnArrival = next_arrival.time + uav.timeNeededToLand;
+							double landWhenReady = ugv_last.fCompletionTime + uav.timeNeededToLand;
 							double landTime = std::max(landOnArrival, landWhenReady);
 							// Land the drone
 							DroneAction landOnUGV(E_DroneActionTypes::e_LandOnUGV, ugv_last.fX, ugv_last.fY, landTime, ugv_num);
@@ -438,13 +459,18 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
 					// Determine time required to move to base
 					double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, depots.back().x, depots.back().y);
-					double t_duration = dist_prev_next/UGV_V_CRG;
+					// double t_duration = dist_prev_next/UGV_V_CRG;
+					double t_duration = dist_prev_next/input->getUGV(ugv_num).ugv_v_crg;
 					double arrive_time = ugv_last.fCompletionTime + t_duration;
 					// Create action for moving here
 					UGVAction moveToDepot(E_UGVActionTypes::e_MoveToDepot, depots.back().x, depots.back().y, arrive_time);
 					sol_final->PushUGVAction(ugv_num, moveToDepot);
 
 					// Calculate how much energy we used
+					// UGV ugv = input->getUGV(ugv_num);
+					// double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
+					// double moveEnergy = drivingEnergy*t_duration; 
+					// double energy_to_return = moveEnergy*t_duration;
 					double energy_to_return = UGV_JOULES_PER_SECONDS_DRIVE*t_duration;
 					ugvEnergySpent.at(ugv_num) += energy_to_return;
 
