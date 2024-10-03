@@ -15,7 +15,7 @@
 #define EPSILON			0.000001
 #define INF				1000000000000
 #define PI				3.14159265
-#define ALPHA	0.003 
+#define ALPHA			0.003 
 
 //#define UAV_MAX_D		11477.
 // #define UAV_LAUNCH_TIME	10.0 //DEFINED IN UAS TABLE as min
@@ -119,6 +119,9 @@ enum {
 //9/19 Solution 458, how to get UGV index? use a_j
 
 //9/30: CREATE_SPLINES? UAV_V_OPT & UGV_V_OPT?, Drone_Per_UGV not used anywhere?, DRONE_I?
-// 			Assuming a polynomial of the form ax^2 + bx, I could add those constants to the yaml and calculate 
+//			I can do the following:
+//				1. Assume T*, Emin (0), Emax are given and that the e(t) functional form is ax^2 +bx and add those constants to the yaml file for each drone type
+//				2. Calculate E* (ax^2+bx, x = t*), p* (e'(t), x = t*), tmax (eq6 with E = Emax), fastcharge A and fastcharge b
+//				3. Refactor.
 
 //Cleanup: remove all comments in defines. Remove all commented lines with the old defines values from code.

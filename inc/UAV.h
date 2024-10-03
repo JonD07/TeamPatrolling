@@ -59,8 +59,4 @@ public:
         (speed_linear_coefficient *  velocity) + speed_const);
     }
 
-    double timeForAFullCharge(){ //T_MAX
-        return T_STAR - ((1 + ((ALPHA/P_STAR)*(E_STAR - this->battery_state.max_battery_energy)))/ALPHA);
-    }
-
 };
