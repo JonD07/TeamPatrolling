@@ -237,7 +237,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				GRBVar t_n = action_time_vars.at(prev_action_id.at(drone_id));
 				UGV ugv = input->getUGV(ugv_num);
 				model.addConstr(t_1 >= input->GetTMax(DRONE_I) - (ugv.batterySwapTime + t_base - t_n), "t_f"+itos(drone_id)+"_geq_t_l"+itos(drone_id));
-				// model.addConstr(t_1 >= input->GetTMax(DRONE_I) - (UGV_BAT_SWAP_TIME + t_base - t_n), "t_f"+itos(drone_id)+"_geq_t_l"+itos(drone_id));
 				if(DEBUG_LAUNCHOPT)
 					printf("* t_%d >= %f - t_%d + t_%d\n", first_action_id.at(drone_id), input->GetTMax(DRONE_I), action_cout, prev_action_id.at(drone_id));
 			}
@@ -270,19 +269,15 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			int droneID = ordered_action_list.at(j).ID;
 			UAV uav = input->getUAV(droneID);
 			if(ordered_action_list.at(j).action_type == E_SOCActionType::e_LaunchDrone) {
-				// action_time = UAV_LAUNCH_TIME;
 				action_time = uav.timeNeededToLaunch;
 			}
 			else if(ordered_action_list.at(j).action_type == E_SOCActionType::e_ReceiveDrone) {
-				// action_time = UAV_LAND_TIME;
 				action_time = uav.timeNeededToLand;
 			}
 			//ugv_num
 			double ugv_v_charge = input->getUGV(ugv_num).ugv_v_crg;
 			model.addConstr(t_j >= t_i + d_j/ugv_v_charge + action_time, "t_"+itos(j)+"_geq_t_"+itos(i));
-			// model.addConstr(t_j >= t_i + d_j/UGV_V_CRG + action_time, "t_"+itos(j)+"_geq_t_"+itos(i));
 			if(DEBUG_LAUNCHOPT)
-				// printf("* t_%d >= t_%d + d_%d/%f + %f\n", j, i, i, UGV_V_CRG, action_time);
 				printf("* t_%d >= t_%d + d_%d/%f + %f\n", j, i, i, ugv_v_charge, action_time);
 
 
@@ -309,11 +304,9 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 
 			int droneID = ordered_action_list.at(j).ID;
 			UAV uav = input->getUAV(droneID);
-			// model.addConstr(t_j == t_i + d_s/input->GetDroneVMax(DRONE_I) + sub_tours.at(tour).tour_dist/input->GetDroneVMax(DRONE_I) + d_e/input->GetDroneVMax(DRONE_I) + UAV_LAND_TIME, "t_"+itos(sub_tours.at(tour).launch_ID)+"_geq_t_"+itos(sub_tours.at(tour).land_ID)+"_+_td");
 			model.addConstr(t_j == t_i + d_s/input->GetDroneVMax(DRONE_I) + sub_tours.at(tour).tour_dist/input->GetDroneVMax(DRONE_I) + d_e/input->GetDroneVMax(DRONE_I) + uav.timeNeededToLand, "t_"+itos(sub_tours.at(tour).launch_ID)+"_geq_t_"+itos(sub_tours.at(tour).land_ID)+"_+_td");
 
 			if(DEBUG_LAUNCHOPT)
-				// printf("* t_%d == t_%d + d_s%d/%f + %f + d_e%d/%f + %f\n", j, i, tour, input->GetDroneVMax(DRONE_I), sub_tours.at(tour).tour_dist/input->GetDroneVMax(DRONE_I), tour, input->GetDroneVMax(DRONE_I), UAV_LAND_TIME);
 				printf("* t_%d == t_%d + d_s%d/%f + %f + d_e%d/%f + %f\n", j, i, tour, input->GetDroneVMax(DRONE_I), sub_tours.at(tour).tour_dist/input->GetDroneVMax(DRONE_I), tour, input->GetDroneVMax(DRONE_I), uav.timeNeededToLand);
 
 
@@ -439,7 +432,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
 				// When?
 				double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
-				// double t_i_j = dist_i_j/UGV_V_CRG;
 				double t_i_j = dist_i_j/input->getUGV(ugv_num).ugv_v_crg;
 				double t_j = t_i_j + ugv_t_i;
 
@@ -453,9 +445,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				ugv_t_i = t_j;
 
 				// Launch the drone
-
-				//original:
-				// t_j = ugv_t_i + UAV_LAUNCH_TIME;
 
 				//Added below lines to try and refactor UAV_LAUNCH TIME
 				int drone_id = action_i.ID;
@@ -513,7 +502,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
 				// When?
 				double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
-				// double t_i_j = dist_i_j/UGV_V_CRG;
 				double t_i_j = dist_i_j/input->getUGV(ugv_num).ugv_v_crg;
 
 				double t_j = t_i_j + ugv_t_i;
@@ -539,7 +527,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 
 				// Land the drone
 				UAV uav = input->getUAV(drone_id);
-				// t_j = drone_arrives + UAV_LAND_TIME;
 				t_j = drone_arrives + uav.timeNeededToLand;
 				UGVAction landDrone(E_UGVActionTypes::e_ReceiveDrone, ugv_x_i, ugv_y_i, t_j, drone_id);
 				sol_final->PushUGVAction(ugv_num, landDrone);
@@ -556,7 +543,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			double x_b, y_b;
 			input->GetDepot(ugv_num, &x_b, &y_b);
 			double dist_i_b = distAtoB(ugv_x_i, ugv_y_i, x_b, y_b);
-			// double t_i_b = dist_i_b/UGV_V_CRG;
 			double t_i_b = dist_i_b/input->getUGV(ugv_num).ugv_v_crg;
 
 			double t_b = t_i_b + ugv_t_i;
@@ -568,7 +554,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			// The kernel ends after the battery swap
 			UGV ugv = input->getUGV(ugv_num);
 			double kernel_complete_time = t_b + ugv.batterySwapTime;
-			// double kernel_complete_time = t_b + UGV_BAT_SWAP_TIME;
 			// Add in end-of-kernel action for the UGV and each of its drones
 			UGVAction ugvEndAction(E_UGVActionTypes::e_KernelEnd, x_b, y_b, kernel_complete_time);
 			sol_final->PushUGVAction(ugv_num, ugvEndAction);

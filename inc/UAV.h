@@ -26,14 +26,13 @@ public:
     double speed_linear_coefficient;
     double speed_const;
     double charge_startup_t;
-    
-    // Defining battery attributes statically. These will need to be changed in the future given a new battery.
-    #define FAST_CHARGE_A 0.06384091
-    #define FAST_CHARGE_B	403.886 
-    #define T_MAX	991.4 
-    #define T_STAR	555.6 //gvien from the battery work done in the paper
-    #define P_STAR	476.407 // power given from derivative of equation 3 and using time = 555.6
-    #define E_STAR	244537 //gvien from the battery polynomial equation #3 where time = 555.6
+    double fast_charge_a;
+    double fast_charge_b;
+    double t_max;
+    double t_star;
+    double p_star;
+    double e_star;
+
     
     void printInfo(){
         // Print UAV information
@@ -52,6 +51,17 @@ public:
         std::cout << "Slow Charge Point: " << this->slowChargePoint << std::endl;
         std::cout << "Max Speed: " << this->maxSpeed << std::endl;
         std::cout << "Max Speed Afield: " << this->maxSpeedAfield << std::endl;
+        std::cout << "Speed Cubed Coefficient: " << this->speed_cubed_coefficient << std::endl;
+        std::cout << "Speed Squared Coefficient: " << this->speed_squared_coefficient << std::endl;
+        std::cout << "Speed Linear Coefficient: " << this->speed_linear_coefficient << std::endl;
+        std::cout << "Speed Constant: " << this->speed_const << std::endl;
+        std::cout << "Charge Startup Time: " << this->charge_startup_t << std::endl;
+        std::cout << "Fast Charge A: " << this->fast_charge_a << std::endl;
+        std::cout << "Fast Charge B: " << this->fast_charge_b << std::endl;
+        std::cout << "T Max: " << this->t_max << std::endl;
+        std::cout << "T Star: " << this->t_star << std::endl;
+        std::cout << "P Star: " << this->p_star << std::endl;
+        std::cout << "E Star: " << this->e_star << std::endl;
     }
 
     double getJoulesPerSecondFlying(double velocity){

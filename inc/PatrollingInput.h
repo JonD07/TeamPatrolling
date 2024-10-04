@@ -24,7 +24,7 @@
 #include "Agent.h"
 
 
-#define DEBUG_PATROLINPUT	DEBUG || 1
+#define DEBUG_PATROLINPUT	DEBUG || 0
 
 
 

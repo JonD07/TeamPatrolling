@@ -15,7 +15,6 @@
 PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle_input) {
 	if(SANITY_PRINT)
 		printf("Reading input YAML file\n");
-	// std::cout << vehicle_input << " vehicle input" << std::endl;
 
 	// Read status
 	bool read_success = true;
@@ -58,15 +57,6 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 		//Parsing vehicle file and adding all information to each UGV object
 		const YAML::Node& UGVs = vehicleInfo["UGV"];
 		parseUGVs(UGVs);
-		//Debug print UAV/UGV vector sizes
-		// std::cout << "UAVs in mRa : " << mRa.size() << std::endl;
-		// for (auto& uav : mRa) {
-		// 	uav.printInfo();
-		// }
-		// std::cout << " UGV types: " << UGVs.size() << std::endl;
-		// for (auto& ugv : mRg) {
-		// 	ugv.printInfo();
-		// }
 	}
 	catch(const std::exception &e){
 		fprintf(stderr, "[ERROR]:VehicleInput() %s\n", e.what());
@@ -105,19 +95,17 @@ void PatrollingInput::parseUAVs(const YAML::Node& uavList){
 				drone.speed_linear_coefficient = droneStatObject["SPEED_LINEAR_COEFFICIENT"].as<double>();
 				drone.speed_const = droneStatObject["SPEED_CONST"].as<double>();
 				drone.charge_startup_t = droneStatObject["CHARGE_STARTUP_T"].as<double>();
+				drone.fast_charge_a = droneStatObject["FAST_CHARGE_A"].as<double>();
+				drone.fast_charge_b = droneStatObject["FAST_CHARGE_B"].as<double>();
+				drone.t_max = droneStatObject["T_MAX"].as<double>();
+				drone.t_star = droneStatObject["T_STAR"].as<double>();
+				drone.p_star = droneStatObject["P_STAR"].as<double>();
+				drone.e_star = droneStatObject["E_STAR"].as<double>();
 				break;
 			}
 		}
 		if(DEBUG_PATROLINPUT){
-			std::cout << "UAV vehicle information: " << std::endl;
-			std::cout << "  Subtype: " << drone.subtype << std::endl;
-			std::cout << "  Time Needed to Launch: " << drone.timeNeededToLaunch << std::endl;
-			std::cout << "  Time Needed to Land: " << drone.timeNeededToLand << std::endl;
-			std::cout << "  Energy to Land: " << drone.energyToLand << std::endl;
-			std::cout << "  Energy to Take Off: " << drone.energyToTakeOff << std::endl;
-			std::cout << "  Slow Charge Point: " << drone.slowChargePoint << std::endl;
-			std::cout << "  Max Speed: " << drone.maxSpeed << std::endl;
-			std::cout << "  Max Speed Afield: " << drone.maxSpeedAfield << std::endl;
+			drone.printInfo();
 		}
 	}
 }
@@ -138,23 +126,14 @@ void PatrollingInput::parseUGVs(const YAML::Node& UGVList){
 				ugv.dronesPerVehicle = ugvStatObject["DRONE_PER_UGV"].as<int>();
 				ugv.ugv_v_crg = ugvStatObject["UGV_V_CRG"].as<double>();
 				ugv.speed_cubed_coefficient = ugvStatObject["SPEED_CUBED_COEFFICIENT"].as<double>();
-				ugv.speed_cubed_coefficient = ugvStatObject["SPEED_SQUARED_COEFFICIENT"].as<double>();
-				ugv.speed_cubed_coefficient = ugvStatObject["SPEED_LINEAR_COEFFICIENT"].as<double>();
-				ugv.speed_cubed_coefficient = ugvStatObject["SPEED_CONST"].as<double>();
-
-
+				ugv.speed_squared_coefficient = ugvStatObject["SPEED_SQUARED_COEFFICIENT"].as<double>();
+				ugv.speed_linear_coefficient = ugvStatObject["SPEED_LINEAR_COEFFICIENT"].as<double>();
+				ugv.speed_const = ugvStatObject["SPEED_CONST"].as<double>();
 				break;
 			}
 		}
 		if(DEBUG_PATROLINPUT){
-			std::cout << "UGV Vehicle Stat Information: " << std::endl;
-			std::cout << "  Max Drive Speed: " << ugv.maxDriveSpeed << std::endl;
-			std::cout << "  Max Drive and Charge Speed: " << ugv.maxDriveAndChargeSpeed << std::endl;
-			std::cout << "  Battery Swap Time: " << ugv.batterySwapTime << std::endl;
-			std::cout << "  Joules Per Second While Waiting: " << ugv.joulesPerSecondWhileWaiting << std::endl;
-			std::cout << "  Charge Efficiency: " << ugv.chargeEfficiency << std::endl;
-			std::cout << "  Spline Segment Distance: " << ugv.SPlineSegDist << std::endl;
-			std::cout << "  Drones Per Vehicle: " << ugv.dronesPerVehicle << std::endl;
+			ugv.printInfo();
 		}
 	}
 }
@@ -319,7 +298,6 @@ void PatrollingInput::GetUGVInitLocal(int j, double* x, double* y) {
 // Get the max range of drone j (on a full charge)
 double PatrollingInput::GetDroneMaxDist(int j) {
 	// Determine energy efficiency at optimal speed (Watts -- Jules per second)
-	// double efficiency_v_opt = 396.743 - 1.695*UAV_V_OPT;
 	UAV uav = mRa.at(j);
 	double efficiency_v_opt = 396.743 - 1.695*uav.maxSpeed;
 
@@ -333,17 +311,14 @@ double PatrollingInput::GetDroneMaxDist(int j) {
 double PatrollingInput::GetUGVMaxDist(int j) {
 	// Determine energy efficiency at optimal speed (Watts -- Jules per second)
 	UGV ugv = mRg.at(j);
-	// double efficiency_v_opt = 464.8*UGV_V_OPT + 356.3;
 	double efficiency_v_opt = 464.8*ugv.maxDriveSpeed+ 356.3;
 	// Determine max operation time (bat-capacity / efficiency) (based on full battery)
 	double max_t = GetUGVBatCap(j)/efficiency_v_opt;
-	// Max-dist = v_opt * max-t
 	return ugv.maxDriveSpeed * max_t;
 }
 
 // Determines the time required to charge drone j for J jules
 double PatrollingInput::calcChargeTime(int drone_j, double J) {
-	// double time = CHARGE_STARTUP_T;
 	double time = mRa.at(drone_j).charge_startup_t;
 
 	// Which type of drone is this?
@@ -355,15 +330,14 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 		UAV drone = mRa.at(drone_j);
 		if(batt_charge < drone.slowChargePoint) {
 			// How many jules can we fast charge?
-			// double fast_charge_joules = SLOW_CHARGE_POINT - batt_charge;
 			double fast_charge_joules = drone.slowChargePoint - batt_charge;
 
 			// Find roots of polynomial
 			Roots roots;
-			roots.FindRoots(FAST_CHARGE_A, FAST_CHARGE_B, (-1*fast_charge_joules));
+			roots.FindRoots(drone.fast_charge_a, drone.fast_charge_b, (-1*fast_charge_joules));
 			if(!roots.imaginary) {
 				double fast_charge_time = std::max(roots.root1, roots.root2);
-				time += fast_charge_time + (T_MAX - T_STAR);
+				time += fast_charge_time + (drone.t_max - drone.t_star);
 			}
 			else {
 				// Not expected to be here...
@@ -373,16 +347,16 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 		}
 		else {
 			// We are in the slow charging range. Find time to charge to where we are..
-			double charge_to_current = T_STAR - (log(1+(ALPHA/P_STAR)*(E_STAR - J)))/ALPHA;
-			time += T_MAX - charge_to_current;
-
+			double charge_to_current = drone.t_star - (log(1+(ALPHA/drone.p_star)*(drone.e_star - J)))/ALPHA;
+			time += drone.t_max - charge_to_current;
 		}
 	}
 	else if(mRa.at(drone_j).subtype == "a_field") {
 		// This is the dummed-down drone used on A field - assume that we remain in the linear range
 		// Find roots of polynomial
+		UAV drone = mRa.at(drone_j);
 		Roots roots;
-		roots.FindRoots(FAST_CHARGE_A, FAST_CHARGE_B, (-1*J));
+		roots.FindRoots(drone.fast_charge_a, drone.fast_charge_b, (-1*J));
 		if(!roots.imaginary) {
 			time += std::max(roots.root1, roots.root2);
 		}
@@ -411,11 +385,9 @@ double PatrollingInput::GetDroneVMax(int drone_j) {
 	// Which type of drone is this?
 	if(mRa.at(drone_j).subtype == "standard") {
 		return mRa.at(drone_j).maxSpeed;
-		// return UAV_V_MAX;
 	}
 	else if(mRa.at(drone_j).subtype == "a_field") {
 		return mRa.at(drone_j).maxSpeedAfield;
-		// return UAV_V_MAX_AFIELD;
 	}
 	else {
 		// Not expected to be here...
