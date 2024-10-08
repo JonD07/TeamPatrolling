@@ -11,6 +11,7 @@
 #pragma once
 
 #include <vector>
+#include <map>
 #include <iostream>
 #include <boost/numeric/conversion/cast.hpp>
 // External library for YAML files
@@ -18,39 +19,15 @@
 
 #include "Input.h"
 #include "Roots.h"
+#include "UGV.h"
+#include "UAV.h"
+#include "Agent.h"
 
 
 #define DEBUG_PATROLINPUT	DEBUG || 0
 
 
-// Struct definitions
-struct Location {
-	double x;
-	double y;
-};
 
-struct BatteryState {
-	double max_battery_energy;
-	double current_battery_energy;
-};
-
-struct ChargingPad {
-	std::string ID;
-	std::string mode;
-	std::string UAV_ID;
-	bool is_charging;
-};
-
-struct Agent {
-	std::string ID;
-	std::string type;
-	std::string subtype;
-	Location location;
-	BatteryState battery_state;
-	std::string stratum;
-	std::string charging_pad_ID;
-	std::vector<ChargingPad> charging_pads;
-};
 
 struct Node {
 	std::string ID;
@@ -69,8 +46,10 @@ public:
 	 * j in R^g, set of UGVs, |R^g| = Mg
 	 */
 
-	PatrollingInput(std::string input_path);
+	PatrollingInput(std::string scenario_input, std::string vehicle_input);
 	virtual ~PatrollingInput();
+
+	
 
 	/// Getters
 	// Number of agents
@@ -108,16 +87,25 @@ public:
 	// Get the maximum speed of drone j
 	double GetDroneVMax(int drone_j);
 
+	UAV getUAV(int ID){
+		return mRa.at(ID);
+	}
+	UGV getUGV(int ID){
+		return mRg.at(ID);
+	}
+
+
 	// Determines a theoretical upper bound on a possible solution
 	double LowerBound();
 
 private:
-	std::vector<Agent> mRa;
-	std::vector<Agent> mRg;
+	std::vector<UAV> mRa;
+	std::vector<UGV> mRg;
 	std::vector<Node> nodes;
 	double depot_x;
 	double depot_y;
-
 	void parseAgents(const YAML::Node& agents);
 	void parseScenario(const YAML::Node& scenario);
+	void parseUAVs(const YAML::Node& UAVs);
+	void parseUGVs(const YAML::Node& UGVs);
 };
