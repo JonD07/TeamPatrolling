@@ -89,7 +89,7 @@ void OptLaunchSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 
 
 	if(DEBUG_OPTLAUNCH) {
-		printf("\nFinal Solution:\n");
+		printf("\nBaseline Solution:\n");
 		sol_final->PrintSolution();
 		printf("\n");
 		// Record this so we can watch how well the optimizer is improving things

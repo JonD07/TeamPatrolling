@@ -21,6 +21,7 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 	 *   opt-flag := True
 	 *   while opt-flag
 	 *     optimize-launch-land()
+	 *     opt-flag := False
 	 *     For each drone
 	 *       opt-flag |= Update-Subtours()
 	 *     end-for

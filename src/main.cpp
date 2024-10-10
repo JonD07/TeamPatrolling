@@ -24,8 +24,6 @@
 
 
 int main(int argc, char *argv[]) {
-	srand(time(NULL));
-
 	const char* inputPath;
 	int algorithm;
 	bool print_actions;
@@ -80,7 +78,7 @@ int main(int argc, char *argv[]) {
 		runnum = atoi(argv[6]);
 		vehiclePath = DEFAULT_VEHICLE_DEFINE_LOCATION;
 	}
-	else if(argc == 8){
+	else if(argc == 8) {
 		inputPath = argv[1];
 		algorithm = atoi(argv[2]);
 		print_actions = atoi(argv[3]);
@@ -93,6 +91,9 @@ int main(int argc, char *argv[]) {
 		printf("Received %d args, expected 1 or more.\nExpected use:\t./find-assignment <file path> <algorithm> [print actions] [print results] [result output path] [run number]\n\n", argc - 1);
 		return 1;
 	}
+
+	// Seed random using runnum
+	srand(runnum);
 
 	Solver* solver = NULL;
 	PatrollingInput input(inputPath,vehiclePath);
