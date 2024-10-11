@@ -57,7 +57,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 	bool valid_solution = false;
 	while(!valid_solution) {
 		if(SANITY_PRINT)
-			printf("\n--------------------------------------------------------\nNew Round, k = %d\n", K);
+			printf("\n--------------------------------------------------------\n** New Round, k = %d, m' = %d\n", K, Mp);
 
 		// Clear previous solution
 		depots.clear();

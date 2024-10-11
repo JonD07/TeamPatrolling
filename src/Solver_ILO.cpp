@@ -302,16 +302,3 @@ bool Solver_ILO::updateSubtours(int drone_id, Solution* sol_final) {
 	/// return opt-flag
 	return opt_flag;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

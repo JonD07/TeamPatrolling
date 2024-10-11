@@ -23,7 +23,7 @@
 #include "KMeansSolver.h"
 #include "VRPSolver.h"
 
-#define DEBUG_SOLVER	DEBUG || 1
+#define DEBUG_SOLVER	DEBUG || 0
 
 
 // Data structure for when a drone arrives at the UGV
