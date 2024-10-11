@@ -47,25 +47,55 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 	std::vector<Node> vctrPOINodes = input->GetNodes();
 
 	// Assign drones to UGVs
+	// std::vector<std::vector<int>> drones_to_UGV;
+	// {
+	// 	int min = floor(input->GetMa()/input->GetMg());
+	// 	int extra = input->GetMa() - (min*input->GetMg());
+	// 	int nxt = 0;
+	// 	for(int j_g = 0; j_g < input->GetMg(); j_g++) {
+	// 		std::vector<int> drones;
+	// 		for(int j_a = 0; j_a < min; j_a++) {
+	// 			drones.push_back(nxt + j_a);
+	// 		}
+	// 		if(extra > 0) {
+	// 			drones.push_back(nxt + min);
+	// 			extra--;
+	// 			nxt = nxt + min + 1;
+	// 		}
+	// 		else {
+	// 			nxt = nxt + min;
+	// 		}
+	// 		drones_to_UGV.push_back(drones);
+	// 	}
+	// }
+
 	std::vector<std::vector<int>> drones_to_UGV;
 	{
-		int min = floor(input->GetMa()/input->GetMg());
-		int extra = input->GetMa() - (min*input->GetMg());
-		int nxt = 0;
+		for(int i = 0 ; i < input->GetMg(); i++){
+			std::vector<int> dronesForThisUGV;
+			UGV ugv = input->getUGV(i);
+			for(int i = 0 ; i < input->GetMa(); i++){
+				UAV uav = input->getUAV(i);
+				printf("uav being looked at: %s\n", uav.ID.c_str());
+				std::string uavCPID = uav.charging_pad_ID;
+				for(auto cp : ugv.charging_pads){
+					if(cp.ID == uavCPID){
+						dronesForThisUGV.push_back(i);
+					}
+				}
+			}
+			drones_to_UGV.push_back(dronesForThisUGV);
+		}
+		printf("UGVs-to-Drones**********:\n");
+		printf("UGVs: %lu\n", drones_to_UGV.size());
+		printf("Drones: %lu\n", drones_to_UGV[0].size());
+
 		for(int j_g = 0; j_g < input->GetMg(); j_g++) {
-			std::vector<int> drones;
-			for(int j_a = 0; j_a < min; j_a++) {
-				drones.push_back(nxt + j_a);
+			printf(" UGV %d:\n  ", j_g);
+			for(int n : drones_to_UGV.at(j_g)) {
+				printf("%d ", n);
 			}
-			if(extra > 0) {
-				drones.push_back(nxt + min);
-				extra--;
-				nxt = nxt + min + 1;
-			}
-			else {
-				nxt = nxt + min;
-			}
-			drones_to_UGV.push_back(drones);
+			printf("\n");
 		}
 	}
 
