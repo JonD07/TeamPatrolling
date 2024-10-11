@@ -23,7 +23,7 @@
 #include "LaunchOptimizer.h"
 #include "gurobi_c++.h"
 
-#define DEBUG_OPTLAUNCH	DEBUG || 0
+#define DEBUG_OPTLAUNCH	DEBUG || 1
 
 
 class OptLaunchSolver : public Solver {
