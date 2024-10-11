@@ -2,7 +2,7 @@
 
 
 KMeansSolver::KMeansSolver() {
-	std::srand(std::time(0));
+//	std::srand(std::time(0));
 }
 
 KMeansSolver::~KMeansSolver() {

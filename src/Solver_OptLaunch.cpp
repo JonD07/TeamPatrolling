@@ -87,11 +87,7 @@ void OptLaunchSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 	// Run the baseline solver to get an initial solution
 	RunBaseline(input, sol_final, drones_to_UGV);
 
-
 	if(DEBUG_OPTLAUNCH) {
-		printf("\nFinal Solution:\n");
-		sol_final->PrintSolution();
-		printf("\n");
 		// Record this so we can watch how well the optimizer is improving things
 		FILE * pOutputFile;
 		pOutputFile = fopen("qp_improvement.dat", "a");
@@ -108,5 +104,10 @@ void OptLaunchSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 
 	if(DEBUG_OPTLAUNCH) {
 		sol_final->PrintSolution();
+		// Record this so we can watch how well the optimizer is improving things
+		FILE * pOutputFile;
+		pOutputFile = fopen("qp_improvement.dat", "a");
+		fprintf(pOutputFile, "%f\n", sol_final->GetTotalTourTime(0));
+		fclose(pOutputFile);
 	}
 }

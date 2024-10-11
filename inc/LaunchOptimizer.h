@@ -23,7 +23,7 @@
 #define CONST_RELAXATION(X)		X,X+0.1
 
 enum E_SOCActionType {
-	e_LaunchDrone,
+	e_LaunchDrone=0,
 	e_ReceiveDrone,
 	e_BaseStation,
 };
@@ -46,7 +46,18 @@ struct SubTour {
 		launch_ID = -1;
 		land_ID = -1;
 	}
-	SubTour(const SubTour& other) : tour_dist(other.tour_dist), ID(other.ID), launch_ID(other.launch_ID), land_ID(other.land_ID) {}
+	SubTour(const SubTour& other) {
+		tour_dist = other.tour_dist;
+		ID = other.ID;
+		launch_ID = other.launch_ID;
+		land_ID = other.land_ID;
+		start_x = other.start_x;
+		start_y = other.start_y;
+		end_x = other.end_x;
+		end_y =other.end_y;
+	}
+
+
 };
 
 // Data structure for actions in the SOC program
