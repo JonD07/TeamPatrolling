@@ -14,6 +14,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 	std::vector<ClusteringPoint> vctrPoIPoint;
 	// Each depot has a set of PoI, an ordering for a UGV to visit, and a set of sub-tours
 	std::vector<VRPPoint> depots;
+	// The order that each team visits cluster depots
 	std::vector<std::vector<int>> depot_order;
 	// depot < subtour < PoI > >
 	std::vector<std::vector<std::vector<int>>> depots_tours;
@@ -31,14 +32,32 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 	}
 
 
-	/// 1. k = 1
+	/// 1. m' = m_g, k = 1
+	/// 2. k = max(k, m')
+	/// 3. Form k clusters
+	/// 4. Solve VRP on centroids of each cluster with depot and m' vehicles
+	/// 5. For each UGV j:
+	/// 6.   For each cluster assigned to j
+	/// 7.     Solve VRP on cluster with |D_j| vehicles
+	/// 8.     If there exists drone-tour A such that dist(A) > d^a_max, increase k and repeat steps 2-8
+	/// 9. Form action lists by determining launch/receive times, charge times for drones/UGV
+	///10. If there exists UGV-tour A such that energy(A) > E^g_max, increase m' by m_g and repeat steps 2-10
+
+
+	/// 1. m' = m_g, k = 1
 	int K = 1;
+	int Mp = input->GetMg();
+
+	/*
+	 * Increasing clusters (k) -> reduces the work that each drone must do
+	 * Increasing VRP vehicles to visit centroids -> reduces the work each UGV must do per tour
+	 */
 
 	// While we don't have a valid solution
 	bool valid_solution = false;
-	while(!valid_solution && K <= boost::numeric_cast<int>(vctrPOINodes.size())) {
+	while(!valid_solution) {
 		if(SANITY_PRINT)
-			printf("\n--------------------------------------------------------\nNew Round, k = %d\n", K);
+			printf("\n--------------------------------------------------------\n** New Round, k = %d, m' = %d\n", K, Mp);
 
 		// Clear previous solution
 		depots.clear();
@@ -49,7 +68,24 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 		valid_solution = true;
 
 
-		/// 2. form k clusters
+		/// 2. k = max(k, m')
+		K = std::max(Mp, K);
+
+		// Did we go over...?
+		if(K > boost::numeric_cast<int>(vctrPOINodes.size())) {
+			// We did.. just exit!
+			fprintf(stderr, "[ERROR:Solver:RunBaseline] K = %d > N = %d\n", K, input->GetN());
+			exit(1);
+		}
+
+		// Set empty set of sub-tours for each cluster
+		for(int k = 0; k < K; k++) {
+			std::vector<std::vector<int>> subtours_on_cluster;
+			depots_tours.push_back(subtours_on_cluster);
+		}
+
+
+		/// 3. Form k clusters
 
 		// Clusters array
 		std::vector<std::vector<ClusteringPoint>> clusters;
@@ -108,16 +144,28 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 		}
 
 
-		/// 3. Solve VRP on centroids of each cluster with depot and m_g vehicles
-		mVRPSolver.SolveVRP(depots, input->GetMg(), depot_order);
+		/// 4. Solve VRP on centroids of each cluster with depot and m' vehicles
+		mVRPSolver.SolveVRP(depots, Mp, depot_order);
+
+		// Debugging
+		if(DEBUG_SOLVER) {
+			printf("Ordering to cluster depots:\n");
+			for(int i = 0; i < K; i++) {
+				printf(" %d@(%f, %f):  ", i, depots.at(i).x, depots.at(i).y);
+				for(ClusteringPoint n : clusters.at(i)) {
+					printf("%d@(%f, %f) ", n.ID, n.x, n.y);
+				}
+				printf("\n");
+			}
+		}
 
 
-		/// 4. For each UGV j:
-		for(int j_g = 0; j_g < input->GetMg(); j_g++) {
+		/// 5. For each UGV j:
+		for(int j_p = 0; j_p < Mp; j_p++) {
+			int j_actual = j_p % input->GetMg();
 
-
-			/// 5. For each cluster assigned to j
-			for(int k : depot_order.at(j_g)) {
+			/// 6. For each cluster assigned to j
+			for(int k : depot_order.at(j_p)) {
 				// Create a list of nodes for VRP
 				std::vector<VRPPoint> nodes;
 				// Add the PoI from this cluster
@@ -133,15 +181,17 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				}
 
 
-				/// 6. Solve VRP on cluster with |D_j| vehicles
+				/// 7. Solve VRP on cluster with |D_j| vehicles
 				std::vector<std::vector<int>> subtours;
-				mVRPSolver.SolveVRP(nodes, boost::numeric_cast<int>(drones_to_UGV.at(j_g).size()), subtours);
-				depots_tours.push_back(subtours);
+				mVRPSolver.SolveVRP(nodes, boost::numeric_cast<int>(drones_to_UGV.at(j_actual).size()), subtours);
+				depots_tours.at(k) = subtours;
+//				depots_tours.push_back(subtours);
 
 				if(DEBUG_SOLVER)
 					printf("VRP solver finished, checking tours\n");
 
 				// Calculate the longest sub-tour distance
+				/// 8. If there exists drone-tour A such that dist(A) > d^a_max, increase k and repeat steps 2-8
 				for(const std::vector<int> &subtour : subtours) {
 					// Find distance from depot to first stop
 					double tour_length = distAtoB(depot.x, depot.y, vctrPOINodes.at(subtour.front()).location.x, vctrPOINodes.at(subtour.front()).location.y);
@@ -161,10 +211,11 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						printf(" Distance of tour: %f\n", tour_length);
 
 
-					/// 7. If there exists drone-tour A such that dist(A) > d^a_max, increase k and repeat steps 2-8
+					// dist(A) > d^a_max ?
 					if(tour_length > input->GetDroneMaxDist(DRONE_I)) {
+						// Yes, increase k and repeat steps 2-8
 						if(DEBUG_SOLVER)
-							printf("Tour too long -> increase k\n");
+							printf("Drone tour too long -> increase k\n");
 
 						K++;
 						valid_solution = false;
@@ -180,37 +231,36 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 			}
 		}
 
-		// Do we still have a valid solution?
-		if(valid_solution) {
-
-			/// 8. Form action lists by determining launch/receive times, charge times for drones/UGV
-			// Print final routes:
-			if(DEBUG_SOLVER) {
-				printf("Found valid solution\n");
-				printf("\nFound tours:\n");
-				// For each UGV
-				for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-					printf("UGV %d\n", ugv_num);
-					// For each depot that the UGV visits
-					for(int n : depot_order.at(ugv_num)) {
-						printf(" Depot %d : (%f, %f)\n", n, depots.at(n).x, depots.at(n).y);
-						// For each drone that launches from the UGV
-						for(long unsigned int drone_i = 0; drone_i < depots_tours.at(n).size(); drone_i++) {
-							int drone = drones_to_UGV.at(ugv_num).at(drone_i);
-							printf("  Drone %d:\n", drone);
-							// Print which points this drone visits
-							for(int stop : depots_tours.at(n).at(drone)) {
-								printf("   %d:%s (%f, %f)\n", stop, vctrPOINodes.at(stop).ID.c_str(), vctrPOINodes.at(stop).location.x, vctrPOINodes.at(stop).location.y);
-							}
+		// Print final routes:
+		if(DEBUG_SOLVER) {
+			printf("\nFound working drone sub-tours:\n");
+			// For each UGV
+			for(int ugv_num = 0; ugv_num < Mp; ugv_num++) {
+				int j_actual = ugv_num % input->GetMg();
+				printf("UGV %d\n", j_actual);
+				// For each depot that the UGV visits
+				for(int n : depot_order.at(ugv_num)) {
+					printf(" Depot %d : (%f, %f)\n", n, depots.at(n).x, depots.at(n).y);
+					// For each drone that launches from the UGV
+					for(long unsigned int drone_i = 0; drone_i < depots_tours.at(n).size(); drone_i++) {
+						int drone = drones_to_UGV.at(j_actual).at(drone_i);
+						printf("  Drone %d:\n", drone);
+						// Print which points this drone visits
+						for(int stop : depots_tours.at(n).at(drone)) {
+							printf("   %d:%s (%f, %f)\n", stop, vctrPOINodes.at(stop).ID.c_str(), vctrPOINodes.at(stop).location.x, vctrPOINodes.at(stop).location.y);
 						}
 					}
 				}
 			}
+		}
 
+		// Do we still have a valid solution?
+		if(valid_solution) {
+
+			/// 9. Form action lists by determining launch/receive times, charge times for drones/UGV
 			if(DEBUG_SOLVER)
 				printf("\nBuilding Action Lists:\n");
 
-//			int actionID = 0;
 			sol_final->ClearSolution();
 
 			// Note how long each drone needs to charge before launching
@@ -224,19 +274,26 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 			}
 
 			// Push initial actions for all UGV and drones
-			for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-				// UGV is at the base depot
-				UGVAction initialAction(E_UGVActionTypes::e_AtDepot, depots.back().x, depots.back().y, 0);
-				sol_final->PushUGVAction(ugv_num, initialAction);
+			for(int ugv_num_p = 0; ugv_num_p < Mp; ugv_num_p++) {
+				int j_actual = ugv_num_p % input->GetMg();
 				// Initially, we do not give any energy to the drone
 				ugvEnergySpent.push_back(0.0);
-				// For each drone assigned to this UGV (we expect these to go in numerical order)
-				for(int drone : drones_to_UGV.at(ugv_num)) {
-					// Drone is at the UGV
-					DroneAction initialAction(E_DroneActionTypes::e_AtUGV, depots.back().x, depots.back().y, 0, ugv_num);
-					sol_final->PushDroneAction(drone, initialAction);
+
+				// Is this the first time we are addressing this UGV?
+				if(ugv_num_p < input->GetMg()) {
+					// Yes, give this UGV and its drones a starting action
+					UGVAction initialAction(E_UGVActionTypes::e_AtDepot, depots.back().x, depots.back().y, 0);
+					sol_final->PushUGVAction(j_actual, initialAction);
+					// For each drone assigned to this UGV (we expect these to go in numerical order)
+					for(int drone : drones_to_UGV.at(j_actual)) {
+						// Drone is at the UGV
+						DroneAction initialAction(E_DroneActionTypes::e_AtUGV, depots.back().x, depots.back().y, 0, j_actual);
+						sol_final->PushDroneAction(drone, initialAction);
+					}
 				}
 
+				/// Assume that all drones are recharged before starting next tour
+#if 0
 				// Determine how long each drone should have been charged from previous tour
 				for(long unsigned int drone_i = 0; drone_i < depots_tours.at(depot_order.at(ugv_num).back()).size(); drone_i++) {
 					int drone = drones_to_UGV.at(ugv_num).at(drone_i);
@@ -276,21 +333,22 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					if(DEBUG_SOLVER)
 						printf("Drone %d, requires %f charging at start\n", drone, charge_time_at_start);
 				}
+
+
+#endif
 			}
 
-			// Used to track when the kernel ends
-			double kernel_complete_time;
-
 			// For each UGV
-			for(int ugv_num = 0; ugv_num < input->GetMg() && valid_solution; ugv_num++) {
+			for(int ugv_num_p = 0; ugv_num_p < Mp && valid_solution; ugv_num_p++) {
+				int j_actual = ugv_num_p % input->GetMg();
 				if(DEBUG_SOLVER)
-					printf(" UGV: %d\n", ugv_num);
+					printf(" UGV: %d\n", ugv_num_p);
 
 				// For each depot that the UGV visits
-				for(int n : depot_order.at(ugv_num)) {
+				for(int n : depot_order.at(ugv_num_p)) {
 					// Order drones by the time each drone finishes charging
 					std::priority_queue<Arrival, std::vector<Arrival>, CompareArrival> charging_queue;
-					for(int drone : drones_to_UGV.at(ugv_num)) {
+					for(int drone : drones_to_UGV.at(j_actual)) {
 						DroneAction drone_last = sol_final->GetLastDroneAction(drone);
 						// We assume that the last drone action was landing (or at the depot)
 						double charge_end_time = chargeTimes.at(drone) + drone_last.fCompletionTime;
@@ -302,18 +360,18 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					// Move to the depot
 					{
 						// Determine how long it took to move to the next depot
-						UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
+						UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
 						double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, depots.at(n).x, depots.at(n).y);
-						double t_duration = dist_prev_next/input->getUGV(ugv_num).ugv_v_crg;
+						double t_duration = dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
 						ugv_arrival_time = ugv_last.fCompletionTime + t_duration;
 						// Create action for moving here
 						UGVAction moveToDepot(E_UGVActionTypes::e_MoveToWaypoint, depots.at(n).x, depots.at(n).y, ugv_arrival_time, n);
-						sol_final->PushUGVAction(ugv_num, moveToDepot);
+						sol_final->PushUGVAction(j_actual, moveToDepot);
 						// Calculate how much energy we used
-						UGV ugv = input->getUGV(ugv_num);
+						UGV ugv = input->getUGV(j_actual);
 						double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
 						double moveEnergy = drivingEnergy*t_duration;
-						ugvEnergySpent.at(ugv_num) += moveEnergy;
+						ugvEnergySpent.at(ugv_num_p) += moveEnergy;
 
 						if(DEBUG_SOLVER)
 							printf("  Arrive at depot %d at %f, energy to move: %f\n", n, ugv_arrival_time, moveEnergy);
@@ -331,7 +389,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						// Launch the drone
 						{
 							// Determine what time to launch the drone
-							UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
+							UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
 							DroneAction drone_last = sol_final->GetLastDroneAction(drone);
 							double time_to_charge = chargeTimes.at(drone);
 							double done_charging = drone_last.fCompletionTime+time_to_charge;
@@ -340,10 +398,10 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 
 							// Launch the drone (needs actions for both the drone and the UGV)
-							DroneAction launchFromUGV(E_DroneActionTypes::e_LaunchFromUGV, ugv_last.fX, ugv_last.fY, completion_time, ugv_num);
+							DroneAction launchFromUGV(E_DroneActionTypes::e_LaunchFromUGV, ugv_last.fX, ugv_last.fY, completion_time, j_actual);
 							sol_final->PushDroneAction(drone, launchFromUGV);
 							UGVAction launchDrone(E_UGVActionTypes::e_LaunchDrone, ugv_last.fX, ugv_last.fY, completion_time, drone);
-							sol_final->PushUGVAction(ugv_num, launchDrone);
+							sol_final->PushUGVAction(j_actual, launchDrone);
 
 							if(DEBUG_SOLVER)
 								printf("   Drone %d, done charge at %f, launch at %f\n", drone, done_charging, launch_start_time);
@@ -367,20 +425,20 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						// Move back to UGV
 						{
 							DroneAction drone_last = sol_final->GetLastDroneAction(drone);
-							UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
+							UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
 							// Determine time required to move to node
 							double dist_prev_next = distAtoB(drone_last.fX, drone_last.fY, ugv_last.fX, ugv_last.fY);
 							double t_duration = dist_prev_next/input->GetDroneVMax(DRONE_I);
 							totalFlyTime += t_duration;
 							double arrival_time = drone_last.fCompletionTime + t_duration;
-							DroneAction moveToUGV(E_DroneActionTypes::e_MoveToUGV, ugv_last.fX, ugv_last.fY, arrival_time, ugv_num);
+							DroneAction moveToUGV(E_DroneActionTypes::e_MoveToUGV, ugv_last.fX, ugv_last.fY, arrival_time, j_actual);
 							// Push action
 							sol_final->PushDroneAction(drone, moveToUGV);
 							// Add arrival time to priority queue
 							arrival_queue.emplace(arrival_time, drone);
 
 							if(DEBUG_SOLVER)
-								printf("    Arrive at UGV %d at %f\n", ugv_num, arrival_time);
+								printf("    Arrive at UGV %d at %f\n", j_actual, arrival_time);
 						}
 
 						// Determine how many joules of energy each drone has consumed
@@ -395,8 +453,8 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							double chargeTime = input->calcChargeTime(drone, joules);
 							chargeTimes.at(drone) = chargeTime;
 							// Record how much the UGV has given away
-							UGV ugv = input->getUGV(ugv_num);
-							ugvEnergySpent.at(ugv_num) += joules/ugv.chargeEfficiency;
+							UGV ugv = input->getUGV(j_actual);
+							ugvEnergySpent.at(ugv_num_p) += joules/ugv.chargeEfficiency;
 
 							if(DEBUG_SOLVER)
 								printf("    Energy used: %f, charge time: %f\n", joules, chargeTime);
@@ -413,7 +471,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						// Have drone land on UGV
 						{
 							// Get the last action by the UGV
-							UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
+							UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
 							// What time did we land?
 							int drone = next_arrival.ID;
 							UAV uav = input->getUAV(drone);
@@ -421,10 +479,10 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 							double landWhenReady = ugv_last.fCompletionTime + uav.timeNeededToLand;
 							double landTime = std::max(landOnArrival, landWhenReady);
 							// Land the drone
-							DroneAction landOnUGV(E_DroneActionTypes::e_LandOnUGV, ugv_last.fX, ugv_last.fY, landTime, ugv_num);
+							DroneAction landOnUGV(E_DroneActionTypes::e_LandOnUGV, ugv_last.fX, ugv_last.fY, landTime, j_actual);
 							sol_final->PushDroneAction(next_arrival.ID, landOnUGV);
 							UGVAction landDrone(E_UGVActionTypes::e_ReceiveDrone, ugv_last.fX, ugv_last.fY, landTime, next_arrival.ID);
-							sol_final->PushUGVAction(ugv_num, landDrone);
+							sol_final->PushUGVAction(j_actual, landDrone);
 							// If needed, update when the UGV moves on
 							ugv_exit_time = std::max(ugv_exit_time, landTime);
 
@@ -437,9 +495,9 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 					// Calculate how much energy we used while waiting
 					double ugv_wait_time = ugv_exit_time - ugv_arrival_time;
-					UGV ugv = input->getUGV(ugv_num);
+					UGV ugv = input->getUGV(j_actual);
 					double ugv_wait_energy = ugv.joulesPerSecondWhileWaiting*ugv_wait_time;
-					ugvEnergySpent.at(ugv_num) += ugv_wait_energy;
+					ugvEnergySpent.at(ugv_num_p) += ugv_wait_energy;
 					if(DEBUG_SOLVER)
 						printf("   UGV energy waiting: %f\n", ugv_wait_energy);
 				}
@@ -447,55 +505,91 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				// Return UGV to base
 				{
 					// Get last action
-					UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
+					UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
 					// Determine time required to move to base
 					double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, depots.back().x, depots.back().y);
-					double t_duration = dist_prev_next/input->getUGV(ugv_num).ugv_v_crg;
+					double t_duration = dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
 					double arrive_time = ugv_last.fCompletionTime + t_duration;
 					// Create action for moving here
 					UGVAction moveToDepot(E_UGVActionTypes::e_MoveToDepot, depots.back().x, depots.back().y, arrive_time);
-					sol_final->PushUGVAction(ugv_num, moveToDepot);
+					sol_final->PushUGVAction(j_actual, moveToDepot);
 
 					// Calculate how much energy we used
-					UGV ugv = input->getUGV(ugv_num);
+					UGV ugv = input->getUGV(j_actual);
 					double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
 					double energy_to_return = drivingEnergy*t_duration; 
-					ugvEnergySpent.at(ugv_num) += energy_to_return;
+					ugvEnergySpent.at(ugv_num_p) += energy_to_return;
 
 					// Swap UGV battery
-					kernel_complete_time = arrive_time+ugv.batterySwapTime;
-					UGVAction ugvChargeAction(E_UGVActionTypes::e_AtDepot, depots.back().x, depots.back().y, kernel_complete_time);
-					sol_final->PushUGVAction(ugv_num, ugvChargeAction);
+					double team_tour_complete_time = arrive_time+ugv.batterySwapTime;
+					UGVAction ugvChargeAction(E_UGVActionTypes::e_AtDepot, depots.back().x, depots.back().y, team_tour_complete_time);
+					sol_final->PushUGVAction(j_actual, ugvChargeAction);
+
+					// Add an "at UGV" command to each drone
+					for(int drone : drones_to_UGV.at(j_actual)) {
+						// Drone is at the UGV
+						DroneAction lastAction(E_DroneActionTypes::e_AtUGV, depots.back().x, depots.back().y, team_tour_complete_time, j_actual);
+						sol_final->PushDroneAction(drone, lastAction);
+					}
+
 
 					if(DEBUG_SOLVER) {
 						printf("   Arrive at base at %f, energy to move: %f\n", arrive_time, energy_to_return);
-						printf("  Total UGV energy used: %f, kernel end time: %f\n", ugvEnergySpent.at(ugv_num), kernel_complete_time);
+						printf("  Total UGV energy used: %f, kernel end time: %f\n", ugvEnergySpent.at(ugv_num_p), team_tour_complete_time);
 					}
 
 
-					// 9. If there exists UGV-tour A such that energy(A) > E^g_max, increase k and repeat steps 2-9
-					if(ugvEnergySpent.at(ugv_num) > input->GetUGVBatCap(ugv_num)) {
+					/// 10. If there exists UGV-tour A such that energy(A) > E^g_max, increase m' by m_g and repeat steps 2-10
+					if(ugvEnergySpent.at(ugv_num_p) > input->GetUGVBatCap(j_actual)) {
 						if(DEBUG_SOLVER) {
-							printf("\nUGV %d will run out of energy!\nIncrease k, start over...\n", ugv_num);
+							printf("\n\n\n\n***** UGV %d will run out of energy!\nIncrease m', start over...\n", j_actual);
 						}
 
-						K++;
+						Mp += input->GetMg();
 						valid_solution = false;
 					}
-					else {
-						// Add in end-of-kernel action for the UGV and each of its drones
-						UGVAction ugvEndAction(E_UGVActionTypes::e_KernelEnd, depots.back().x, depots.back().y, kernel_complete_time);
-						sol_final->PushUGVAction(ugv_num, ugvEndAction);
-						for(int drone : drones_to_UGV.at(ugv_num)) {
-							DroneAction endAction(E_DroneActionTypes::e_KernelEnd, depots.back().x, depots.back().y, kernel_complete_time);
-							sol_final->PushDroneAction(drone, endAction);
-						}
+				}
+			}
+
+			// If the solution is still valid at this point... we are done!
+			if(valid_solution) {
+				// Add in end-of-kernel action for each UGV and each of its drones
+				for(int ugv_num = 0; ugv_num < input->GetMg() ; ugv_num++) {
+					// The last action should have been to wait for the UGV to swap batteries
+					UGVAction ugv_last = sol_final->GetLastUGVAction(ugv_num);
+					double kernel_complete_time = ugv_last.fCompletionTime;
+
+					UGVAction ugvEndAction(E_UGVActionTypes::e_KernelEnd, depots.back().x, depots.back().y, kernel_complete_time);
+					sol_final->PushUGVAction(ugv_num, ugvEndAction);
+					for(int drone : drones_to_UGV.at(ugv_num)) {
+						DroneAction endAction(E_DroneActionTypes::e_KernelEnd, depots.back().x, depots.back().y, kernel_complete_time);
+						sol_final->PushDroneAction(drone, endAction);
 					}
+				}
+
+				if(DEBUG_SOLVER) {
+					sol_final->PrintSolution();
 				}
 			}
 		}
 	}
 }
+
+/*
+
+../../build/patrolling-solver ../Exp_01/plot_1_2_10_1.yaml 2 0 0 "" 5
+PAR: 55733.305968
+
+../../build/patrolling-solver ../Exp_01/plot_1_2_10_1.yaml 2 0 0 "" 4
+PAR: 55733.305968
+
+../../build/patrolling-solver ../Exp_01/plot_1_2_10_1.yaml 1 0 0 "" 5
+PAR: 55683.305968
+
+./../build/patrolling-solver ../Exp_01/plot_1_2_10_1.yaml 1 0 0 "" 4
+PAR: 55733.305968
+
+ */
 
 /*
  * Solves TSP on on vertices held in lst and stores found ordering in result. The multiplier

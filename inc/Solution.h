@@ -24,7 +24,7 @@
 
 
 enum class E_DroneActionTypes {
-	e_LaunchFromUGV,	// 0
+	e_LaunchFromUGV=0,	// 0
 	e_LandOnUGV,		// 1
 	e_MoveToNode,		// 2
 	e_MoveToUGV,		// 3
@@ -33,7 +33,7 @@ enum class E_DroneActionTypes {
 };
 
 enum class E_UGVActionTypes {
-	e_LaunchDrone,		// 0
+	e_LaunchDrone=0,		// 0
 	e_ReceiveDrone,		// 1
 	e_MoveToNode,		// 2
 	e_MoveToWaypoint,	// 3
