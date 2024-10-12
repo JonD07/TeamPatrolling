@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
 	double par = solution.CalculatePar();
 
 	if(SANITY_PRINT) {
-		printf("PAR: %f, time in days= %f\n", par, duration_s);
+		printf("PAR: %f, computation time = %f\n", par, duration_s);
 	}
 
 	// Print results to file

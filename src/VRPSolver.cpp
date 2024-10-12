@@ -1,6 +1,4 @@
 #include "VRPSolver.h"
-// #include <ClusteringAlgorithm.h>
-// #include <PatrollingInput.h>
 
 
 VRPSolver::VRPSolver() {
@@ -12,12 +10,22 @@ VRPSolver::~VRPSolver() {
 }
 
 bool VRPSolver::SolveVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours) {
+	bool ret_val = false;
 
-	if(VRP_ALGORITHM == 1){
-		//VRPSolver
-		SolveNonRichVRP(nodes, num_vehicles, tours);
-		return true;
+	// Which VRP solver are we using..?
+	switch(VRP_ALGORITHM) {
+	case 0:
+		ret_val = SolveRichVRP(nodes, num_vehicles, tours);
+		break;
+	case 1:
+	default:
+		ret_val = SolveFastVRP(nodes, num_vehicles, tours);
 	}
+
+	return ret_val;
+}
+
+bool VRPSolver::SolveRichVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours) {
 	//below is the rich solver
 	std::string inputFilename = "vrp_input.json";
 	std::string outputFilename = "vrp_output.json";
@@ -68,8 +76,86 @@ bool VRPSolver::SolveVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::ve
 	runVrpCli(inputFilename, outputFilename);
 	readOutputJson(outputFilename, tours);
 
+	return true;}
+
+bool VRPSolver::SolveFastVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours) {
+	std::vector<std::vector<kPoint>> cluster_k;
+
+	/// Form clusters for each vehicle
+	// Put each node into a kPoint
+	std::vector<kPoint> nodePoints;
+	for(int i = 0; i < (int)nodes.size() - 1; i++) {
+		// Node* n_i = nodes.at(i);
+		VRPPoint n_i(i, nodes.at(i).x, nodes.at(i).y);
+		kPoint pnt_i(i, 0, n_i.x, n_i.y, 0);
+		nodePoints.push_back(pnt_i);
+	}
+
+	// Run clustering algorithm
+	ClusteringAlgorithm clusteringAlg;
+	clusteringAlg.Solve(num_vehicles, &nodePoints, &cluster_k);
+
+	/// Solve TSP on each cluster
+	LKH_TSP_Solver tspSolver;
+	for(int k = 0; k < num_vehicles; k++) {
+		// Create a vector with all of the stops (and the BS at the end)
+		std::vector<Stop> vStops;
+		// Fill vector with each point in the cluster
+		for(kPoint point : cluster_k.at(k)) {
+			Stop stp(point.point_ID, point.X, point.Y, point.Z);
+			vStops.push_back(stp);
+		}
+		// Add base station as last stop
+		{
+			Stop stp(-1, nodes.back().x, nodes.back().y, 0);
+			vStops.push_back(stp);
+		}
+
+		// Create empty path vector (solver will fill this with the solution)
+		std::vector<int> vPath;
+
+		// Run TSP solver
+		tspSolver.Solve_TSP(vStops, vPath);
+
+		// Tour vector (these are the node's actual i values)
+		std::vector<int> vTour_i;
+
+		// We need to put node -1 first.. Find this node
+		{
+			int iteration = 0, nodes_found = 0;
+			bool found_bs = false;
+			while(true) {
+				int i = iteration%boost::numeric_cast<int>(vStops.size());
+
+				if(found_bs) {
+					// We found the BS. Add this node to the tour
+					vTour_i.push_back(vStops.at(vPath.at(i)).ID);
+					nodes_found++;
+				}
+				else {
+					// Still searching..
+					if(vStops.at(vPath.at(i)).ID == -1) {
+						// Found the base station!
+						found_bs = true;
+						nodes_found++;
+					}
+				}
+
+				// Have we found all of the stops?
+				if(nodes_found >= boost::numeric_cast<int>(vPath.size())) {
+					break;
+				}
+
+				iteration++;
+			}
+		}
+
+		// Store the final solution
+		tours.push_back(vTour_i);
+	}
 	return true;
 }
+
 
 
 void VRPSolver::generateInputJson(const std::string& filename, const std::vector<VRPJob>& jobs, const std::vector<VRPVehicle>& vehicles) {
@@ -128,86 +214,6 @@ void VRPSolver::runVrpCli(const std::string& inputFilename, const std::string& o
 	}
 }
 
-bool VRPSolver::SolveNonRichVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours){
-	std::vector<std::vector<kPoint>> cluster_k;
-
- 		cluster_k.clear();
-
-		/// Form k clusters
-		// Put each node into a kPoint
-		std::vector<kPoint> nodePoints;
-		for(int i = 0; i < (int)nodes.size() - 1; i++) {
-			// Node* n_i = nodes.at(i);
-			VRPPoint n_i(i, nodes.at(i).x, nodes.at(i).y);
-			kPoint pnt_i(i, 0, n_i.x, n_i.y, 0);
-			nodePoints.push_back(pnt_i);
-		}
-
-		// Run clustering algorithm
-		ClusteringAlgorithm clusteringAlg;
-		clusteringAlg.Solve(num_vehicles, &nodePoints, &cluster_k);
-
-		/// Solve TSP on each cluster
-		LKH_TSP_Solver tspSolver;
-		for(int k = 0; k < num_vehicles; k++) {
-			// Create a vector with all of the stops (and the BS at the end)
-			std::vector<Stop> vStops;
-			// Fill vector with each point in the cluster
-			for(kPoint point : cluster_k.at(k)) {
-				Stop stp(point.point_ID, point.X, point.Y, point.Z);
-				vStops.push_back(stp);
-			}
-			// Add base station as last stop
-			{
-				Stop stp(-1, nodes.back().x, nodes.back().y, 0);
-				vStops.push_back(stp);
-			}
-
-			// Create empty path vector (solver will fill this with the solution)
-			std::vector<int> vPath;
-
-			// Run TSP solver
-			tspSolver.Solve_TSP(vStops, vPath);
-
-			// Tour vector (these are the node's actual i values)
-			std::vector<int> vTour_i;
-
-			// We need to put node -1 first.. Find this node
-			{
-				int iteration = 0, nodes_found = 0;
-				bool found_bs = false;
-				while(true) {
-					int i = iteration%boost::numeric_cast<int>(vStops.size());
-
-					if(found_bs) {
-						// We found the BS. Add this node to the tour
-						vTour_i.push_back(vStops.at(vPath.at(i)).ID);
-						nodes_found++;
-					}
-					else {
-						// Still searching..
-						if(vStops.at(vPath.at(i)).ID == -1) {
-							// Found the base station!
-							found_bs = true;
-							nodes_found++;
-						}
-					}
-
-					// Have we found all of the stops?
-					if(nodes_found >= boost::numeric_cast<int>(vPath.size())) {
-						break;
-					}
-
-					iteration++;
-				}
-			}
-
-			// Store the final solution
-			tours.push_back(vTour_i);
-		}
-		return true;
-}
-
 void VRPSolver::readOutputJson(const std::string& filename, std::vector<std::vector<int>>& tours) {
 	std::ifstream file(filename);
 	if (!file) {
@@ -246,6 +252,7 @@ void VRPSolver::readOutputJson(const std::string& filename, std::vector<std::vec
 		printf("\n");
 	}
 }
+
 
 double VRPSolver::getLat(double dy) {
 	return base_lat + (dy / 6371000) * (180 / PI);

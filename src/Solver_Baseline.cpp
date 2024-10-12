@@ -45,7 +45,8 @@ void BaselineSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 	std::vector<Node> vctrPOINodes = input->GetNodes();
 
 	// Assign drones to UGVs
-	std::vector<std::vector<int>> drones_to_UGV = input->AssignDronesToUGV();
+	std::vector<std::vector<int>> drones_to_UGV;
+	input->AssignDronesToUGV(drones_to_UGV);
 
 	// Sanity print
 	if(DEBUG_GREEDY) {

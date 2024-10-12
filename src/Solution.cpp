@@ -145,7 +145,7 @@ double Solution::CalculatePar() {
 		std::vector<double> S_i;
 		// Get the time when the first visit occurs
 		double prev = queue.top().time;
-		prev = prev/3600.0; // Convert to days
+		prev = prev/3600.0; // Convert to hours
 		// Record the ID of the first action... we will need this to know when the kernel has restarted
 		int first_id = queue.top().ActionID;
 		queue.pop();
@@ -157,7 +157,7 @@ double Solution::CalculatePar() {
 		bool run_again = true;
 		while(!queue.empty() && run_again) {
 			double next = queue.top().time;
-			next = next/3600.0; // Convert to days
+			next = next/3600.0; // Convert to hours
 			S_i.push_back(next - prev);
 
 			if(DEBUG_SOL)

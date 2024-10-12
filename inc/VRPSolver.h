@@ -26,7 +26,7 @@
 #include "Utilities.h"
 
 #define DEBUG_VRP	DEBUG || 0
-#define VRP_ALGORITHM  1 //0 for richVRP, 1 for VRPSolver
+#define VRP_ALGORITHM  0 //0 for richVRP, 1 for VRPSolver
 
 using json = nlohmann::json;
 
@@ -83,7 +83,8 @@ public:
 
 	// Run VRP solver. Takes in a list of VRPPoints. We assume that the last node in the list is the depot.
 	bool SolveVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours);
-	bool SolveNonRichVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours);
+	bool SolveRichVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours);
+	bool SolveFastVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours);
 protected:
 private:
 	//	Base location (with an alternative)
