@@ -141,6 +141,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				}
 				printf("\n");
 			}
+			printf("Solver VRP on cluster centroids\n");
 		}
 
 
@@ -193,33 +194,35 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				// Calculate the longest sub-tour distance
 				/// 8. If there exists drone-tour A such that dist(A) > d^a_max, increase k and repeat steps 2-8
 				for(const std::vector<int> &subtour : subtours) {
-					// Find distance from depot to first stop
-					double tour_length = distAtoB(depot.x, depot.y, vctrPOINodes.at(subtour.front()).location.x, vctrPOINodes.at(subtour.front()).location.y);
-					std::vector<int>::const_iterator prev = subtour.begin();
-					std::vector<int>::const_iterator nxt = prev+1;
-					while(nxt != subtour.end()) {
-						// Calculate distance from prev to nxt
-						tour_length += distAtoB(vctrPOINodes.at(*prev).location.x, vctrPOINodes.at(*prev).location.y, vctrPOINodes.at(*nxt).location.x, vctrPOINodes.at(*nxt).location.y);
-						// Update iterators
-						prev = nxt;
-						nxt++;
-					}
-					// Add in trip back to depot
-					tour_length += distAtoB(vctrPOINodes.at(subtour.back()).location.x, vctrPOINodes.at(subtour.back()).location.y, depot.x, depot.y);
+					if(subtour.size() > 0) {
+						// Find distance from depot to first stop
+						double tour_length = distAtoB(depot.x, depot.y, vctrPOINodes.at(subtour.front()).location.x, vctrPOINodes.at(subtour.front()).location.y);
+						std::vector<int>::const_iterator prev = subtour.begin();
+						std::vector<int>::const_iterator nxt = prev+1;
+						while(nxt != subtour.end()) {
+							// Calculate distance from prev to nxt
+							tour_length += distAtoB(vctrPOINodes.at(*prev).location.x, vctrPOINodes.at(*prev).location.y, vctrPOINodes.at(*nxt).location.x, vctrPOINodes.at(*nxt).location.y);
+							// Update iterators
+							prev = nxt;
+							nxt++;
+						}
+						// Add in trip back to depot
+						tour_length += distAtoB(vctrPOINodes.at(subtour.back()).location.x, vctrPOINodes.at(subtour.back()).location.y, depot.x, depot.y);
 
-					if(DEBUG_SOLVER)
-						printf(" Distance of tour: %f\n", tour_length);
-
-
-					// dist(A) > d^a_max ?
-					if(tour_length > input->GetDroneMaxDist(DRONE_I)) {
-						// Yes, increase k and repeat steps 2-8
 						if(DEBUG_SOLVER)
-							printf("Drone tour too long -> increase k\n");
+							printf(" Distance of tour: %f\n", tour_length);
 
-						K++;
-						valid_solution = false;
-						break;
+
+						// dist(A) > d^a_max ?
+						if(tour_length > input->GetDroneMaxDist(DRONE_I)) {
+							// Yes, increase k and repeat steps 2-8
+							if(DEBUG_SOLVER)
+								printf("Drone tour too long -> increase k\n");
+
+							K++;
+							valid_solution = false;
+							break;
+						}
 					}
 				}
 				if(!valid_solution) {

@@ -252,23 +252,27 @@ void PatrollingInput::parseScenario(const YAML::Node& scenario) {
 PatrollingInput::~PatrollingInput() {
 }
 
-std::vector<std::vector<int>> PatrollingInput::AssignDronesToUGV(){
-	std::vector<std::vector<int>> drones_to_UGV;
-		for(int i = 0 ; i < GetMg(); i++){
-			std::vector<int> dronesForThisUGV;
-			UGV ugv = getUGV(i);
-			for(int i = 0 ; i < GetMa(); i++){
-				UAV uav = getUAV(i);
+void PatrollingInput::AssignDronesToUGV(std::vector<std::vector<int>>& drones_to_UGV) {
+	for(int j_g = 0 ; j_g < GetMg(); j_g++) {
+		std::vector<int> dronesForThisUGV;
+		UGV ugv = getUGV(j_g);
+		for(int j_a = 0 ; j_a < GetMa(); j_a++) {
+			UAV uav = getUAV(j_a);
+
+			if(DEBUG_PATROLINPUT) {
 				printf("uav being looked at: %s\n", uav.ID.c_str());
-				std::string uavCPID = uav.charging_pad_ID;
-				for(auto cp : ugv.charging_pads){
-					if(cp.ID == uavCPID){
-						dronesForThisUGV.push_back(i);
-					}
+			}
+
+			std::string uavCPID = uav.charging_pad_ID;
+			for(auto cp : ugv.charging_pads) {
+				if(cp.ID == uavCPID){
+					dronesForThisUGV.push_back(j_a);
 				}
 			}
-			drones_to_UGV.push_back(dronesForThisUGV);
 		}
+		drones_to_UGV.push_back(dronesForThisUGV);
+	}
+	if(DEBUG_PATROLINPUT) {
 		printf("UGVs-to-Drones**********:\n");
 		printf("UGVs: %lu\n", drones_to_UGV.size());
 		printf("Drones: %lu\n", drones_to_UGV[0].size());
@@ -280,8 +284,8 @@ std::vector<std::vector<int>> PatrollingInput::AssignDronesToUGV(){
 			}
 			printf("\n");
 		}
-		return drones_to_UGV;
 	}
+}
 
 
 // Get the location of the depot for UGV j

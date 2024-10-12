@@ -22,7 +22,7 @@
 #include "LaunchOptimizer.h"
 #include "gurobi_c++.h"
 
-#define DEBUG_ILO	DEBUG || 0
+#define DEBUG_ILO	DEBUG || 1
 
 
 class Solver_ILO : public Solver {
