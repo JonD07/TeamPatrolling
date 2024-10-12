@@ -15,10 +15,14 @@ bool VRPSolver::SolveVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::ve
 	// Which VRP solver are we using..?
 	switch(VRP_ALGORITHM) {
 	case 0:
+		if(DEBUG_VRP)
+			printf("Using Rich-VRP Solver\n");
 		ret_val = SolveRichVRP(nodes, num_vehicles, tours);
 		break;
 	case 1:
 	default:
+		if(DEBUG_VRP)
+			printf("Using Fast-VRP Solver\n");
 		ret_val = SolveFastVRP(nodes, num_vehicles, tours);
 	}
 
@@ -79,25 +83,37 @@ bool VRPSolver::SolveRichVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std
 	return true;}
 
 bool VRPSolver::SolveFastVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std::vector<std::vector<int>>& tours) {
-	std::vector<std::vector<kPoint>> cluster_k;
-
 	/// Form clusters for each vehicle
 	// Put each node into a kPoint
 	std::vector<kPoint> nodePoints;
 	for(int i = 0; i < (int)nodes.size() - 1; i++) {
-		// Node* n_i = nodes.at(i);
-		VRPPoint n_i(i, nodes.at(i).x, nodes.at(i).y);
-		kPoint pnt_i(i, 0, n_i.x, n_i.y, 0);
+		kPoint pnt_i(i, 0, nodes.at(i).x, nodes.at(i).y, 0);
 		nodePoints.push_back(pnt_i);
+	}
+
+	if(DEBUG_VRP) {
+		printf("Running Fast-VRP solver with %d vehicles\nRunning Clustering Algorithm\n", num_vehicles);
 	}
 
 	// Run clustering algorithm
 	ClusteringAlgorithm clusteringAlg;
+	std::vector<std::vector<kPoint>> cluster_k;
 	clusteringAlg.Solve(num_vehicles, &nodePoints, &cluster_k);
 
+	if(DEBUG_VRP) {
+		printf("Clusters:\n");
+		for(std::vector<kPoint> cluster : cluster_k) {
+			for(kPoint n : cluster) {
+				printf(" %d@(%f,%f) cluster = %d\n", n.point_ID, n.X, n.Y, n.centroid_ID);
+			}
+		}
+	}
+
 	/// Solve TSP on each cluster
-	LKH_TSP_Solver tspSolver;
 	for(int k = 0; k < num_vehicles; k++) {
+		if(DEBUG_VRP) {
+			printf("Solve VRP on Cluster %d\n", k);
+		}
 		// Create a vector with all of the stops (and the BS at the end)
 		std::vector<Stop> vStops;
 		// Fill vector with each point in the cluster
@@ -115,7 +131,16 @@ bool VRPSolver::SolveFastVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std
 		std::vector<int> vPath;
 
 		// Run TSP solver
+		LKH_TSP_Solver tspSolver;
 		tspSolver.Solve_TSP(vStops, vPath);
+
+		if(DEBUG_VRP) {
+			printf(" Solution:\n  ");
+			for(int n : vPath) {
+				printf("%d ", n);
+			}
+			printf("\n");
+		}
 
 		// Tour vector (these are the node's actual i values)
 		std::vector<int> vTour_i;
@@ -153,6 +178,18 @@ bool VRPSolver::SolveFastVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std
 		// Store the final solution
 		tours.push_back(vTour_i);
 	}
+
+	if(DEBUG_VRP) {
+		printf("Job order: \n");
+		for(auto tour : tours) {
+			for(int v : tour) {
+				printf(" %d", v);
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+
 	return true;
 }
 

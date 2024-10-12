@@ -4,9 +4,16 @@
 ClusteringAlgorithm::ClusteringAlgorithm() {}
 
 
-void ClusteringAlgorithm::Solve(int k, std::vector<kPoint>* all_points, std::vector<std::vector<kPoint>>* clustered_points, int max_iterations) {
+void ClusteringAlgorithm::Solve(int K, std::vector<kPoint>* all_points, std::vector<std::vector<kPoint>>* clustered_points, int max_iterations) {
 	if(DEBUG_HL_KMEANS) {
-		printf("Running k-means clustering for k = %d\n", k);
+		printf("Running k-means clustering for k = %d, # points = %ld\n", K, all_points->size());
+	}
+
+	int k = K;
+
+	if(k > boost::numeric_cast<int>(all_points->size())) {
+		// Asked to form more clusters than there are points... just for k clusters
+		k = boost::numeric_cast<int>(all_points->size());
 	}
 
 	// Create initial centroids
@@ -135,7 +142,7 @@ void ClusteringAlgorithm::Solve(int k, std::vector<kPoint>* all_points, std::vec
 
 	// Clear any old solution
 	clustered_points->clear();
-	for(int i = 0; i < k; i++) {
+	for(int i = 0; i < K; i++) {
 		std::vector<kPoint> clstr_i;
 		clustered_points->push_back(clstr_i);
 	}
