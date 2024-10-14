@@ -87,7 +87,7 @@ bool VRPSolver::SolveFastVRP(std::vector<VRPPoint>& nodes, int num_vehicles, std
 	// Put each node into a kPoint
 	std::vector<kPoint> nodePoints;
 	for(int i = 0; i < (int)nodes.size() - 1; i++) {
-		kPoint pnt_i(i, 0, nodes.at(i).x, nodes.at(i).y, 0);
+		kPoint pnt_i(nodes.at(i).ID, 0, nodes.at(i).x, nodes.at(i).y, 0);
 		nodePoints.push_back(pnt_i);
 	}
 

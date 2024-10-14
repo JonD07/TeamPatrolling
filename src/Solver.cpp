@@ -56,8 +56,6 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 	// While we don't have a valid solution
 	bool valid_solution = false;
 	while(!valid_solution) {
-		if(SANITY_PRINT)
-			printf("\n--------------------------------------------------------\n** New Round, k = %d, m' = %d\n", K, Mp);
 
 		// Clear previous solution
 		depots.clear();
@@ -70,6 +68,8 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 		/// 2. k = max(k, m')
 		K = std::max(Mp, K);
+		if(SANITY_PRINT)
+			printf("\n--------------------------------------------------------\n** New Round, k = %d, m' = %d\n", K, Mp);
 
 		// Did we go over...?
 		if(K > boost::numeric_cast<int>(vctrPOINodes.size())) {
@@ -158,11 +158,13 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				}
 				printf("\n");
 			}
+
+
 		}
 
 
 		/// 5. For each UGV j:
-		for(int j_p = 0; j_p < Mp; j_p++) {
+		for(int j_p = 0; j_p < Mp && j_p < boost::numeric_cast<int>(depot_order.size()); j_p++) {
 			int j_actual = j_p % input->GetMg();
 
 			/// 6. For each cluster assigned to j
@@ -238,7 +240,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 		if(DEBUG_SOLVER) {
 			printf("\nFound working drone sub-tours:\n");
 			// For each UGV
-			for(int ugv_num = 0; ugv_num < Mp; ugv_num++) {
+			for(int ugv_num = 0; ugv_num < Mp && ugv_num < boost::numeric_cast<int>(depot_order.size()); ugv_num++) {
 				int j_actual = ugv_num % input->GetMg();
 				printf("UGV %d\n", j_actual);
 				// For each depot that the UGV visits
@@ -249,7 +251,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						int drone = drones_to_UGV.at(j_actual).at(drone_i);
 						printf("  Drone %d:\n", drone);
 						// Print which points this drone visits
-						for(int stop : depots_tours.at(n).at(drone)) {
+						for(int stop : depots_tours.at(n).at(drone_i)) {
 							printf("   %d:%s (%f, %f)\n", stop, vctrPOINodes.at(stop).ID.c_str(), vctrPOINodes.at(stop).location.x, vctrPOINodes.at(stop).location.y);
 						}
 					}
@@ -277,7 +279,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 			}
 
 			// Push initial actions for all UGV and drones
-			for(int ugv_num_p = 0; ugv_num_p < Mp; ugv_num_p++) {
+			for(int ugv_num_p = 0; ugv_num_p < Mp && ugv_num_p < boost::numeric_cast<int>(depot_order.size()); ugv_num_p++) {
 				int j_actual = ugv_num_p % input->GetMg();
 				// Initially, we do not give any energy to the drone
 				ugvEnergySpent.push_back(0.0);
@@ -342,7 +344,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 			}
 
 			// For each UGV
-			for(int ugv_num_p = 0; ugv_num_p < Mp && valid_solution; ugv_num_p++) {
+			for(int ugv_num_p = 0; ugv_num_p < Mp && valid_solution && ugv_num_p < boost::numeric_cast<int>(depot_order.size()); ugv_num_p++) {
 				int j_actual = ugv_num_p % input->GetMg();
 				if(DEBUG_SOLVER)
 					printf(" UGV: %d\n", ugv_num_p);

@@ -71,7 +71,7 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 	}
 	else if(SANITY_PRINT) {
 		printf("Successfully read input!\n");
-		printf("N = %d, Ma = %d, Mg = %d\n\n", GetN(), GetMg(), GetMa());
+		printf("N = %d, Ma = %d, Mg = %d\n\n", GetN(), GetMa(), GetMg());
 	}
 }
 

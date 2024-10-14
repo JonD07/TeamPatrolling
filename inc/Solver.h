@@ -22,6 +22,8 @@
 #include "Roots.h"
 #include "KMeansSolver.h"
 #include "VRPSolver.h"
+#include <boost/numeric/conversion/cast.hpp>
+
 
 #define DEBUG_SOLVER	DEBUG || 1
 

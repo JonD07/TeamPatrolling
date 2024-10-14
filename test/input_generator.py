@@ -45,7 +45,7 @@ def main():
 	if EXP_03_Flag:
 		Increasing_Teams_Constant_Nodes()
 
-def generate_yaml_file(file_name, m1, m2, n):
+def generate_yaml_file(file_name, m1, m2, n, padFlag): #padFlag used for charging pads for exp 3
 	data = {
 		'ID': f'state_every_UAV_action_{file_name}',
 		'time': 0.0,
@@ -76,6 +76,8 @@ def generate_yaml_file(file_name, m1, m2, n):
 		}
 		data['agents'].append(uav)
 
+	# Generate UGVs
+	currUGV = 1
 	for i in range(1, m2 + 1):
 		ugv = {
 			'ID': f'UGV_{i:02}',
@@ -86,16 +88,27 @@ def generate_yaml_file(file_name, m1, m2, n):
 				'max_battery_energy': 25010000.0,
 				'current_battery_energy': 25010000.0
 			},
-			'charging_pads':[] #empty list
+			'charging_pads':[] 
 		}
-		for i in range(1, m1+1):
-			temp = {
-				'ID': f'pad_{i:02}',
-				'mode': 'occupied',
-				'UAV_ID': f'UAV_{i:02}',
-				'is_charging': True
-			}
-			ugv['charging_pads'].append(temp)
+		if(padFlag): #want to have each ugv have 2 pads since there are 2x uavs
+			for i in range(currUGV, currUGV+2):
+				temp = {
+					'ID': f'pad_{i:02}',
+					'mode': 'occupied',
+					'UAV_ID': f'UAV_{i:02}',
+					'is_charging': True
+				}
+				ugv['charging_pads'].append(temp)
+			currUGV+=2
+		else:
+			for i in range(1, m1+1):
+				temp = {
+					'ID': f'pad_{i:02}',
+					'mode': 'occupied',
+					'UAV_ID': f'UAV_{i:02}',
+					'is_charging': True
+				}
+				ugv['charging_pads'].append(temp)
 		data['agents'].append(ugv)
 
 	# Generate nodes with random locations
@@ -120,7 +133,7 @@ def Constant_Teams_Increasing_Nodes_Set_Generator(num_files, ma, mg, n):
 	FILE_PATH = "IncreaseNodeExps/"
 	for i in range(1, num_files + 1):
 		file_name = f'{FILE_PATH}plot_{mg}_{ma}_{n}_{i}.yaml'
-		generate_yaml_file(file_name, ma, mg, n)
+		generate_yaml_file(file_name, ma, mg, n, False)
 
 def Constant_Teams_Increasing_Nodes():
 	FIX_NUM_UAV = 2
@@ -136,7 +149,7 @@ def Increasing_Drones_Constant_Nodes_Set_Generator(num_files, ma, mg, n):
 	FILE_PATH = "IncreaseUAVsExps/"
 	for i in range(1, num_files + 1):
 		file_name = f'{FILE_PATH}plot_{mg}_{ma}_{50}_{i}.yaml'
-		generate_yaml_file(file_name, ma, mg, n)
+		generate_yaml_file(file_name, ma, mg, n, False)
 
 def Increasing_Drones_Constant_Nodes():
 	FIX_NUM_UAV = 1
@@ -153,7 +166,7 @@ def Increasing_Teams_Constant_Nodes_Set_Generator(num_files, ma, mg, n):
 	FILE_PATH = "IncreaseTeamsExps/"
 	for i in range(1, num_files + 1):
 		file_name = f'{FILE_PATH}plot_{mg}_{ma}_{50}_{i}.yaml'
-		generate_yaml_file(file_name, ma, mg, n)
+		generate_yaml_file(file_name, ma, mg, n, True)
 
 def Increasing_Teams_Constant_Nodes():
 	FIX_NUM_UAV = 2
