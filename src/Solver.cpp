@@ -158,8 +158,6 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				}
 				printf("\n");
 			}
-
-
 		}
 
 
@@ -385,6 +383,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					std::priority_queue<Arrival, std::vector<Arrival>, CompareArrival> arrival_queue;
 					// For each drone that launches from the UGV
 					for(long unsigned int drone_i = 0; drone_i < depots_tours.at(n).size(); drone_i++) {
+						// TODO: should not add things here if the drone does not get deployed..
 						// Which drone gets launched next?
 						Arrival next_drone = charging_queue.top();
 						charging_queue.pop();
@@ -680,6 +679,7 @@ void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& 
 	// Run TSP solver on this sub-tour
 	int sys_output = std::system("LKH FixedHPP.par > trash.out");
 
+	// TODO: don't read a file if the solver failed...
 	if(DEBUG_SOLVER)
 		printf("System Call returned: %d\nFound the following solution:\n", sys_output);
 

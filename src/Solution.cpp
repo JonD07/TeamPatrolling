@@ -17,15 +17,51 @@ Solution::Solution(PatrollingInput* input) {
 
 Solution::Solution(const Solution &other) {
 	m_input = other.m_input;
-	// Copy over the action lists
-	for(std::vector<DroneAction> act_list : other.m_Aa) {
-		// Create a new list locally
-		m_Aa.push_back(act_list);
+
+	// Add action vectors for each drone/UGV
+	for(int j = 0; j < m_input->GetMa(); j++) {
+		std::vector<DroneAction> action_list;
+		m_Aa.push_back(action_list);
+		// Move over all of the other solution's actions
+		for(DroneAction action : other.m_Aa.at(j)) {
+			m_Aa.at(j).push_back(action);
+		}
 	}
-	for(std::vector<UGVAction> act_list : other.m_Ag) {
-		// Create a new list locally
-		m_Ag.push_back(act_list);
+	for(int j = 0; j < m_input->GetMg(); j++) {
+		std::vector<UGVAction> action_list;
+		m_Ag.push_back(action_list);
+		// Move over all of the other solution's actions
+		for(UGVAction action : other.m_Ag.at(j)) {
+			m_Ag.at(j).push_back(action);
+		}
 	}
+}
+
+Solution& Solution::operator=(const Solution &other) {
+	m_input = other.m_input;
+
+	m_Aa.clear();
+	m_Ag.clear();
+
+	// Add action vectors for each drone/UGV
+	for(int j = 0; j < m_input->GetMa(); j++) {
+		std::vector<DroneAction> action_list;
+		m_Aa.push_back(action_list);
+		// Move over all of the other solution's actions
+		for(DroneAction action : other.m_Aa.at(j)) {
+			m_Aa.at(j).push_back(action);
+		}
+	}
+	for(int j = 0; j < m_input->GetMg(); j++) {
+		std::vector<UGVAction> action_list;
+		m_Ag.push_back(action_list);
+		// Move over all of the other solution's actions
+		for(UGVAction action : other.m_Ag.at(j)) {
+			m_Ag.at(j).push_back(action);
+		}
+	}
+
+	return *this;
 }
 
 Solution::~Solution() {
