@@ -86,6 +86,10 @@ public:
 	double GetTMax(int drone_j);
 	// Get the maximum speed of drone j
 	double GetDroneVMax(int drone_j);
+	// Assign UAVs to UGVs
+	void AssignDronesToUGV(std::vector<std::vector<int>>& drones_to_UGV);
+
+	
 
 	UAV getUAV(int ID){
 		return mRa.at(ID);

@@ -48,12 +48,19 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 		old_action_queues.insert(std::pair<int, std::queue<DroneAction>>(drone_j, action_queue));
 	}
 
+	double ugv_tour_start = 0.0;
 
 	bool process_next_team_tour = true;
 	do {
 		// Create a Gurobi environment
 		try {
 			GRBEnv env = GRBEnv();
+			if(DEBUG_LAUNCHOPT) {
+				printf("Starting up Gurobi\n");
+			}
+			else {
+				env.set(GRB_INT_PAR_OUTPUTFLAG, "0");
+			}
 			GRBModel model = GRBModel(env);
 			std::vector<std::vector<GRBVar>> sub_tour_dist_vars;
 			std::vector<std::vector<GRBVar>> sub_tour_pos_vars;
@@ -432,7 +439,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			{
 				double x_b, y_b;
 				input->GetDepot(ugv_num, &x_b, &y_b);
-				double t_i = 0.0;
+				double t_i = ugv_tour_start;
 
 				// UGV is at the base depot
 				UGVAction bsUGVAction(E_UGVActionTypes::e_AtDepot, x_b, y_b, t_i);
@@ -444,9 +451,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 
 				// Add this to each drone
 				for(int drone_j : drones_on_UGV) {
-					// Drone is at the UGV, at the base station
-					DroneAction bsDroneAction(E_DroneActionTypes::e_AtUGV, x_b, y_b, t_i, ugv_num);
-					drone_final_actions_j.at(drone_j).push_back(bsDroneAction);
 					// Record the drone's position
 					std::vector<double> drone_x_y_t;
 					drone_x_y_t.push_back(x_b);
@@ -600,6 +604,9 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 					DroneAction atUGVAction(E_DroneActionTypes::e_AtUGV, x_b, y_b, kernel_complete_time);
 					drone_final_actions_j.at(drone).push_back(atUGVAction);
 				}
+
+				// Update when this things UGV tour ended
+				ugv_tour_start = kernel_complete_time;
 			}
 		}
 		catch(GRBException& e) {
@@ -647,6 +654,11 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 	}
 	// Push back all drone actions
 	for(int drone_id : drones_on_UGV) {
+		double x_b, y_b;
+		input->GetDepot(ugv_num, &x_b, &y_b);
+		// The first action should be "at UGV"
+		DroneAction bsDroneAction(E_DroneActionTypes::e_AtUGV, x_b, y_b, 0.0, ugv_num);
+		sol_final->PushDroneAction(drone_id, bsDroneAction);
 		for(DroneAction a : drone_final_actions_j.at(drone_id)) {
 			sol_final->PushDroneAction(drone_id, a);
 		}

@@ -46,26 +46,7 @@ void BaselineSolver::Solve(PatrollingInput* input, Solution* sol_final) {
 
 	// Assign drones to UGVs
 	std::vector<std::vector<int>> drones_to_UGV;
-	{
-		int min = floor(input->GetMa()/input->GetMg());
-		int extra = input->GetMa() - (min*input->GetMg());
-		int nxt = 0;
-		for(int j_g = 0; j_g < input->GetMg(); j_g++) {
-			std::vector<int> drones;
-			for(int j_a = 0; j_a < min; j_a++) {
-				drones.push_back(nxt + j_a);
-			}
-			if(extra > 0) {
-				drones.push_back(nxt + min);
-				extra--;
-				nxt = nxt + min + 1;
-			}
-			else {
-				nxt = nxt + min;
-			}
-			drones_to_UGV.push_back(drones);
-		}
-	}
+	input->AssignDronesToUGV(drones_to_UGV);
 
 	// Sanity print
 	if(DEBUG_GREEDY) {

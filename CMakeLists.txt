@@ -79,6 +79,8 @@ add_executable(${CMAKE_PROJECT_NAME}
 	src/Solver_OptLaunch.cpp
 	src/Utilities.cpp
 	src/VRPSolver.cpp
+	src/ClusteringAlgorithm.cpp 
+	src/LKH_TSP_Solver.cpp 
 )
 
 if(CXX)

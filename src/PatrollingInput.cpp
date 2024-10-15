@@ -29,9 +29,11 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
         double time = config["time"].as<double>();
         std::string description = config["description"].as<std::string>();
 
-        std::cout << "ID: " << id << std::endl;
-        std::cout << "Time: " << time << std::endl;
-        std::cout << "Description: " << description << std::endl;
+        if(DEBUG_PATROLINPUT) {
+            std::cout << "ID: " << id << std::endl;
+            std::cout << "Time: " << time << std::endl;
+            std::cout << "Description: " << description << std::endl;
+        }
 
         // Parse and print agents. Create UAV and UGV objects and place into mRa and mRg
         const YAML::Node& agents = config["agents"];
@@ -47,7 +49,9 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 	}
 
 	try{
-		std::cout << "Reading vehicle YAML file" << std::endl;
+		if(DEBUG_PATROLINPUT) {
+			std::cout << "Reading vehicle YAML file" << std::endl;
+		}
 		YAML::Node vehicleInfo = YAML::LoadFile(vehicle_input);
 		
 		//Parsing vehicle file and adding all information to each UAV object
@@ -71,14 +75,17 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 	}
 	else if(SANITY_PRINT) {
 		printf("Successfully read input!\n");
-		printf("N = %d, Ma = %d, Mg = %d\n\n", GetN(), GetMg(), GetMa());
+		printf("N = %d, Ma = %d, Mg = %d\n\n", GetN(), GetMa(), GetMg());
 	}
 }
 
 
 //Version that puts all of the information in each UAV object
-void PatrollingInput::parseUAVs(const YAML::Node& uavList){
-	std::cout << "Parsing UAVs" << std::endl;
+void PatrollingInput::parseUAVs(const YAML::Node& uavList) {
+	if(DEBUG_PATROLINPUT) {
+		std::cout << "Parsing UAVs" << std::endl;
+	}
+
 	for(auto& drone : mRa){
 		std::string droneSubtype = drone.subtype;
 		for(const auto& droneStatObject : uavList){
@@ -110,8 +117,11 @@ void PatrollingInput::parseUAVs(const YAML::Node& uavList){
 	}
 }
 
-void PatrollingInput::parseUGVs(const YAML::Node& UGVList){
-	std::cout << "Parsing UGVs" << std::endl;
+void PatrollingInput::parseUGVs(const YAML::Node& UGVList) {
+	if(DEBUG_PATROLINPUT) {
+		std::cout << "Parsing UGVs" << std::endl;
+	}
+
 	for(auto& ugv : mRg){
 		std::string ugvSubtype = ugv.subtype;
 		for(const auto& ugvStatObject : UGVList){
@@ -250,6 +260,41 @@ void PatrollingInput::parseScenario(const YAML::Node& scenario) {
 }
 
 PatrollingInput::~PatrollingInput() {
+}
+
+void PatrollingInput::AssignDronesToUGV(std::vector<std::vector<int>>& drones_to_UGV) {
+	for(int j_g = 0 ; j_g < GetMg(); j_g++) {
+		std::vector<int> dronesForThisUGV;
+		UGV ugv = getUGV(j_g);
+		for(int j_a = 0 ; j_a < GetMa(); j_a++) {
+			UAV uav = getUAV(j_a);
+
+			if(DEBUG_PATROLINPUT) {
+				printf("uav being looked at: %s\n", uav.ID.c_str());
+			}
+
+			std::string uavCPID = uav.charging_pad_ID;
+			for(auto cp : ugv.charging_pads) {
+				if(cp.ID == uavCPID){
+					dronesForThisUGV.push_back(j_a);
+				}
+			}
+		}
+		drones_to_UGV.push_back(dronesForThisUGV);
+	}
+	if(DEBUG_PATROLINPUT) {
+		printf("UGVs-to-Drones**********:\n");
+		printf("UGVs: %lu\n", drones_to_UGV.size());
+		printf("Drones: %lu\n", drones_to_UGV[0].size());
+
+		for(int j_g = 0; j_g < GetMg(); j_g++) {
+			printf(" UGV %d:\n  ", j_g);
+			for(int n : drones_to_UGV.at(j_g)) {
+				printf("%d ", n);
+			}
+			printf("\n");
+		}
+	}
 }
 
 

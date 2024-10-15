@@ -49,27 +49,8 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 
 	// Assign drones to UGVs
 	std::vector<std::vector<int>> drones_to_UGV;
-	{
-		int min = floor(input->GetMa()/input->GetMg());
-		int extra = input->GetMa() - (min*input->GetMg());
-		int nxt = 0;
-		for(int j_g = 0; j_g < input->GetMg(); j_g++) {
-			std::vector<int> drones;
-			for(int j_a = 0; j_a < min; j_a++) {
-				drones.push_back(nxt + j_a);
-			}
-			if(extra > 0) {
-				drones.push_back(nxt + min);
-				extra--;
-				nxt = nxt + min + 1;
-			}
-			else {
-				nxt = nxt + min;
-			}
-			drones_to_UGV.push_back(drones);
-		}
-	}
-
+	input->AssignDronesToUGV(drones_to_UGV);
+	
 	// Sanity print
 	if(DEBUG_ILO) {
 		printf("UGVs-to-Drones:\n");
@@ -93,31 +74,81 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 		fclose(pOutputFile);
 	}
 
-	/// For each UGV...
+	bool opt_flag = true;
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-		if(DEBUG_ILO) {
-			printf("ILO for UGV %d\n", ugv_num);
-		}
-		/// opt-flag := True
-		bool opt_flag = true;
+		// Need to break things up a little...
+		optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+	}
 
-		/// while opt-flag
-		while(opt_flag) {
-			opt_flag = false;
+	do {
+		// Create a temporary solution
+		Solution sol_new(*sol_final);
+		opt_flag = false;
+
+		if(DEBUG_ILO) {
+			printf("**** ILO ****\nCurrent par = %f\n", sol_new.CalculatePar());
+		}
+
+		/// For each UGV...
+		for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
+
+			/// For each drone...
+			if(DEBUG_ILO) {
+				printf(" Update Sub-tours\n");
+			}
+			for(int drone_j : drones_to_UGV.at(ugv_num)) {
+				/// Update-Subtours()
+				updateSubtours(drone_j, &sol_new);
+			}
 
 			/// optimize-launch-land()
 			if(DEBUG_ILO) {
 				printf(" Optimizing step\n");
 			}
-			optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
-
-			/// For each drone...
-			for(int drone_j : drones_to_UGV.at(ugv_num)) {
-				/// opt-flag |= Update-Subtours()
-				opt_flag |= updateSubtours(drone_j, sol_final);
-			}
+			optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_new);
 		}
-	}
+
+		/// Did we improve the solution?
+		if(sol_new.CalculatePar() < sol_final->CalculatePar()) {
+			if(DEBUG_ILO) {
+				printf("  Found better solution!\n");
+			}
+			/// Update the final solution
+			*sol_final = Solution(sol_new);
+			/// Run again
+			opt_flag = true;
+		}
+		if(DEBUG_ILO) {
+			printf("New Solution, PAR = %f\n", sol_final->CalculatePar());
+		}
+	} while(opt_flag);
+
+//	/// For each UGV...
+//	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
+//		if(DEBUG_ILO) {
+//			printf("**** ILO for UGV %d ****\nCurrent par = %f\n", ugv_num, sol_final->CalculatePar());
+//		}
+//
+//		/// opt-flag := True
+//		bool opt_flag = true;
+//		/// while opt-flag
+//		while(opt_flag) {
+//			opt_flag = false;
+//
+//			/// optimize-launch-land()
+//			if(DEBUG_ILO) {
+//				printf(" Optimizing step\n");
+//			}
+//			optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+//
+//			/// For each drone...
+//			for(int drone_j : drones_to_UGV.at(ugv_num)) {
+//				/// opt-flag |= Update-Subtours()
+//				opt_flag |= updateSubtours(drone_j, sol_final);
+//			}
+//		}
+//
+//	}
 
 	if(DEBUG_ILO) {
 		sol_final->PrintSolution();
@@ -173,12 +204,12 @@ bool Solver_ILO::updateSubtours(int drone_id, Solution* sol_final) {
 		printf(" Running through actions\n");
 
 	for(DroneAction a : old_action_list) {
-		if(DEBUG_ILO)
-			printf("  action-type: %d", int(a.mActionType));
+//		if(DEBUG_ILO)
+//			printf("  action-type: %d", int(a.mActionType));
 		// Are we starting a new sub-tour?
 		if(a.mActionType == E_DroneActionTypes::e_LaunchFromUGV) {
-			if(DEBUG_ILO)
-				printf(" starting new sub-tour");
+//			if(DEBUG_ILO)
+//				printf(" starting new sub-tour");
 
 			// Clear old sub-tour
 			lst.clear();
@@ -204,8 +235,8 @@ bool Solver_ILO::updateSubtours(int drone_id, Solution* sol_final) {
 		}
 		// Did we move to a node?
 		else if(a.mActionType == E_DroneActionTypes::e_MoveToNode) {
-			if(DEBUG_ILO)
-				printf(" stopping at node %d", a.mDetails);
+//			if(DEBUG_ILO)
+//				printf(" stopping at node %d", a.mDetails);
 			// Add node to current sub-tour
 			TSPVertex node;
 			node.nID = a.mDetails;
@@ -221,8 +252,8 @@ bool Solver_ILO::updateSubtours(int drone_id, Solution* sol_final) {
 		}
 		// Is this the end of the tour?
 		else if(a.mActionType == E_DroneActionTypes::e_MoveToUGV) {
-			if(DEBUG_ILO)
-				printf(" end of sub-tour");
+//			if(DEBUG_ILO)
+//				printf(" end of sub-tour");
 			// Add terminal to current sub-tour
 			TSPVertex terminal;
 			terminal.nID = -2;
@@ -250,15 +281,15 @@ bool Solver_ILO::updateSubtours(int drone_id, Solution* sol_final) {
 			}
 
 			/// Start re-building tour
-			if(DEBUG_ILO)
-				printf(". Old dist = %.1f, new dist = %.1f", old_subtour_dist, new_subtour_dist);
+//			if(DEBUG_ILO)
+//				printf(". Old dist = %.1f, new dist = %.1f", old_subtour_dist, new_subtour_dist);
 			// Add in original take-off
 			new_action_list.push_back(sub_tour_start);
 
 			// Did we find a shorter distance?
 			if(new_subtour_dist < (old_subtour_dist-EPSILON)) {
-				if(DEBUG_ILO)
-					printf(". NEW TOUR!");
+//				if(DEBUG_ILO)
+//					printf(". NEW TOUR!");
 				// Found better tour
 				opt_flag = true;
 				// Add in new sub-tour
@@ -284,14 +315,14 @@ bool Solver_ILO::updateSubtours(int drone_id, Solution* sol_final) {
 			// Just push this action back onto the list
 			new_action_list.push_back(a);
 		}
-		if(DEBUG_ILO)
-			printf("\n");
+//		if(DEBUG_ILO)
+//			printf("\n");
 	}
 
 	// Did we create a new tour?
 	if(opt_flag) {
-		if(DEBUG_ILO)
-			printf("  * Update solution\n");
+//		if(DEBUG_ILO)
+//			printf("  * Update solution\n");
 		// Clear old solution
 		sol_final->ClearDroneSolution(drone_id);
 		for(DroneAction a : new_action_list) {

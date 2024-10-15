@@ -56,8 +56,6 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 	// While we don't have a valid solution
 	bool valid_solution = false;
 	while(!valid_solution) {
-		if(SANITY_PRINT)
-			printf("\n--------------------------------------------------------\n** New Round, k = %d, m' = %d\n", K, Mp);
 
 		// Clear previous solution
 		depots.clear();
@@ -70,6 +68,8 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 		/// 2. k = max(k, m')
 		K = std::max(Mp, K);
+		if(SANITY_PRINT)
+			printf("\n--------------------------------------------------------\n** New Round, k = %d, m' = %d\n", K, Mp);
 
 		// Did we go over...?
 		if(K > boost::numeric_cast<int>(vctrPOINodes.size())) {
@@ -141,6 +141,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				}
 				printf("\n");
 			}
+			printf("Solver VRP on cluster centroids\n");
 		}
 
 
@@ -161,7 +162,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 
 		/// 5. For each UGV j:
-		for(int j_p = 0; j_p < Mp; j_p++) {
+		for(int j_p = 0; j_p < Mp && j_p < boost::numeric_cast<int>(depot_order.size()); j_p++) {
 			int j_actual = j_p % input->GetMg();
 
 			/// 6. For each cluster assigned to j
@@ -193,33 +194,35 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				// Calculate the longest sub-tour distance
 				/// 8. If there exists drone-tour A such that dist(A) > d^a_max, increase k and repeat steps 2-8
 				for(const std::vector<int> &subtour : subtours) {
-					// Find distance from depot to first stop
-					double tour_length = distAtoB(depot.x, depot.y, vctrPOINodes.at(subtour.front()).location.x, vctrPOINodes.at(subtour.front()).location.y);
-					std::vector<int>::const_iterator prev = subtour.begin();
-					std::vector<int>::const_iterator nxt = prev+1;
-					while(nxt != subtour.end()) {
-						// Calculate distance from prev to nxt
-						tour_length += distAtoB(vctrPOINodes.at(*prev).location.x, vctrPOINodes.at(*prev).location.y, vctrPOINodes.at(*nxt).location.x, vctrPOINodes.at(*nxt).location.y);
-						// Update iterators
-						prev = nxt;
-						nxt++;
-					}
-					// Add in trip back to depot
-					tour_length += distAtoB(vctrPOINodes.at(subtour.back()).location.x, vctrPOINodes.at(subtour.back()).location.y, depot.x, depot.y);
+					if(subtour.size() > 0) {
+						// Find distance from depot to first stop
+						double tour_length = distAtoB(depot.x, depot.y, vctrPOINodes.at(subtour.front()).location.x, vctrPOINodes.at(subtour.front()).location.y);
+						std::vector<int>::const_iterator prev = subtour.begin();
+						std::vector<int>::const_iterator nxt = prev+1;
+						while(nxt != subtour.end()) {
+							// Calculate distance from prev to nxt
+							tour_length += distAtoB(vctrPOINodes.at(*prev).location.x, vctrPOINodes.at(*prev).location.y, vctrPOINodes.at(*nxt).location.x, vctrPOINodes.at(*nxt).location.y);
+							// Update iterators
+							prev = nxt;
+							nxt++;
+						}
+						// Add in trip back to depot
+						tour_length += distAtoB(vctrPOINodes.at(subtour.back()).location.x, vctrPOINodes.at(subtour.back()).location.y, depot.x, depot.y);
 
-					if(DEBUG_SOLVER)
-						printf(" Distance of tour: %f\n", tour_length);
-
-
-					// dist(A) > d^a_max ?
-					if(tour_length > input->GetDroneMaxDist(DRONE_I)) {
-						// Yes, increase k and repeat steps 2-8
 						if(DEBUG_SOLVER)
-							printf("Drone tour too long -> increase k\n");
+							printf(" Distance of tour: %f\n", tour_length);
 
-						K++;
-						valid_solution = false;
-						break;
+
+						// dist(A) > d^a_max ?
+						if(tour_length > input->GetDroneMaxDist(DRONE_I)) {
+							// Yes, increase k and repeat steps 2-8
+							if(DEBUG_SOLVER)
+								printf("Drone tour too long -> increase k\n");
+
+							K++;
+							valid_solution = false;
+							break;
+						}
 					}
 				}
 				if(!valid_solution) {
@@ -235,7 +238,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 		if(DEBUG_SOLVER) {
 			printf("\nFound working drone sub-tours:\n");
 			// For each UGV
-			for(int ugv_num = 0; ugv_num < Mp; ugv_num++) {
+			for(int ugv_num = 0; ugv_num < Mp && ugv_num < boost::numeric_cast<int>(depot_order.size()); ugv_num++) {
 				int j_actual = ugv_num % input->GetMg();
 				printf("UGV %d\n", j_actual);
 				// For each depot that the UGV visits
@@ -246,7 +249,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 						int drone = drones_to_UGV.at(j_actual).at(drone_i);
 						printf("  Drone %d:\n", drone);
 						// Print which points this drone visits
-						for(int stop : depots_tours.at(n).at(drone)) {
+						for(int stop : depots_tours.at(n).at(drone_i)) {
 							printf("   %d:%s (%f, %f)\n", stop, vctrPOINodes.at(stop).ID.c_str(), vctrPOINodes.at(stop).location.x, vctrPOINodes.at(stop).location.y);
 						}
 					}
@@ -274,7 +277,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 			}
 
 			// Push initial actions for all UGV and drones
-			for(int ugv_num_p = 0; ugv_num_p < Mp; ugv_num_p++) {
+			for(int ugv_num_p = 0; ugv_num_p < Mp && ugv_num_p < boost::numeric_cast<int>(depot_order.size()); ugv_num_p++) {
 				int j_actual = ugv_num_p % input->GetMg();
 				// Initially, we do not give any energy to the drone
 				ugvEnergySpent.push_back(0.0);
@@ -339,7 +342,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 			}
 
 			// For each UGV
-			for(int ugv_num_p = 0; ugv_num_p < Mp && valid_solution; ugv_num_p++) {
+			for(int ugv_num_p = 0; ugv_num_p < Mp && valid_solution && ugv_num_p < boost::numeric_cast<int>(depot_order.size()); ugv_num_p++) {
 				int j_actual = ugv_num_p % input->GetMg();
 				if(DEBUG_SOLVER)
 					printf(" UGV: %d\n", ugv_num_p);
@@ -380,6 +383,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					std::priority_queue<Arrival, std::vector<Arrival>, CompareArrival> arrival_queue;
 					// For each drone that launches from the UGV
 					for(long unsigned int drone_i = 0; drone_i < depots_tours.at(n).size(); drone_i++) {
+						// TODO: should not add things here if the drone does not get deployed..
 						// Which drone gets launched next?
 						Arrival next_drone = charging_queue.top();
 						charging_queue.pop();
@@ -675,6 +679,7 @@ void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& 
 	// Run TSP solver on this sub-tour
 	int sys_output = std::system("LKH FixedHPP.par > trash.out");
 
+	// TODO: don't read a file if the solver failed...
 	if(DEBUG_SOLVER)
 		printf("System Call returned: %d\nFound the following solution:\n", sys_output);
 

@@ -123,6 +123,7 @@ class Solution {
 public:
 	Solution(PatrollingInput* input);
 	Solution(const Solution &other);
+	Solution& operator=(const Solution &other);
 	virtual ~Solution();
 
 	// Takes in an existing solution and generates a runtime version (clears any existing solution stored here)

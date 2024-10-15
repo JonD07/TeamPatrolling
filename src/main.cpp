@@ -132,12 +132,12 @@ int main(int argc, char *argv[]) {
 	auto stop = std::chrono::high_resolution_clock::now();
 	// Determine the time it took to solve this
 	long long int duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
-	double duration_s = (double)duration/1000.0;
+	double duration_s = (double)duration/1000.0; 
 
 	double par = solution.CalculatePar();
 
 	if(SANITY_PRINT) {
-		printf("PAR: %f, time = %f\n", par, duration_s);
+		printf("PAR: %f, computation time = %f\n", par, duration_s);
 	}
 
 	// Print results to file
