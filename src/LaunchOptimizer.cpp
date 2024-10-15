@@ -55,8 +55,12 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 		// Create a Gurobi environment
 		try {
 			GRBEnv env = GRBEnv();
-//			env.setParam('OutputFlag', 0);
-			env.set(GRB_INT_PAR_OUTPUTFLAG, "0");
+			if(DEBUG_LAUNCHOPT) {
+				printf("Starting up Gurobi\n");
+			}
+			else {
+				env.set(GRB_INT_PAR_OUTPUTFLAG, "0");
+			}
 			GRBModel model = GRBModel(env);
 			std::vector<std::vector<GRBVar>> sub_tour_dist_vars;
 			std::vector<std::vector<GRBVar>> sub_tour_pos_vars;
