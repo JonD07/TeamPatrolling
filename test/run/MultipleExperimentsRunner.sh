@@ -98,14 +98,14 @@
 
 # echo "Running Exp 3 with VRP Solver: Increasing the number of UAV/UGV teams with a fixed number of nodes (50)."
 
-for i in {1..10}
-do
-    droneNumber=$((i*2))
-    for j in {1..50}
-    do
-        # echo "../../build/patrolling-solver ../IncreaseTeamsExps/plot_${i}_${droneNumber}_50_${j}.yaml 3 0 1 "../IncreaseTeamsExps/" $j"
-        ../../build/patrolling-solver ../IncreaseTeamsExps/plot_${i}_${droneNumber}_50_${j}.yaml 3 0 1 "../IncreaseTeamsExps/" $j
-        wait
-    done
-done
+# for i in {1..10}
+# do
+#     droneNumber=$((i*2))
+#     for j in {1..50}
+#     do
+#         # echo "../../build/patrolling-solver ../IncreaseTeamsExps/plot_${i}_${droneNumber}_50_${j}.yaml 3 0 1 "../IncreaseTeamsExps/" $j"
+#         ../../build/patrolling-solver ../IncreaseTeamsExps/plot_${i}_${droneNumber}_50_${j}.yaml 3 0 1 "../IncreaseTeamsExps/" $j
+#         wait
+#     done
+# done
 

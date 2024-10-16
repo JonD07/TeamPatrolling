@@ -21,7 +21,7 @@
 
 #include "Utilities.h"
 
-#define DEBUG_HL_KMEANS		DEBUG || 1
+#define DEBUG_HL_KMEANS		DEBUG || 0
 
 struct kPoint {
 	int point_ID;

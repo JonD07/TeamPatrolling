@@ -14,7 +14,8 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 
 	// Get the POI Nodes from the input
 	std::vector<Node> vctrPOINodes = input->GetNodes();
-
+	printf("vctrPOINodes size: %lu\n", vctrPOINodes.size());
+	printf("ugv num: %d\n", ugv_num);
 	// We need the lists of actions that each drone is performing
 	std::vector<std::vector<DroneAction>> drone_action_lists;
 	std::vector<int> drone_action_lists_i;
@@ -28,6 +29,8 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 		// Track our progress through the list (start at 1 -- 0 is not really an action)
 		drone_action_lists_i.push_back(1);
 	}
+
+	printf("Drone action lists size: %lu\n", drone_action_lists.size());
 
 	// Create vectors of actions for each vehicle
 	std::vector<UGVAction> ugv_final_actions;
@@ -65,6 +68,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			int subtour_counter = 0;
 			// For each drone assigned to the UGV
 			for(int drone_id : drones_on_UGV) {
+				printf("Drone %d\n", drone_id);
 				if(DEBUG_LAUNCHOPT)
 					printf(" Get actions for drone %d\n", drone_id);
 				bool on_tour = false;
@@ -85,6 +89,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 						// Are we still visiting nodes...?
 						if(next_action.mActionType == E_DroneActionTypes::e_MoveToNode) {
 							// Visited next node, record distance and update previous
+							printf("Visiting node %d (%f,%f)\n", next_action.mDetails, next_action.fX, next_action.fY);
 							tour_dist += distAtoB(prev_x, prev_y, next_action.fX, next_action.fY);
 							prev_x = next_action.fX;
 							prev_y = next_action.fY;
@@ -484,7 +489,6 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 
 					// Launch the drone
 
-					//Added below lines to try and refactor UAV_LAUNCH TIME
 					int drone_id = action_i.ID;
 					UAV uav = input->getUAV(drone_id);
 					t_j = ugv_t_i + uav.timeNeededToLaunch;
@@ -655,4 +659,5 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 		DroneAction endAction(E_DroneActionTypes::e_KernelEnd, last_action.fX, last_action.fY, last_action.fCompletionTime);
 		sol_final->PushDroneAction(drone_id, endAction);
 	}
+
 }
