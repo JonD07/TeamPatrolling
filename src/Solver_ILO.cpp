@@ -29,6 +29,21 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 	 * end-for
 	 */
 
+
+	/// S := Find Baseline Solution
+	/// Do..
+	///   S' := S
+	///   For each UGV j...
+	///     For each drone k...
+	///       S' := Update-Subtours(S', k)
+	///     end-for
+	///     S' := optimize-launch-land(S', j)
+	///   end-for
+	///   if par(S') < S
+	///     S := S'
+	///   end-if
+	/// While S changed
+
 	/*
 	 * Update-Subtours Algorithm:
 	 *
@@ -76,10 +91,11 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 
 	bool opt_flag = true;
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-		// Need to break things up a little...
+		// Need to break things up a little before continuing...
 		optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
 	}
 
+	/// Do..
 	do {
 		// Create a temporary solution
 		Solution sol_new(*sol_final);
@@ -121,6 +137,7 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 		if(DEBUG_ILO) {
 			printf("New Solution, PAR = %f\n", sol_final->CalculatePar());
 		}
+	/// While we made an improvement
 	} while(opt_flag);
 
 //	/// For each UGV...
