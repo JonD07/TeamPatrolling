@@ -1,0 +1,620 @@
+ID: state_every_UAV_action_IncreaseNodeExps/plot_1_2_95_5.yaml
+time: 0.0
+description: Generated scenario for UAV and UGV planning problem
+agents:
+- ID: UAV_01
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_01
+- ID: UAV_02
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_02
+- ID: UGV_01
+  type: UGV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 25010000.0
+    current_battery_energy: 25010000.0
+  charging_pads:
+  - ID: pad_01
+    mode: occupied
+    UAV_ID: UAV_01
+    is_charging: true
+  - ID: pad_02
+    mode: occupied
+    UAV_ID: UAV_02
+    is_charging: true
+scenario:
+  description: Generated scenario
+  type: persistent_surveillance
+  subtype: standard
+  nodes:
+  - ID: n_0001
+    type: air_only
+    location:
+      x: -2708.1
+      y: 1596.3
+    time_last_service: 0.0
+  - ID: n_0002
+    type: air_only
+    location:
+      x: -331.1
+      y: -516.1
+    time_last_service: 0.0
+  - ID: n_0003
+    type: air_only
+    location:
+      x: 1491.2
+      y: -711.9
+    time_last_service: 0.0
+  - ID: n_0004
+    type: air_only
+    location:
+      x: 2291.6
+      y: 4171.1
+    time_last_service: 0.0
+  - ID: n_0005
+    type: air_only
+    location:
+      x: -4077.0
+      y: 4686.1
+    time_last_service: 0.0
+  - ID: n_0006
+    type: air_only
+    location:
+      x: 1686.8
+      y: 931.6
+    time_last_service: 0.0
+  - ID: n_0007
+    type: air_only
+    location:
+      x: 98.0
+      y: 304.3
+    time_last_service: 0.0
+  - ID: n_0008
+    type: air_only
+    location:
+      x: 490.0
+      y: -2398.2
+    time_last_service: 0.0
+  - ID: n_0009
+    type: air_only
+    location:
+      x: -3659.9
+      y: 2516.1
+    time_last_service: 0.0
+  - ID: n_0010
+    type: air_only
+    location:
+      x: -3585.8
+      y: 2382.5
+    time_last_service: 0.0
+  - ID: n_0011
+    type: air_only
+    location:
+      x: 1251.2
+      y: 4938.5
+    time_last_service: 0.0
+  - ID: n_0012
+    type: air_only
+    location:
+      x: -2912.5
+      y: -3505.6
+    time_last_service: 0.0
+  - ID: n_0013
+    type: air_only
+    location:
+      x: 4237.8
+      y: -580.2
+    time_last_service: 0.0
+  - ID: n_0014
+    type: air_only
+    location:
+      x: 2602.2
+      y: -83.8
+    time_last_service: 0.0
+  - ID: n_0015
+    type: air_only
+    location:
+      x: -2992.7
+      y: 168.3
+    time_last_service: 0.0
+  - ID: n_0016
+    type: air_only
+    location:
+      x: -1534.3
+      y: 1028.1
+    time_last_service: 0.0
+  - ID: n_0017
+    type: air_only
+    location:
+      x: 728.0
+      y: 4711.5
+    time_last_service: 0.0
+  - ID: n_0018
+    type: air_only
+    location:
+      x: 718.3
+      y: -231.7
+    time_last_service: 0.0
+  - ID: n_0019
+    type: air_only
+    location:
+      x: -492.3
+      y: 697.6
+    time_last_service: 0.0
+  - ID: n_0020
+    type: air_only
+    location:
+      x: 638.4
+      y: -4613.3
+    time_last_service: 0.0
+  - ID: n_0021
+    type: air_only
+    location:
+      x: -22.5
+      y: -2531.2
+    time_last_service: 0.0
+  - ID: n_0022
+    type: air_only
+    location:
+      x: -598.2
+      y: -3202.3
+    time_last_service: 0.0
+  - ID: n_0023
+    type: air_only
+    location:
+      x: -1780.0
+      y: -2467.8
+    time_last_service: 0.0
+  - ID: n_0024
+    type: air_only
+    location:
+      x: -1519.3
+      y: 1927.2
+    time_last_service: 0.0
+  - ID: n_0025
+    type: air_only
+    location:
+      x: 1310.6
+      y: 639.1
+    time_last_service: 0.0
+  - ID: n_0026
+    type: air_only
+    location:
+      x: 924.2
+      y: -2388.4
+    time_last_service: 0.0
+  - ID: n_0027
+    type: air_only
+    location:
+      x: 1869.7
+      y: 2174.5
+    time_last_service: 0.0
+  - ID: n_0028
+    type: air_only
+    location:
+      x: -289.5
+      y: 2783.7
+    time_last_service: 0.0
+  - ID: n_0029
+    type: air_only
+    location:
+      x: -3653.4
+      y: -1598.4
+    time_last_service: 0.0
+  - ID: n_0030
+    type: air_only
+    location:
+      x: 1913.2
+      y: 1913.4
+    time_last_service: 0.0
+  - ID: n_0031
+    type: air_only
+    location:
+      x: 3944.6
+      y: -3264.9
+    time_last_service: 0.0
+  - ID: n_0032
+    type: air_only
+    location:
+      x: -2049.3
+      y: 4381.8
+    time_last_service: 0.0
+  - ID: n_0033
+    type: air_only
+    location:
+      x: -3802.2
+      y: 3988.8
+    time_last_service: 0.0
+  - ID: n_0034
+    type: air_only
+    location:
+      x: 3934.6
+      y: 4166.9
+    time_last_service: 0.0
+  - ID: n_0035
+    type: air_only
+    location:
+      x: 2781.7
+      y: -1244.3
+    time_last_service: 0.0
+  - ID: n_0036
+    type: air_only
+    location:
+      x: 3063.1
+      y: 1647.1
+    time_last_service: 0.0
+  - ID: n_0037
+    type: air_only
+    location:
+      x: 1748.6
+      y: -4142.1
+    time_last_service: 0.0
+  - ID: n_0038
+    type: air_only
+    location:
+      x: -1197.6
+      y: 818.5
+    time_last_service: 0.0
+  - ID: n_0039
+    type: air_only
+    location:
+      x: 1415.7
+      y: -4559.8
+    time_last_service: 0.0
+  - ID: n_0040
+    type: air_only
+    location:
+      x: -51.7
+      y: -88.0
+    time_last_service: 0.0
+  - ID: n_0041
+    type: air_only
+    location:
+      x: 4983.9
+      y: 2169.6
+    time_last_service: 0.0
+  - ID: n_0042
+    type: air_only
+    location:
+      x: 1414.1
+      y: -1630.2
+    time_last_service: 0.0
+  - ID: n_0043
+    type: air_only
+    location:
+      x: -4701.2
+      y: -561.7
+    time_last_service: 0.0
+  - ID: n_0044
+    type: air_only
+    location:
+      x: 3837.7
+      y: 2222.5
+    time_last_service: 0.0
+  - ID: n_0045
+    type: air_only
+    location:
+      x: 740.2
+      y: -3785.8
+    time_last_service: 0.0
+  - ID: n_0046
+    type: air_only
+    location:
+      x: 3861.9
+      y: 4829.5
+    time_last_service: 0.0
+  - ID: n_0047
+    type: air_only
+    location:
+      x: 1045.7
+      y: -3402.6
+    time_last_service: 0.0
+  - ID: n_0048
+    type: air_only
+    location:
+      x: 432.3
+      y: 1172.5
+    time_last_service: 0.0
+  - ID: n_0049
+    type: air_only
+    location:
+      x: 4175.5
+      y: 1434.0
+    time_last_service: 0.0
+  - ID: n_0050
+    type: air_only
+    location:
+      x: -13.9
+      y: 1677.5
+    time_last_service: 0.0
+  - ID: n_0051
+    type: air_only
+    location:
+      x: -1591.5
+      y: 4124.7
+    time_last_service: 0.0
+  - ID: n_0052
+    type: air_only
+    location:
+      x: -2619.8
+      y: -4638.9
+    time_last_service: 0.0
+  - ID: n_0053
+    type: air_only
+    location:
+      x: 4411.3
+      y: 1049.9
+    time_last_service: 0.0
+  - ID: n_0054
+    type: air_only
+    location:
+      x: -1405.2
+      y: 4240.8
+    time_last_service: 0.0
+  - ID: n_0055
+    type: air_only
+    location:
+      x: -1482.7
+      y: -1081.0
+    time_last_service: 0.0
+  - ID: n_0056
+    type: air_only
+    location:
+      x: 2740.7
+      y: -3002.4
+    time_last_service: 0.0
+  - ID: n_0057
+    type: air_only
+    location:
+      x: -3869.2
+      y: 4594.0
+    time_last_service: 0.0
+  - ID: n_0058
+    type: air_only
+    location:
+      x: -3923.0
+      y: -3807.8
+    time_last_service: 0.0
+  - ID: n_0059
+    type: air_only
+    location:
+      x: -1975.7
+      y: 2317.4
+    time_last_service: 0.0
+  - ID: n_0060
+    type: air_only
+    location:
+      x: 793.2
+      y: -3174.3
+    time_last_service: 0.0
+  - ID: n_0061
+    type: air_only
+    location:
+      x: 2392.4
+      y: 2163.7
+    time_last_service: 0.0
+  - ID: n_0062
+    type: air_only
+    location:
+      x: -690.4
+      y: -2256.8
+    time_last_service: 0.0
+  - ID: n_0063
+    type: air_only
+    location:
+      x: -825.5
+      y: -3950.8
+    time_last_service: 0.0
+  - ID: n_0064
+    type: air_only
+    location:
+      x: -1226.9
+      y: -2267.1
+    time_last_service: 0.0
+  - ID: n_0065
+    type: air_only
+    location:
+      x: 4045.9
+      y: 1407.6
+    time_last_service: 0.0
+  - ID: n_0066
+    type: air_only
+    location:
+      x: -2332.5
+      y: 3661.4
+    time_last_service: 0.0
+  - ID: n_0067
+    type: air_only
+    location:
+      x: 3153.9
+      y: -4385.4
+    time_last_service: 0.0
+  - ID: n_0068
+    type: air_only
+    location:
+      x: -3262.1
+      y: -4908.7
+    time_last_service: 0.0
+  - ID: n_0069
+    type: air_only
+    location:
+      x: -291.5
+      y: -3899.9
+    time_last_service: 0.0
+  - ID: n_0070
+    type: air_only
+    location:
+      x: -2338.6
+      y: 1668.6
+    time_last_service: 0.0
+  - ID: n_0071
+    type: air_only
+    location:
+      x: 3099.3
+      y: 4160.7
+    time_last_service: 0.0
+  - ID: n_0072
+    type: air_only
+    location:
+      x: 3071.5
+      y: 4817.0
+    time_last_service: 0.0
+  - ID: n_0073
+    type: air_only
+    location:
+      x: -471.2
+      y: -130.5
+    time_last_service: 0.0
+  - ID: n_0074
+    type: air_only
+    location:
+      x: 1883.6
+      y: 1792.9
+    time_last_service: 0.0
+  - ID: n_0075
+    type: air_only
+    location:
+      x: 1245.8
+      y: 1784.6
+    time_last_service: 0.0
+  - ID: n_0076
+    type: air_only
+    location:
+      x: -1971.5
+      y: 2634.1
+    time_last_service: 0.0
+  - ID: n_0077
+    type: air_only
+    location:
+      x: -859.7
+      y: 3536.8
+    time_last_service: 0.0
+  - ID: n_0078
+    type: air_only
+    location:
+      x: 2875.6
+      y: -175.3
+    time_last_service: 0.0
+  - ID: n_0079
+    type: air_only
+    location:
+      x: 758.5
+      y: 3504.4
+    time_last_service: 0.0
+  - ID: n_0080
+    type: air_only
+    location:
+      x: -4814.5
+      y: 2647.5
+    time_last_service: 0.0
+  - ID: n_0081
+    type: air_only
+    location:
+      x: 3236.0
+      y: 3234.6
+    time_last_service: 0.0
+  - ID: n_0082
+    type: air_only
+    location:
+      x: 496.7
+      y: 316.6
+    time_last_service: 0.0
+  - ID: n_0083
+    type: air_only
+    location:
+      x: 296.0
+      y: -430.3
+    time_last_service: 0.0
+  - ID: n_0084
+    type: air_only
+    location:
+      x: -883.9
+      y: -4253.8
+    time_last_service: 0.0
+  - ID: n_0085
+    type: air_only
+    location:
+      x: -4040.1
+      y: 145.3
+    time_last_service: 0.0
+  - ID: n_0086
+    type: air_only
+    location:
+      x: -1006.2
+      y: 3152.9
+    time_last_service: 0.0
+  - ID: n_0087
+    type: air_only
+    location:
+      x: 3076.9
+      y: 4.1
+    time_last_service: 0.0
+  - ID: n_0088
+    type: air_only
+    location:
+      x: 4933.4
+      y: 4218.2
+    time_last_service: 0.0
+  - ID: n_0089
+    type: air_only
+    location:
+      x: 1388.5
+      y: 4545.3
+    time_last_service: 0.0
+  - ID: n_0090
+    type: air_only
+    location:
+      x: -1087.5
+      y: 4009.5
+    time_last_service: 0.0
+  - ID: n_0091
+    type: air_only
+    location:
+      x: 274.4
+      y: -3644.2
+    time_last_service: 0.0
+  - ID: n_0092
+    type: air_only
+    location:
+      x: -3212.1
+      y: -4930.3
+    time_last_service: 0.0
+  - ID: n_0093
+    type: air_only
+    location:
+      x: 2447.0
+      y: 4509.1
+    time_last_service: 0.0
+  - ID: n_0094
+    type: air_only
+    location:
+      x: 2687.0
+      y: -2004.8
+    time_last_service: 0.0
+  - ID: n_0095
+    type: air_only
+    location:
+      x: 3989.6
+      y: 1050.7
+    time_last_service: 0.0
+  connections: []
