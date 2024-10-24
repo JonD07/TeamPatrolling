@@ -34,7 +34,7 @@ MAX_Y = 10000
 
 EXP_01_Flag = False
 EXP_02_Flag = False
-EXP_03_Flag = True
+EXP_03_Flag = False
 
 
 def main():
