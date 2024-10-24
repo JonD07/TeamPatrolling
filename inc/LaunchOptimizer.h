@@ -18,7 +18,7 @@
 #include "Solution.h"
 #include "gurobi_c++.h"
 
-#define DEBUG_LAUNCHOPT	DEBUG || 0
+#define DEBUG_LAUNCHOPT	DEBUG || 1
 
 #define CONST_RELAXATION(X)		X,X+0.1
 
