@@ -160,6 +160,10 @@ public:
 	void ClearDroneSolution(int j);
 	// Deletes the current plan (actions and completion times) for UGV j
 	void ClearUGVSolution(int j);
+	// Helper function to convert DroneActionType enum to string
+	std::string droneActionTypeToString(E_DroneActionTypes actionType);
+	// Helper function to convert UGVActionType enum to string
+	std::string ugvActionTypeToString(E_UGVActionTypes actionType);
 
 private:
 	PatrollingInput* m_input;
@@ -168,10 +172,6 @@ private:
 	std::vector<std::vector<DroneAction>> m_Aa;
 	std::vector<std::vector<UGVAction>> m_Ag;
 
-	// Helper function to convert DroneActionType enum to string
-	std::string droneActionTypeToString(E_DroneActionTypes actionType);
-	// Helper function to convert UGVActionType enum to string
-	std::string ugvActionTypeToString(E_UGVActionTypes actionType);
 	// Reduce precision of floating point number and convert to string
 	std::string floatingPointToString(double val);
 };

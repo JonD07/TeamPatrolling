@@ -15,6 +15,7 @@
 #include <vector>
 #include <cmath>
 #include <complex>
+#include <queue> 
 
 #include "Solution.h"
 #include "PatrollingInput.h"
@@ -59,7 +60,7 @@ public:
 	virtual void Solve(PatrollingInput* input, Solution* sol_final) = 0;
 	// Runs the baseline solver, setting an initial solution to build off of
 	void RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
-
+	void RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
 protected:
 	/*
 	 * Solves TSP on on vertices held in lst and stores found ordering in result. The multiplier
@@ -68,6 +69,7 @@ protected:
 	 */
 	void solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& result, double multiplier);
 private:
+	double calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UGV UGV_current_object); 
 	KMeansSolver mKMeansSolver;
 	VRPSolver mVRPSolver;
 };

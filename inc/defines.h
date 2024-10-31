@@ -10,7 +10,7 @@
 #pragma once
 
 #define DEBUG			0
-#define SANITY_PRINT	0
+#define SANITY_PRINT	1
 
 #define EPSILON			0.000001
 #define INF				1000000000000
@@ -35,5 +35,6 @@ enum {
 	e_Algo_GREEDY = 1,
 	e_Algo_OPTLAUNCH = 2,
 	e_Algo_ILO = 3,
+	e_Algo_DEPLETED = 4, 
 };
 
