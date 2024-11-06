@@ -591,6 +591,50 @@ double Solver::calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UG
 	return move_energy; 
 }
 
+double Solver::calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar,std::queue<DroneAction>& drone_action_queue, UAV UAV_current_object, double UAV_VMax) {
+
+	// TODO figure out the totalFlyTime from the drone_action_queue 
+	double totalFlyTime = 0;
+	while (!drone_action_queue.empty()) {
+		DroneAction currentDroneAction = drone_action_queue.front();
+		drone_action_queue.pop(); // Remove the action after printing
+
+
+		// * If the drone action tpye is a MoveToNode or MoveToUGV we should update our flight time 
+		if (currentDroneAction.mActionType == E_DroneActionTypes::e_MoveToNode || currentDroneAction.mActionType == E_DroneActionTypes::e_MoveToUGV) {
+			if (droneActionsSoFar.empty()) {
+				throw std::runtime_error("Drone Actions Vector is empty and this should be impossible");
+
+			}
+			DroneAction dronePrev = droneActionsSoFar.back(); 
+			double dist_prev_next = distAtoB(dronePrev.fX, dronePrev.fY, currentDroneAction.fX, currentDroneAction.fY);
+			double t_duration = dist_prev_next/UAV_VMax;
+			totalFlyTime += t_duration;
+
+		}
+
+		droneActionsSoFar.push_back(currentDroneAction);
+		// * If the action type is a land on UGV we are this energy step and we have our flight time
+		if (currentDroneAction.mActionType == E_DroneActionTypes::e_LandOnUGV) {
+			break; 
+		}
+	}
+
+	
+	// Energy from launching and landing
+	double energyPerSecond = UAV_current_object.getJoulesPerSecondFlying(UAV_current_object.maxSpeed);
+	double joules = totalFlyTime*energyPerSecond;
+	// Add in energy required to launch and to land
+	joules += UAV_current_object.energyToTakeOff + UAV_current_object.energyToLand;
+
+	if (SANITY_PRINT) {
+		printf("The drone used this much energy from launching + visiting + landing: [%f]\n", joules);
+	}
+
+	return joules;
+}
+
+
 
 void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV){
 	if(SANITY_PRINT) {
@@ -629,7 +673,8 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 		printf("UGV %zu:\n", j);
 		//size_t return_to_depot_index = -1;  
 		double energy_used = 0; 
-		std::vector<UGVAction> actions_so_far;
+		std::vector<UGVAction> UGVActionsSoFar;
+		std::vector<DroneAction> droneActionsSoFar;
 		// Now go through the action queue for each respective UGV
 		while (!ugv_action_queues[j].empty()) {
 			UGVAction action = ugv_action_queues[j].front();
@@ -650,32 +695,60 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 					}
 					break; 
 				case E_UGVActionTypes::e_MoveToWaypoint:
+					if (UGVActionsSoFar.empty()) {
+						throw std::runtime_error("UGV Actions Vector is empty and this should be impossible");
+					}
 					if (SANITY_PRINT) {
 						printf("Currently at waypoint (%f, %f)\n" , action.fX, action.fY); 
-						printf("Came from the following (%f, %f)\n", actions_so_far.back().fX, actions_so_far.back().fY);  
+						printf("Came from the following (%f, %f)\n", UGVActionsSoFar.back().fX, UGVActionsSoFar.back().fY);  
 					} 
-					energy_used += calcUGVMovingEnergy(actions_so_far.back(), action, input->getUGV(j));
-					// TODO implement energy calc from this move (will want to make a UGV function for this)
+					energy_used += calcUGVMovingEnergy(UGVActionsSoFar.back(), action, input->getUGV(j));
 					break; 
 				case E_UGVActionTypes::e_LaunchDrone:
 					if (SANITY_PRINT) {
 						printf("Launching Drone\n");
 					}
-					// TODO now we would start popping the perspective drone queue in order find the total amount of energy its excusion costed 
-					// TODO we prob want to make a function that will just take a drone action queue and go through until it lands and simply return how much energy this costed 
+					{
+						int launchedDroneId = action.mDetails;
+						
+						// TODO we prob want to make a function that will just take a drone action queue and go through until it lands and simply return how much energy this costed 
+						double joules = calcDroneMovingEnergy(droneActionsSoFar, drone_action_queues[launchedDroneId], input->getUAV(launchedDroneId), input->GetDroneVMax(launchedDroneId));
+
+						printf("\n");
+						printf("\n");
+						printf("\n");
+						printf("Drone Actions \n");
+						for (std::size_t i = 0; i < droneActionsSoFar.size(); i++) {
+							DroneAction action = droneActionsSoFar[i];
+							if (SANITY_PRINT) {
+								printf("  [%d] %d(%d) : (%f, %f) - %f\n",
+									action.mActionID,
+									static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType),
+									action.mDetails,
+									action.fX,
+									action.fY,
+									action.fCompletionTime);	
+								}
+						}
+						printf("\n");
+						
+						// TODO we need to make sure the energy value we actually use takes into account the charge efficeny 
+						energy_used += joules/input->getUGV(j).chargeEfficiency;
+					}
 					break;
 				case E_UGVActionTypes::e_MoveToDepot:
 					if (SANITY_PRINT) {
 						printf("UGV is considering wether to return to depot of loop again \n");
 					}
 					// TODO this is where the decision logic will need to go where the total energy of the UGV is compared to how much energy it has used so far... 
+					// TODO this is where the new action lists for the solution will be built using the UGVActionsSoFar and the droneActionsSoFar 
 				default:
 					if (SANITY_PRINT) {
 						printf("This action is currently not being considered \n");
 					}
 					break;
 			}
-			actions_so_far.push_back(action);
+			UGVActionsSoFar.push_back(action);
 		}
 
 	}
@@ -1232,4 +1305,6 @@ void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& 
 		printf("\n\n");
 	}
 }
+
+
 

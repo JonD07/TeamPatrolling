@@ -70,6 +70,7 @@ protected:
 	void solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& result, double multiplier);
 private:
 	double calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UGV UGV_current_object); 
+	double calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar,std::queue<DroneAction>& drone_action_queue, UAV UAV_current_object, double UAV_VMax); 
 	KMeansSolver mKMeansSolver;
 	VRPSolver mVRPSolver;
 };
