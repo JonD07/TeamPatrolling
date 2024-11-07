@@ -675,6 +675,8 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 		double energy_used = 0; 
 		std::vector<UGVAction> UGVActionsSoFar;
 		std::vector<DroneAction> droneActionsSoFar;
+		UGVAction previousMoveAction(E_UGVActionTypes::e_MoveToDepot, 0, 0, 0);
+		bool hasMoved = false;  
 		// Now go through the action queue for each respective UGV
 		while (!ugv_action_queues[j].empty()) {
 			UGVAction action = ugv_action_queues[j].front();
@@ -688,6 +690,8 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 					action.fY,
 					action.fCompletionTime);	
 			}
+
+			UGV currentUGV = input->getUGV(j);
 			switch (action.mActionType) {
 				case E_UGVActionTypes::e_AtDepot:
 					if (SANITY_PRINT) {
@@ -698,11 +702,29 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 					if (UGVActionsSoFar.empty()) {
 						throw std::runtime_error("UGV Actions Vector is empty and this should be impossible");
 					}
+
 					if (SANITY_PRINT) {
 						printf("Currently at waypoint (%f, %f)\n" , action.fX, action.fY); 
 						printf("Came from the following (%f, %f)\n", UGVActionsSoFar.back().fX, UGVActionsSoFar.back().fY);  
 					} 
-					energy_used += calcUGVMovingEnergy(UGVActionsSoFar.back(), action, input->getUGV(j));
+
+					energy_used += calcUGVMovingEnergy(UGVActionsSoFar.back(), action, currentUGV);
+
+					// * Assuming this is not the first move to waypoint in this trip, there has been some waiting time since the last move
+					if (!hasMoved) {
+						hasMoved = true; 
+					}
+					else {
+						// * We need to calculate the time in between the prevMoveAction and the previous action from the current action 
+						double ugv_wait_time = UGVActionsSoFar.back().fCompletionTime - previousMoveAction.fCompletionTime;
+						double ugv_wait_energy = currentUGV.joulesPerSecondWhileWaiting*ugv_wait_time;
+						energy_used += ugv_wait_energy; 
+
+						if(SANITY_PRINT) {
+							printf("   UGV energy waiting: %f\n", ugv_wait_energy);
+						}
+
+					}
 					break; 
 				case E_UGVActionTypes::e_LaunchDrone:
 					if (SANITY_PRINT) {
@@ -733,13 +755,21 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 						printf("\n");
 						
 						// TODO we need to make sure the energy value we actually use takes into account the charge efficeny 
-						energy_used += joules/input->getUGV(j).chargeEfficiency;
+						energy_used += joules/currentUGV.chargeEfficiency;
 					}
 					break;
 				case E_UGVActionTypes::e_MoveToDepot:
 					if (SANITY_PRINT) {
 						printf("UGV is considering wether to return to depot of loop again \n");
 					}
+
+					// We need to compute how much energy it will take to return to the first waypoint 
+					// We need to compute how much energy it will take to return to the depot 
+
+					// If the 2*energy now + energy to go to first waypoint + energy to return to depot < totalBatter
+						// Do as many loops and will have to update the actios lists accordinly 
+					// Else just return to the depot 
+
 					// TODO this is where the decision logic will need to go where the total energy of the UGV is compared to how much energy it has used so far... 
 					// TODO this is where the new action lists for the solution will be built using the UGVActionsSoFar and the droneActionsSoFar 
 				default:
