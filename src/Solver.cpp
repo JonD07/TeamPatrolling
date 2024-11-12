@@ -585,7 +585,7 @@ double Solver::calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UG
 	double t_duration = dist_prev_next/UGV_current_object.ugv_v_crg; 
 	double drivingEnergy = UGV_current_object.getJoulesPerSecondDriving(UGV_current_object.maxDriveAndChargeSpeed);
 	double move_energy = drivingEnergy*t_duration; 
-	if (SANITY_PRINT) {
+	if (DEBUG_SOL) {
 		printf("The Energy calcuated from the move: [%f]\n", move_energy);
 	}
 	return move_energy; 
@@ -627,7 +627,7 @@ double Solver::calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar
 	// Add in energy required to launch and to land
 	joules += UAV_current_object.energyToTakeOff + UAV_current_object.energyToLand;
 
-	if (SANITY_PRINT) {
+	if (DEBUG_SOL) {
 		printf("The drone used this much energy from launching + visiting + landing: [%f]\n", joules);
 	}
 
@@ -637,7 +637,7 @@ double Solver::calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar
 
 
 void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV){
-	if(SANITY_PRINT) {
+	if(DEBUG_SOL) {
 		printf("Hello from Run Depleted Solver!\n");
 		printf("Building Action Lists to Calculate Energies\n");
 	}
@@ -671,9 +671,10 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 	
 	for (size_t j = 0; j < ugv_action_queues.size(); ++j) { 
 		printf("UGV %zu:\n", j);
-		//size_t return_to_depot_index = -1;  
+
 		double energyUsed = 0; 
 		std::vector<UGVAction> UGVActionsSoFar;
+		std::vector<UGVAction> UGVLoopingActions; 
 		std::vector<DroneAction> droneActionsSoFar;
 		UGVAction previousMoveAction(E_UGVActionTypes::e_MoveToDepot, 0, 0, 0);
 		UGVAction firstWaypoint(E_UGVActionTypes::e_MoveToDepot, 0, 0, 0);
@@ -694,13 +695,9 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 					action.fCompletionTime);	
 			}
 
-			double returnDepotEnergy = 0;
-			double returnFirstWaypointEnergy = 0;
-			double loopEnergy = 0;
-			int numLoops = 0; 
 			switch (action.mActionType) {
 				case E_UGVActionTypes::e_AtDepot:
-					if (SANITY_PRINT) {
+					if (DEBUG_SOL) {
 						printf("At depot (%d) \n", action.mDetails);
 					}
 					break; 
@@ -709,7 +706,7 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 						throw std::runtime_error("UGV Actions Vector is empty and this should be impossible");
 					}
 
-					if (SANITY_PRINT) {
+					if (DEBUG_SOL) {
 						printf("Currently at waypoint (%f, %f)\n" , action.fX, action.fY); 
 						printf("Came from the following (%f, %f)\n", UGVActionsSoFar.back().fX, UGVActionsSoFar.back().fY);  
 					} 
@@ -727,14 +724,14 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 						double ugv_wait_energy = currentUGV.joulesPerSecondWhileWaiting*ugv_wait_time;
 						energyUsed += ugv_wait_energy; 
 
-						if(SANITY_PRINT) {
+						if(DEBUG_SOL) {
 							printf("   UGV energy waiting: %f\n", ugv_wait_energy);
 						}
 
 					}
 					break; 
 				case E_UGVActionTypes::e_LaunchDrone:
-					if (SANITY_PRINT) {
+					if (DEBUG_SOL) {
 						printf("Launching Drone\n");
 					}
 					{
@@ -743,13 +740,9 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 						// TODO we prob want to make a function that will just take a drone action queue and go through until it lands and simply return how much energy this costed 
 						double joules = calcDroneMovingEnergy(droneActionsSoFar, drone_action_queues[launchedDroneId], input->getUAV(launchedDroneId), input->GetDroneVMax(launchedDroneId));
 
-						printf("\n");
-						printf("\n");
-						printf("\n");
-						printf("Drone Actions \n");
 						for (std::size_t i = 0; i < droneActionsSoFar.size(); i++) {
 							DroneAction action = droneActionsSoFar[i];
-							if (SANITY_PRINT) {
+							if (DEBUG_SOL) {
 								printf("  [%d] %d(%d) : (%f, %f) - %f\n",
 									action.mActionID,
 									static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType),
@@ -759,7 +752,6 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 									action.fCompletionTime);	
 								}
 						}
-						printf("\n");
 						
 						// TODO we need to make sure the energy value we actually use takes into account the charge efficeny 
 						energyUsed += joules/currentUGV.chargeEfficiency;
@@ -769,47 +761,68 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 					if (SANITY_PRINT) {
 						printf("UGV is considering wether to return to depot of loop again \n");
 					}
+					{
+						// We need to compute how much energy it will take to return to the depot 
+						double returnDepotEnergy = calcUGVMovingEnergy(UGVActionsSoFar.back(), action, currentUGV);
+						// We need to compute how much energy it will take to return to the first waypoint 
+						double returnFirstWaypointEnergy = calcUGVMovingEnergy(firstWaypoint, action, currentUGV);
 
-					// We need to compute how much energy it will take to return to the depot 
-					returnDepotEnergy = calcUGVMovingEnergy(UGVActionsSoFar.back(), action, currentUGV);
-					// We need to compute how much energy it will take to return to the first waypoint 
-					returnFirstWaypointEnergy = calcUGVMovingEnergy(firstWaypoint, action, currentUGV);
-
-					// Figure out how much energy a second loop would cost 
-					loopEnergy = energyUsed + returnFirstWaypointEnergy + energyUsed + returnDepotEnergy; 
+						// Figure out how much energy a second loop would cost 
+						double loopEnergy = energyUsed + returnFirstWaypointEnergy + energyUsed + returnDepotEnergy; 
 
 
-					if (SANITY_PRINT) {
-						printf("The energy to return to the depot is [%f]\n", returnDepotEnergy);
-						printf("The energy to return to the first waypoint is [%f]\n", returnFirstWaypointEnergy);
-						printf("The energy to up to this point is: [%f]\n", energyUsed);
-						printf("The energy for another loop is [%f]\n", loopEnergy); 
-						printf("The UGV has this much total energy [%f]\n", input->GetUGVBatCap(j));
+						if (SANITY_PRINT) {
+							printf("The energy to return to the depot is [%f]\n", returnDepotEnergy);
+							printf("The energy to return to the first waypoint is [%f]\n", returnFirstWaypointEnergy);
+							printf("The energy to up to this point is: [%f]\n", energyUsed);
+							printf("The energy for another loop is [%f]\n", loopEnergy); 
+							printf("The UGV has this much total energy [%f]\n", input->GetUGVBatCap(j));
+						}
+
+						// * Figure out how many loops we can do 
+						int numLoops = 0;  
+						while (loopEnergy < input->GetUGVBatCap(j)) {
+							numLoops++; 
+							loopEnergy += returnFirstWaypointEnergy + energyUsed; 
+						}
+						
+						if (numLoops == 0) {
+							printf("---------------------------------------------------------\n");
+							printf("This input could not be optimized by the depleted solver \n");
+							printf("---------------------------------------------------------\n");
+						} else {
+							printf("---------------------------------------------------------\n");
+							printf("This input IS ABLE to be optimized by the depleted solver\n");
+							printf("---------------------------------------------------------\n");
+						}
+
+
+						// * Add the looped actions to the UGVActions
+						for (int i = 0; i < numLoops; i++) {
+							// * Create and add a action moving to the first waypoint cords 
+							double dist_prev_next = distAtoB(UGVActionsSoFar.back().fX, UGVActionsSoFar.back().fX, firstWaypoint.fX, firstWaypoint.fY);
+							double t_duration = dist_prev_next/currentUGV.ugv_v_crg;
+							double ugv_arrival_time = UGVActionsSoFar.back().fCompletionTime + t_duration;
+							UGVAction moveToFirstWaypoint(E_UGVActionTypes::e_MoveToWaypoint, firstWaypoint.fX, firstWaypoint.fY, ugv_arrival_time ,firstWaypoint.mDetails);
+							UGVActionsSoFar.push_back(moveToFirstWaypoint);
+							
+							// TODO Figure out How to calculate arrival times
+							// TODO Figure out ID Stuff 
+							UGVActionsSoFar.insert(UGVActionsSoFar.end(), UGVLoopingActions.begin(), UGVLoopingActions.end());
+
+						}
+
+
+						// TODO Get the drone actions up to the current waypoint 
+							// TODO need to make sure the drone action correctly corresponds 
+
+						
+						// * Rest variables related to the currnet (now that we are returning to a depot) BUT we can still leave for a new trip
+						hasMoved = true; 
+						UGVLoopingActions.clear(); 
+
+
 					}
-
-					// * Figure out how many loops we can do 
-					while (loopEnergy < input->GetUGVBatCap(j)) {
-						numLoops++; 
-						loopEnergy += returnFirstWaypointEnergy + energyUsed; 
-					}
-					
-					if (numLoops == 0) {
-						printf("---------------------------------------------------------\n");
-						printf("This input could not be optimized by the depleted solver\n");
-						printf("---------------------------------------------------------\n");
-					} else {
-						printf("---------------------------------------------------------\n");
-						printf("This input is able to be optimized by the depleted solver\n");
-						printf("---------------------------------------------------------\n");
-					}
-
-					// * Build out the new action lists 
-
-
-
-
-					// TODO this is where the decision logic will need to go where the total energy of the UGV is compared to how much energy it has used so far... 
-					// TODO this is where the new action lists for the solution will be built using the UGVActionsSoFar and the droneActionsSoFar 
 				default:
 					if (SANITY_PRINT) {
 						printf("This action is currently not being considered \n");
@@ -817,26 +830,21 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 					break;
 			}
 			UGVActionsSoFar.push_back(action);
+
+			// * If the UGV has already moved to the first locaction -> we want to keep track of these actions b/c they will represent the loop
+			if (hasMoved) {
+				UGVLoopingActions.push_back(action); 
+			}
 		}
+
+
+		for(UGVAction action : UGVActionsSoFar) {
+			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+		}
+	
 
 	}
 
-	// Printing all actions in the drone action queues
-	// Printing all actions in the drone action queues
-	for (size_t j = 0; j < drone_action_queues.size(); ++j) { // Change int to size_t
-		printf("Drone %zu:\n", j);
-		while (!drone_action_queues[j].empty()) {
-			DroneAction action = drone_action_queues[j].front();
-			printf("  [%d] %d(%d) : (%f, %f) - %f\n",
-				action.mActionID,
-				static_cast<std::underlying_type<E_DroneActionTypes>::type>(action.mActionType),
-				action.mDetails,
-				action.fX,
-				action.fY,
-				action.fCompletionTime);
-			drone_action_queues[j].pop(); // Remove the action after printing
-		}
-	}
 
 
 
