@@ -682,7 +682,7 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 		std::vector<double> UGVLoopingActionsTimes;
 		std::vector<UGVAction> UGVLoopingActions; 
 		std::vector<DroneAction> droneActionsSoFar;
-		std::vector<UGVAction> NewUGVActionList; 
+		std::vector<UGVAction> newUGVActionList; 
 		UGVAction previousMoveAction(E_UGVActionTypes::e_MoveToDepot, 0, 0, 0);
 		UGVAction firstWaypoint(E_UGVActionTypes::e_MoveToDepot, 0, 0, 0);
 		bool hasMoved = false;
@@ -801,12 +801,21 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 							printf("---------------------------------------------------------\n");
 							printf("This Trip could not be optimized by the depleted solver \n");
 							printf("---------------------------------------------------------\n");
+							
+					
+							UGVActionsSoFar.push_back(action);
+							UGVActionsSoFarTimes.push_back(action.fCompletionTime - UGVActionsSoFar.back().fCompletionTime);
+
 							break;
 						} else {
 							printf("---------------------------------------------------------\n");
 							printf("This input IS ABLE to be optimized by the depleted solver\n");
 							printf("---------------------------------------------------------\n");
 						}
+
+
+						printf("beg of depot\n");
+						printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 						
 						printf("UGV looping Actions\n");
 						int i = 0; 
@@ -819,50 +828,58 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 
 						// * These two base case must be handled 
 						if (newUGVSolIndex == 0) {
-							action = UGVActionsSoFar[newUGVSolIndex];
+							UGVAction copyAction = UGVActionsSoFar[newUGVSolIndex];
 							double completionTime = 0;
-							NewUGVActionList.emplace_back(action.mActionType, action.fX, action.fY, completionTime, action.mDetails);
+							newUGVActionList.emplace_back(copyAction.mActionType, copyAction.fX, copyAction.fY, completionTime, copyAction.mDetails);
 							newUGVSolIndex++; 
 						} 
 
 						// * Add all the actions from the newUGVSolIndex that havent been added yet
 						while (newUGVSolIndex < UGVActionsSoFar.size()) {
 							printf("index [%ld] and timeSoFar for that index [%f]\n", newUGVSolIndex, UGVActionsSoFarTimes[newUGVSolIndex]);
-							action = UGVActionsSoFar[newUGVSolIndex];
-							double completionTime = NewUGVActionList.back().fCompletionTime + UGVActionsSoFarTimes[newUGVSolIndex];
-							NewUGVActionList.emplace_back(action.mActionType, action.fX, action.fY, completionTime, action.mDetails);
+							UGVAction copyAction = UGVActionsSoFar[newUGVSolIndex];
+							double completionTime = newUGVActionList.back().fCompletionTime + UGVActionsSoFarTimes[newUGVSolIndex];
+							newUGVActionList.emplace_back(copyAction.mActionType, copyAction.fX, copyAction.fY, completionTime, copyAction.mDetails);
 							newUGVSolIndex++; 
 						}
 
-						// * Add the looped actions to the UGVActions
 						printf("----NewUGVActionList 00----\n");
-						for (UGVAction action : NewUGVActionList) {
+						for (UGVAction action : newUGVActionList) {
 							printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 						}
 
+
+						// * Add the looped actions to the UGVActions
 						for (int i = 0; i < numLoops; i++) {
 							// * Create and add a action moving to the first waypoint cords 
-							double dist_prev_next = distAtoB(UGVActionsSoFar.back().fX, UGVActionsSoFar.back().fX, firstWaypoint.fX, firstWaypoint.fY);
+							printf("Current position: (x = %f, y = %f), First waypoint: (x = %f, y = %f)\n",
+							newUGVActionList.back().fX, newUGVActionList.back().fY,
+							firstWaypoint.fX, firstWaypoint.fY);
+
+							double dist_prev_next = distAtoB(newUGVActionList.back().fX, newUGVActionList.back().fY, firstWaypoint.fX, firstWaypoint.fY);
+							printf("distnace [%f]\n", dist_prev_next);
 							double t_duration = dist_prev_next/currentUGV.ugv_v_crg;
-							double ugv_arrival_time = UGVActionsSoFar.back().fCompletionTime + t_duration;
+							printf("time [%f] \n", t_duration);
+							double ugv_arrival_time = newUGVActionList.back().fCompletionTime + t_duration;
 							// TODO need to make sure the drones are charged by the time we arrive at first way point again have to wait for them to charge if not 
 							UGVAction moveToFirstWaypoint(E_UGVActionTypes::e_MoveToWaypoint, firstWaypoint.fX, firstWaypoint.fY, ugv_arrival_time ,firstWaypoint.mDetails);
-							UGVActionsSoFar.push_back(moveToFirstWaypoint);
+							newUGVActionList.push_back(moveToFirstWaypoint);
 
 
 							// TODO Figure out How to calculate arrival times
 							// * Create new actions for the looping actions + update new arrival times + add them to new list 
 							int index = 0; 
-							for (UGVAction action : UGVLoopingActions) {
-								double completionTime = NewUGVActionList.back().fCompletionTime + UGVLoopingActionsTimes[index];
-								NewUGVActionList.emplace_back(action.mActionType, action.fX, action.fY, completionTime, action.mDetails);
+							for (UGVAction loopAction : UGVLoopingActions) {
+								printf("loop time [%f]\n", newUGVActionList.back().fCompletionTime );
+								double completionTime = newUGVActionList.back().fCompletionTime + UGVLoopingActionsTimes[index];
+								newUGVActionList.emplace_back(loopAction.mActionType, loopAction.fX, loopAction.fY, completionTime, loopAction.mDetails);
 								index++; 
 							}
 						}
 
 
 						printf("----NewUGVActionList----\n");
-						for (UGVAction action : NewUGVActionList) {
+						for (UGVAction action : newUGVActionList) {
 							printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 						}
 
@@ -875,6 +892,8 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 						// * Rest variables related to the currnet (now that we are returning to a depot) BUT we can still leave for a new trip
 						UGVLoopingActions.clear(); 
 						UGVLoopingActionsTimes.clear(); 
+
+					
 
 
 					}
@@ -900,9 +919,36 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 			// * Regardless of the action type always add it to actions and action times thus far 
 			UGVActionsSoFar.push_back(action);
 			UGVActionsSoFarTimes.push_back(actionTimeDifference);
+
+	
 		}
 
 
+		while (newUGVSolIndex < UGVActionsSoFar.size()) {
+			printf("index [%ld] and timeSoFar for that index [%f]\n", newUGVSolIndex, UGVActionsSoFarTimes[newUGVSolIndex]);
+			UGVAction action = UGVActionsSoFar[newUGVSolIndex];
+			double completionTime = newUGVActionList.back().fCompletionTime + UGVActionsSoFarTimes[newUGVSolIndex];
+			newUGVActionList.emplace_back(action.mActionType, action.fX, action.fY, completionTime, action.mDetails);
+			newUGVSolIndex++; 
+		}
+
+		printf("----NewUGVActionList----\n");
+		for (UGVAction action : newUGVActionList) {
+			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+		}
+
+
+		printf("----NewUGVActionSoFar----\n");
+		for (UGVAction action : UGVActionsSoFar) {
+			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+		}
+
+
+		// * Create and add a action moving to the first waypoint cords 
+		double dist_prev_next = distAtoB(-562.950000, 2653.650000, -883.466667, -440.466667);
+		printf("distnace [%f]\n", dist_prev_next);
+		double t_duration = dist_prev_next/currentUGV.ugv_v_crg;
+		printf("time [%f] \n", t_duration);
 
 	
 
