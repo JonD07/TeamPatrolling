@@ -925,33 +925,18 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 
 
 		while (newUGVSolIndex < UGVActionsSoFar.size()) {
-			printf("index [%ld] and timeSoFar for that index [%f]\n", newUGVSolIndex, UGVActionsSoFarTimes[newUGVSolIndex]);
 			UGVAction action = UGVActionsSoFar[newUGVSolIndex];
 			double completionTime = newUGVActionList.back().fCompletionTime + UGVActionsSoFarTimes[newUGVSolIndex];
 			newUGVActionList.emplace_back(action.mActionType, action.fX, action.fY, completionTime, action.mDetails);
 			newUGVSolIndex++; 
 		}
 
-		printf("----NewUGVActionList----\n");
-		for (UGVAction action : newUGVActionList) {
-			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
-		}
 
 
-		printf("----NewUGVActionSoFar----\n");
+		printf("New UGVActionList for UGV [%d]\n", j);
 		for (UGVAction action : UGVActionsSoFar) {
 			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 		}
-
-
-		// * Create and add a action moving to the first waypoint cords 
-		double dist_prev_next = distAtoB(-562.950000, 2653.650000, -883.466667, -440.466667);
-		printf("distnace [%f]\n", dist_prev_next);
-		double t_duration = dist_prev_next/currentUGV.ugv_v_crg;
-		printf("time [%f] \n", t_duration);
-
-	
-
 	}
 
 
