@@ -10,7 +10,7 @@
 #pragma once
 
 #define DEBUG			0
-#define SANITY_PRINT	0
+#define SANITY_PRINT	1
 
 #define EPSILON			0.000001
 #define INF				1000000000000

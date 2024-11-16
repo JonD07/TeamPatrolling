@@ -653,10 +653,114 @@ double Solution::Benchmark() {
 
 // Determines if this is a valid assignment solution (doesn't break constraints)
 bool Solution::ValidSolution() {
+	// bool valid = false;
+	// return valid;
 	/// Check each set of constraints
-	bool valid = false;
+	// Loop through all actions, get each vehicle for that action, calculate energy at all times?
+	for(int j = 0; j < m_input->GetMa(); j++) {
+		printf("Drone %d:\n", j);
+		UAV uav = m_input->getUAV(j);
+		double currDroneEnergy = m_input->getUAV(j).battery_state.max_battery_energy;
+		double lastActionTime = 0.0;
+		for(DroneAction action : m_Aa.at(j)) {
+			E_DroneActionTypes currAction = action.mActionType;
+			if(currDroneEnergy <= 0.0) {
+				printf("Drone %d ran out of energy at time %f\n", j, action.fCompletionTime);
+				return false;
+			}
+			double energy;
+			double time;
+			switch (currAction) {
+			
+			case E_DroneActionTypes::e_AtUGV:
+				//Nothing to be calculated here
+				break;
 
-	return valid;
+			case E_DroneActionTypes::e_LaunchFromUGV:
+				currDroneEnergy -= m_input->getUAV(j).energyToTakeOff;
+				break;
+			
+			case E_DroneActionTypes::e_MoveToNode:
+				time = action.fCompletionTime - lastActionTime;
+				energy = uav.getJoulesPerSecondFlying(uav.maxSpeed);
+				currDroneEnergy -= energy * time;
+				break;
+
+			case E_DroneActionTypes::e_MoveToUGV:
+				time = action.fCompletionTime - lastActionTime;
+				energy = uav.getJoulesPerSecondFlying(uav.maxSpeed);
+				currDroneEnergy -= energy * time;
+				break;
+			
+			case E_DroneActionTypes::e_LandOnUGV:
+				currDroneEnergy -= m_input->getUAV(j).energyToLand;
+				break;
+			
+			case E_DroneActionTypes::e_KernelEnd:
+				//Nothing?
+				break;
+			
+			default:
+				break;
+		}
+			lastActionTime = action.fCompletionTime;
+		}
+	}
+
+	for(int j = 0; j < m_input->GetMg(); j++) {
+		printf("UGV %d:\n", j);
+		double currUGVEnergy = m_input->getUGV(j).battery_state.max_battery_energy;
+		double lastActionTime = 0.0;
+		for(UGVAction action : m_Ag.at(j)) {
+			E_UGVActionTypes currAction = action.mActionType;
+			if(currUGVEnergy <= 0.0) {
+				printf("UGV %d ran out of energy at time %f\n", j, action.fCompletionTime);
+				return false;
+			}
+			UGV ugv = m_input->getUGV(j);
+			double energy;
+			double time;
+			switch (currAction) {
+			
+			case E_UGVActionTypes::e_MoveToWaypoint:
+				time = action.fCompletionTime - lastActionTime;
+				energy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed);
+				currUGVEnergy -= energy * time;
+				break;
+
+			case E_UGVActionTypes::e_MoveToDepot:
+				time = action.fCompletionTime - lastActionTime;
+				energy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed);
+				currUGVEnergy -= energy * time;
+				break;
+
+			case E_UGVActionTypes::e_LaunchDrone:
+				break;
+
+			case E_UGVActionTypes::e_ReceiveDrone:
+				break;
+
+			case E_UGVActionTypes::e_MoveToNode:
+				time  = action.fCompletionTime - lastActionTime;
+				energy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed);
+				currUGVEnergy -= energy * time;				
+				break;
+
+			case E_UGVActionTypes::e_AtDepot:
+				//reset energy to max?
+				break;
+
+			case E_UGVActionTypes::e_KernelEnd:
+				//Nothing?
+				break;
+
+			default:
+				break;
+		}
+			lastActionTime = action.fCompletionTime;
+		}
+	}
+	return true;
 }
 
 // Pushes action onto drone j's action list

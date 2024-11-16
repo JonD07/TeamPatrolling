@@ -26,7 +26,7 @@
 #include "Utilities.h"
 
 #define DEBUG_VRP	DEBUG || 0
-#define VRP_ALGORITHM  1 //0 for richVRP, 1 for VRPSolver
+#define VRP_ALGORITHM  0//0 for richVRP, 1 for fastVRPSolver
 
 using json = nlohmann::json;
 
