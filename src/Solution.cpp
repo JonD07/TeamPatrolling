@@ -650,6 +650,38 @@ double Solution::Benchmark() {
 	return INF;
 }
 
+double returnEnergyGain(double time, double startEnergy, UAV uav){
+	double energyGain = 0.0;
+	if(startEnergy < uav.e_star){ //below estar, need to charge to estar first
+		double timeToEStar = uav.returnTimeToChargeToEStar(startEnergy);
+		printf("    time to estar: %f\n", timeToEStar);
+		if(time >= timeToEStar){
+			energyGain += uav.returnFastEnergyGain(timeToEStar);
+			time -= timeToEStar;
+		}
+		else{ //not enough to get to estar, get energy you can for the time you've been on the ugv and return
+			energyGain += uav.returnSlowEnergyGain(time);
+			return energyGain;
+		}
+	}
+	else{ //already above estar
+		double timeToEMax = uav.returnTimeToChargeToEMax(startEnergy);
+		printf("    time to emax: %f\n", timeToEMax);
+		if(time >= timeToEMax){
+			energyGain += uav.returnSlowEnergyGain(timeToEMax);
+			time -= timeToEMax;
+		}
+		else{ //not enough to get to emax, get energy you can for the time you've been on the ugv and return
+			energyGain += uav.returnSlowEnergyGain(time);
+			return energyGain;
+		}
+	}
+	if(energyGain >= uav.battery_state.max_battery_energy){
+		energyGain = uav.battery_state.max_battery_energy;
+	}
+	printf("    energyGain before return: %f\n", energyGain);
+	return energyGain;
+}
 
 // Determines if this is a valid assignment solution (doesn't break constraints)
 bool Solution::ValidSolution() {
@@ -657,6 +689,10 @@ bool Solution::ValidSolution() {
 	// return valid;
 	/// Check each set of constraints
 	// Loop through all actions, get each vehicle for that action, calculate energy at all times?
+	// std::map<UAV, double> droneLandTimes;
+	std::vector<double> droneLandTimes = std::vector<double>(m_input->GetMa(), 0.0);
+	std::vector<double> ugvBatteryDrainValues = std::vector<double>();
+	
 	for(int j = 0; j < m_input->GetMa(); j++) {
 		printf("Drone %d:\n", j);
 		UAV uav = m_input->getUAV(j);
@@ -670,43 +706,72 @@ bool Solution::ValidSolution() {
 			}
 			double energy;
 			double time;
+			double energyGain;
 			switch (currAction) {
-			
-			case E_DroneActionTypes::e_AtUGV:
-				//Nothing to be calculated here
-				break;
 
-			case E_DroneActionTypes::e_LaunchFromUGV:
-				currDroneEnergy -= m_input->getUAV(j).energyToTakeOff;
-				break;
-			
-			case E_DroneActionTypes::e_MoveToNode:
-				time = action.fCompletionTime - lastActionTime;
-				energy = uav.getJoulesPerSecondFlying(uav.maxSpeed);
-				currDroneEnergy -= energy * time;
-				break;
-
-			case E_DroneActionTypes::e_MoveToUGV:
-				time = action.fCompletionTime - lastActionTime;
-				energy = uav.getJoulesPerSecondFlying(uav.maxSpeed);
-				currDroneEnergy -= energy * time;
-				break;
-			
-			case E_DroneActionTypes::e_LandOnUGV:
-				currDroneEnergy -= m_input->getUAV(j).energyToLand;
-				break;
-			
-			case E_DroneActionTypes::e_KernelEnd:
+				case E_DroneActionTypes::e_AtUGV:
 				//Nothing?
-				break;
-			
-			default:
-				break;
-		}
+					break;
+
+				case E_DroneActionTypes::e_LaunchFromUGV:
+					//get time from land action, calculate energy gained, add to battery, subtract launch energy
+					// How to track which UGV? Not needed here?
+					printf("Drone currEnergy before addition of energy: %f\n", currDroneEnergy);
+					if(droneLandTimes[j] == 0.0){ //not in list, which means this is the first launch of the drone.
+						currDroneEnergy -= m_input->getUAV(j).energyToTakeOff;
+						printf("Drone currEnergy after launching for the first time: %f\n", currDroneEnergy);
+						break;
+					}
+					time = action.fCompletionTime - droneLandTimes[j]; //take launch time - last land time for energy calculation
+					printf("    time before drone energy gain: %f\n", time);
+					energyGain = returnEnergyGain(time, currDroneEnergy, uav);
+					printf("    energyGain calculated for a drone: %f\n", energyGain);	
+					currDroneEnergy += energyGain;
+					ugvBatteryDrainValues.push_back(energyGain);
+					currDroneEnergy -= m_input->getUAV(j).energyToTakeOff;
+					printf("Drone currEnergy after charge: %f\n", currDroneEnergy);
+
+					break;
+				
+				case E_DroneActionTypes::e_MoveToNode:
+					printf("Drone currEnergy before moving to node: %f\n", currDroneEnergy);
+					printf("    last action time: %f\n", lastActionTime);
+					printf("    action time: %f\n", action.fCompletionTime);
+					printf("    time to node: %f\n", action.fCompletionTime - lastActionTime);
+					time = action.fCompletionTime - lastActionTime;
+					energy = uav.getJoulesPerSecondFlying(uav.maxSpeed);
+					printf("    energy: %f\n", energy);
+					currDroneEnergy -= energy * time;
+					printf("Drone currEnergy after moving to node: %f\n", currDroneEnergy);
+
+					break;
+
+				case E_DroneActionTypes::e_MoveToUGV:
+					printf("Drone currEnergy before moving to UGV: %f\n", currDroneEnergy);
+					time = action.fCompletionTime - lastActionTime;
+					energy = uav.getJoulesPerSecondFlying(uav.maxSpeed);
+					currDroneEnergy -= energy * time;
+					printf("Drone currEnergy after moving to UGV: %f\n", currDroneEnergy);
+					break;
+				
+				case E_DroneActionTypes::e_LandOnUGV:
+					printf("Drone currEnergy before landing on UGV: %f\n", currDroneEnergy);
+					droneLandTimes[j]= action.fCompletionTime; // put the new land time in for that uav
+					currDroneEnergy -= m_input->getUAV(j).energyToLand;
+					printf("Drone currEnergy after landing on UGV: %f\n", currDroneEnergy);
+					break;
+				
+				case E_DroneActionTypes::e_KernelEnd:
+					//Nothing?
+					break;
+				
+				default:
+					break;
+			}
 			lastActionTime = action.fCompletionTime;
 		}
 	}
-
+	std::vector<int> uavFirstLaunchTally = std::vector<int>(m_input->GetMa(), 0);
 	for(int j = 0; j < m_input->GetMg(); j++) {
 		printf("UGV %d:\n", j);
 		double currUGVEnergy = m_input->getUGV(j).battery_state.max_battery_energy;
@@ -720,34 +785,58 @@ bool Solution::ValidSolution() {
 			UGV ugv = m_input->getUGV(j);
 			double energy;
 			double time;
+			double energyLoss;
+			int index = 0;
 			switch (currAction) {
 			
 			case E_UGVActionTypes::e_MoveToWaypoint:
+				printf("UGV currEnergy before moving to waypoint: %f\n", currUGVEnergy);
 				time = action.fCompletionTime - lastActionTime;
 				energy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed);
 				currUGVEnergy -= energy * time;
+				printf("UGV currEnergy after moving to waypoint: %f\n", currUGVEnergy);
 				break;
 
 			case E_UGVActionTypes::e_MoveToDepot:
+				printf("UGV currEnergy before moving to depot: %f\n", currUGVEnergy);
 				time = action.fCompletionTime - lastActionTime;
 				energy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed);
 				currUGVEnergy -= energy * time;
+				printf("UGV currEnergy after moving to depot: %f\n", currUGVEnergy);
 				break;
 
 			case E_UGVActionTypes::e_LaunchDrone:
+			 	//lose energy charging drone
+				// calculate how long drone on ugv, calculate energy lost, subtract from ugv energy
+				// How to track which drone is launching and when it last landed? Map?
+				printf("UGV currEnergy before launching drone: %f\n", currUGVEnergy);
+				if(uavFirstLaunchTally[action.mDetails] == 0){ //not in list, which means this is the first launch of the drone. Dont decrement UGV energy
+					uavFirstLaunchTally[action.mDetails] = 1;
+					printf("UGV currEnergy after launching for the first time, no energy decrement: %f\n", currUGVEnergy);
+					break;
+				}
+				energyLoss = ugvBatteryDrainValues.at(index);
+				index++;
+				currUGVEnergy -= energyLoss;
+				printf("UGV currEnergy after launching drone: %f\n", currUGVEnergy);
 				break;
 
 			case E_UGVActionTypes::e_ReceiveDrone:
 				break;
 
 			case E_UGVActionTypes::e_MoveToNode:
+				printf("UGV currEnergy before moving to node: %f\n", currUGVEnergy);
 				time  = action.fCompletionTime - lastActionTime;
 				energy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed);
-				currUGVEnergy -= energy * time;				
+				currUGVEnergy -= energy * time;	
+				printf("UGV currEnergy before moving to node: %f\n", currUGVEnergy);			
 				break;
 
 			case E_UGVActionTypes::e_AtDepot:
 				//reset energy to max?
+				printf("UGV currEnergy before recharging at depot: %f\n", currUGVEnergy);
+				currUGVEnergy = ugv.battery_state.max_battery_energy;
+				printf("UGV currEnergy after recharging at depot: %f\n", currUGVEnergy);
 				break;
 
 			case E_UGVActionTypes::e_KernelEnd:
@@ -762,6 +851,9 @@ bool Solution::ValidSolution() {
 	}
 	return true;
 }
+
+
+
 
 // Pushes action onto drone j's action list
 void Solution::PushDroneAction(int j, const DroneAction& action) {

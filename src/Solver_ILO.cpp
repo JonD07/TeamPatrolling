@@ -80,10 +80,10 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 
 	/// Find Baseline Solution
 	RunBaseline(input, sol_final, drones_to_UGV);
-	// printf("PRINT CLEAN Baseline Solution:\n");
-	// sol_final->PrintSolution();
-	// bool valid = sol_final->ValidSolution();
-	// printf("VALID: %d\n", valid);
+	printf("PRINT CLEAN Baseline Solution:\n");
+	sol_final->PrintSolution();
+	bool valid = sol_final->ValidSolution();
+	printf("VALID: %d\n", valid);
 
 	if(DEBUG_ILO) {
 		// Record this so we can watch how well the optimizer is improving things

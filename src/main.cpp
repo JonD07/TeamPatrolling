@@ -152,6 +152,8 @@ int main(int argc, char *argv[]) {
 		// File format: n m runmun computed_Z estimated_Z comp-time
 		fprintf(pOutputFile, "%d %d %d %d ", input.GetN(), input.GetMa(), input.GetMg(), runnum);
 		fprintf(pOutputFile, "%f %f", par, duration_s);
+		printf("PRINT CLEAN FINAL Solution:\n");
+		solution.PrintSolution();
 		fprintf(pOutputFile, " %d\n", solution.ValidSolution());
 		fclose(pOutputFile);
 	}

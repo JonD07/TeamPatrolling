@@ -69,4 +69,20 @@ public:
         (speed_linear_coefficient *  velocity) + speed_const);
     }
 
+    double returnSlowEnergyGain(double time){
+        return ((this->fast_charge_a * pow(time, 2)) + (this->fast_charge_b * time));
+    }
+
+    double returnFastEnergyGain(double time){
+        return this->e_star + (this->p_star / ALPHA) * (1 - exp(-ALPHA * (time - this->t_star)));
+    }
+
+    double returnTimeToChargeToEStar(double energy){
+        return -this->fast_charge_b + sqrt(pow(this->fast_charge_b, 2) - 4 * this->fast_charge_a * energy) / (2 * this->fast_charge_a);
+    }
+
+    double returnTimeToChargeToEMax(double energy){
+        return this->t_max - (log(1+(ALPHA / this->p_star)*(this->e_star - energy)) / ALPHA);
+    }
+
 };
