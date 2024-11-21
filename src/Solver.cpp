@@ -658,7 +658,6 @@ void Solver::calcDroneWaypointActions(int droneId, int waypointId, std::map< int
 			break; 
 		}
 	}
-	// TODO make a prev action time instead since thats all we need and it has a default constructor (duh)
 }
 
 
@@ -719,11 +718,13 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 		UGVAction firstWaypoint(E_UGVActionTypes::e_MoveToDepot, 0, 0, 0);
 		bool hasMoved = false;
 		UGV currentUGV = input->getUGV(j);
+		int currentUGVId = static_cast<int>(j); 
+
 
 		// Now go through the action queue for each respective UGV
-		while (!ugv_action_queues[j].empty()) {
-			UGVAction action = ugv_action_queues[j].front();
-			ugv_action_queues[j].pop(); // Remove the action after printing
+		while (!ugv_action_queues[currentUGVId].empty()) {
+			UGVAction action = ugv_action_queues[currentUGVId].front();
+			ugv_action_queues[currentUGVId].pop(); // Remove the action after printing
 			if (DEBUG_SOL) {
 				printf("  [%d] %d(%d) : (%f, %f) - %f\n",
 					action.mActionID,
@@ -838,13 +839,13 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 							printf("The energy to return to the first waypoint is [%f]\n", returnFirstWaypointEnergy);
 							printf("The energy to up to this point is: [%f]\n", energyUsed);
 							printf("The energy for another loop is [%f]\n", loopEnergy); 
-							printf("The UGV has this much total energy [%f]\n", input->GetUGVBatCap(j));
+							printf("The UGV has this much total energy [%f]\n", input->GetUGVBatCap(currentUGVId));
 							printf("\n");
 						}
 
 						// * Figure out how many loops we can do 
 						int numLoops = 0;  
-						while (loopEnergy < input->GetUGVBatCap(j)) {
+						while (loopEnergy < input->GetUGVBatCap(currentUGVId)) {
 							numLoops++; 
 							loopEnergy += returnFirstWaypointEnergy + energyUsed; 
 						}
@@ -963,7 +964,6 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 		
 
 
-		printf("here \n");
 		for (const auto& dronePair : DroneWaypointActions) {
 			int droneId = dronePair.first; // Access the drone ID
 			const auto& waypointMap = dronePair.second; // Access the inner map
@@ -1006,11 +1006,9 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 		int waypointId;
 		int index; 
 		for (UGVAction newUGVAction : newUGVActionList) {
-			printf("action type [%d] \n", static_cast<std::underlying_type<E_UGVActionTypes>::type>(newUGVAction.mActionType));
 			switch(newUGVAction.mActionType) {
 				case E_UGVActionTypes::e_MoveToWaypoint:
 					waypointId = newUGVAction.mDetails;
-					//printf("here with waypont id [%d] \n", waypointId);
 					break; 
 				case E_UGVActionTypes::e_AtDepot:
 					// * If the UGV is at the Depot, we should add corresponing the Drone Action at UGV for all UGV - Drone pairs 
@@ -1025,17 +1023,15 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 					droneId = newUGVAction.mDetails;
 					index = 0; 
 					double completionTime;
-					printf("here with drone id1 [%d] and waypoint id [%d] \n", droneId, waypointId); 
 					for (DroneAction droneAction : DroneWaypointActions[droneId][waypointId]) {
 						if (droneAction.mActionType == E_DroneActionTypes::e_LaunchFromUGV) {
 							completionTime = newUGVAction.fCompletionTime; 
 						}
 						else {
-							double prevDroneActionTime = DroneWaypointActions[droneId][waypointId].back().fCompletionTime;
+							double prevDroneActionTime = newDroneActionsLists[droneId].back().fCompletionTime;
 							completionTime = prevDroneActionTime + DroneWaypointActionsTimeDifferences[droneId][waypointId][index]; 
 						}
-						printf("here with drone id [%d] \n", droneId); 
-						newDroneActionsLists[droneId].emplace_back(droneAction.mActionType, droneAction.fX, droneAction.fY, completionTime); 
+						newDroneActionsLists[droneId].emplace_back(droneAction.mActionType, droneAction.fX, droneAction.fY, completionTime, droneAction.mDetails); 
 						index++; 
 					}
 
@@ -1079,17 +1075,14 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 			printf("-----------------------------\n");
 		}
 
+		// * Now that we have our new UGV Action list and the corresponding Drone actions list we need to update the solution 
+		sol_final->swapUGVActionList(currentUGVId, newUGVActionList);
+		for (const auto& pair : newDroneActionsLists) {
+				int droneId = pair.first;
+				const auto& newDroneActionList = pair.second;
+				sol_final->swapDroneActionLists(droneId, newDroneActionList);
+			}
 
-		// TODO Get the drone actions up to the current waypoint 
-			// TODO Now that we are mapping drone actions to a particular waypoint we want to be keeping we loop throuhg the new action list and ->
-			// TODO <- add waypoint related actions as needed 
-			// TODO a good sanity check is to see if this results in no change of the actual list if there is no loop which is the expected behavoir  
-
-
-
-		// TODO swap the new UGV action list with the old one in the SOL will need a function for this 
-
-		// TODO This is where a function should be made to copy over the newUGVSolIndex to be the in the solution object
 	}
 
 

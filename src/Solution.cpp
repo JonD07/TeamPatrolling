@@ -775,3 +775,21 @@ std::string Solution::floatingPointToString(double val) {
 	stream << std::fixed << std::setprecision(1) << val;
 	return stream.str();
 }
+
+
+// Function to swap an Entire UGV Action List out
+void Solution::swapUGVActionList(int UGVId, std::vector<UGVAction> newActionList) {
+	this->ClearUGVSolution(UGVId);
+
+	for (UGVAction actionToPush : newActionList) {
+		this->PushUGVAction(UGVId, actionToPush); 
+	}
+}
+// Function to swap an Entire Drone Action List out
+void Solution::swapDroneActionLists(int DroneId, std::vector<DroneAction> newActionList) {
+	this->ClearDroneSolution(DroneId);
+
+	for (DroneAction actionToPush : newActionList) {
+		this->PushDroneAction(DroneId, actionToPush); 
+	}
+}
