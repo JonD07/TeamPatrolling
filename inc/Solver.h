@@ -16,6 +16,7 @@
 #include <cmath>
 #include <complex>
 #include <queue> 
+#include <optional>
 
 #include "Solution.h"
 #include "PatrollingInput.h"
@@ -71,6 +72,7 @@ protected:
 private:
 	double calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UGV UGV_current_object); 
 	double calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar,std::queue<DroneAction>& drone_action_queue, UAV UAV_current_object, double UAV_VMax); 
+	void calcDroneWaypointActions(int droneId, int waypointId, std::map< int, std::map<int, std::vector<DroneAction>>>& DroneWaypointActions, std::map< int, std::map<int, std::vector<double>>>& DroneWaypointActionsTimes, std::queue<DroneAction> drone_action_queue, double prevActionTime);
 	KMeansSolver mKMeansSolver;
 	VRPSolver mVRPSolver;
 };
