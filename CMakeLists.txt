@@ -5,6 +5,10 @@
 #  > cmake --build build
 #
 
+# Find Boost
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+
 cmake_minimum_required(VERSION 3.10)
 
 project(patrolling-solver)
@@ -44,7 +48,7 @@ if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE "Release")
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-set(CMAKE_CXX_FLAGS "-O3 -ggdb -g -Wall -Werror")
+set(CMAKE_CXX_FLAGS "-O3 -ggdb -g -Wall -Werror -Wno-deprecated-declarations")
 
 # Visual Studio compiler with static runtime libraries
 if(MSVC AND MT)
@@ -60,6 +64,7 @@ find_package(GUROBI REQUIRED)
 include_directories(
 	${GUROBI_INCLUDE_DIRS}
 	${CMAKE_CURRENT_LIST_DIR}/inc
+	${Boost_INCLUDE_DIRS} 
 )
 
 # list source files here
@@ -100,4 +105,5 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	include(FeatureSummary)
 	feature_summary(WHAT ALL)
 endif()
+
 

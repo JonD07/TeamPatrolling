@@ -871,11 +871,9 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 
 						
 						if (DEBUG_SOL) {
-							printf("UGV looping Actions\n");
-							int i = 0; 
+							printf("UGV looping Actions\n"); 
 							for(UGVAction action : UGVLoopingActions) {
 								printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
-								i++; 
 							}
 						}
 
