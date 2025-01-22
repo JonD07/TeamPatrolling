@@ -857,8 +857,7 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 							printf("---------------------------------------------------------\n");
 							printf("\n");
 					
-							UGVActionsSoFar.push_back(action);
-							UGVActionsSoFarTimes.push_back(action.fCompletionTime - UGVActionsSoFar.back().fCompletionTime);
+
 
 							break;
 						} else {
@@ -954,7 +953,13 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 
 		while (newUGVSolIndex < UGVActionsSoFar.size()) {
 			UGVAction action = UGVActionsSoFar[newUGVSolIndex];
-			double completionTime = newUGVActionList.back().fCompletionTime + UGVActionsSoFarTimes[newUGVSolIndex];
+			double completionTime; 
+			if (newUGVActionList.size() == 0) {
+				completionTime = UGVActionsSoFarTimes[newUGVSolIndex];
+			}
+			else{
+				completionTime = newUGVActionList.back().fCompletionTime + UGVActionsSoFarTimes[newUGVSolIndex];
+			}
 			newUGVActionList.emplace_back(action.mActionType, action.fX, action.fY, completionTime, action.mDetails);
 			newUGVSolIndex++; 
 		}
