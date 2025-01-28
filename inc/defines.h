@@ -7,9 +7,11 @@
  * Description: Global project defines
  */
 
+
+
 #pragma once
 
-#define DEBUG			0
+#define DEBUG			1
 #define SANITY_PRINT	1
 
 #define EPSILON			0.000001
