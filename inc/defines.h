@@ -11,7 +11,7 @@
 
 #pragma once
 
-#define DEBUG			1
+#define DEBUG			0
 #define SANITY_PRINT	1
 
 #define EPSILON			0.000001

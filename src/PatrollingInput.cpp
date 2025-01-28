@@ -283,7 +283,7 @@ void PatrollingInput::AssignDronesToUGV(std::vector<std::vector<int>>& drones_to
 		drones_to_UGV.push_back(dronesForThisUGV);
 	}
 	if(DEBUG_PATROLINPUT) {
-		printf("UGVs-to-Drones**********:\n");
+		printf("UGVs-to-Drones:\n");
 		printf("UGVs: %lu\n", drones_to_UGV.size());
 		printf("Drones: %lu\n", drones_to_UGV[0].size());
 
