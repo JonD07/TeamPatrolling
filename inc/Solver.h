@@ -15,6 +15,8 @@
 #include <vector>
 #include <cmath>
 #include <complex>
+#include <queue> 
+#include <optional>
 
 #include "Solution.h"
 #include "PatrollingInput.h"
@@ -59,7 +61,7 @@ public:
 	virtual void Solve(PatrollingInput* input, Solution* sol_final) = 0;
 	// Runs the baseline solver, setting an initial solution to build off of
 	void RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
-
+	void RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
 protected:
 	/*
 	 * Solves TSP on on vertices held in lst and stores found ordering in result. The multiplier
@@ -68,6 +70,10 @@ protected:
 	 */
 	void solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& result, double multiplier);
 private:
+	double calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UGV UGV_current_object); 
+	double calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar,std::queue<DroneAction>& drone_action_queue, UAV UAV_current_object, double UAV_VMax); 
+	// * The drone action queue is purpelsely passed by value since the function needs to iterate through it (by popping) but also needs to keep the queue in tact to build the final action at the end
+	void calcDroneWaypointActions(int droneId, int waypointId, std::map< int, std::map<int, std::vector<DroneAction>>>& DroneWaypointActions, std::map< int, std::map<int, std::vector<double>>>& DroneWaypointActionsTimes, std::queue<DroneAction> drone_action_queue, double prevActionTime);
 	KMeansSolver mKMeansSolver;
 	VRPSolver mVRPSolver;
 };

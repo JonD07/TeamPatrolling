@@ -2,6 +2,7 @@
 #include <vector>
 #include <limits>
 #include <chrono>
+#include <iostream> 
 
 #include "defines.h"
 #include "PatrollingInput.h"
@@ -10,6 +11,7 @@
 #include "Solver_Baseline.h"
 #include "Solver_ILO.h"
 #include "Solver_OptLaunch.h"
+#include "DepletedSolver.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -31,6 +33,7 @@ int main(int argc, char *argv[]) {
 	const char* outputPath;
 	int runnum;
 	const char* vehiclePath;
+
 
 	// Verify user input
 	if(argc == 3) {
@@ -101,7 +104,6 @@ int main(int argc, char *argv[]) {
 
 	// Capture start time
 	auto start = std::chrono::high_resolution_clock::now();
-
 	switch(algorithm) {
 	case e_Algo_GREEDY: {		// algo: 1
 		solver = new BaselineSolver();
@@ -115,6 +117,11 @@ int main(int argc, char *argv[]) {
 
 	case e_Algo_ILO: { 			// algo: 3
 		solver = new Solver_ILO();
+	}
+	break;
+
+	case e_Algo_DEPLETED: { 			// algo: 4
+		solver = new DepletedSolver();
 	}
 	break;
 
@@ -135,7 +142,6 @@ int main(int argc, char *argv[]) {
 	double duration_s = (double)duration/1000.0; 
 
 	double par = solution.CalculatePar();
-
 	if(SANITY_PRINT) {
 		printf("PAR: %f, computation time = %f\n", par, duration_s);
 	}

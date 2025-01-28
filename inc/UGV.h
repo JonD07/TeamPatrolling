@@ -58,5 +58,5 @@ public:
         return ((speed_cubed_coefficient * pow(velocity, 3)) + (speed_squared_coefficient * pow(velocity, 2)) + 
         (speed_linear_coefficient *  velocity) + speed_const);
     }
-      
+
 };

@@ -259,7 +259,6 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 		// Do we still have a valid solution?
 		if(valid_solution) {
-
 			/// 9. Form action lists by determining launch/receive times, charge times for drones/UGV
 			if(DEBUG_SOLVER)
 				printf("\nBuilding Action Lists:\n");
@@ -270,7 +269,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 			std::vector<double> chargeTimes;
 			// Track how much energy has been transfered to drones
 			std::vector<double> ugvEnergySpent;
-
+			
 			// Set initial charge times (updated later)
 			for(int drone = 0; drone < input->GetMa(); drone++) {
 				chargeTimes.push_back(0.0);
@@ -579,6 +578,519 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 	}
 }
 
+
+double Solver::calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UGV UGV_current_object) {
+	double dist_prev_next = distAtoB(UGV_last.fX, UGV_last.fY, UGV_current.fX, UGV_current.fY);
+	double t_duration = dist_prev_next/UGV_current_object.ugv_v_crg; 
+	double drivingEnergy = UGV_current_object.getJoulesPerSecondDriving(UGV_current_object.maxDriveAndChargeSpeed);
+	double move_energy = drivingEnergy*t_duration; 
+	if (DEBUG_SOL) {
+		printf("The Energy calcuated from the move: [%f]\n", move_energy);
+	}
+	return move_energy; 
+}
+
+double Solver::calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar,std::queue<DroneAction>& drone_action_queue, UAV UAV_current_object, double UAV_VMax) {
+
+	// TODO figure out the totalFlyTime from the drone_action_queue 
+	double totalFlyTime = 0;
+	while (!drone_action_queue.empty()) {
+		DroneAction currentDroneAction = drone_action_queue.front();
+		drone_action_queue.pop(); // Remove the action after printing
+
+
+		// * If the drone action tpye is a MoveToNode or MoveToUGV we should update our flight time 
+		if (currentDroneAction.mActionType == E_DroneActionTypes::e_MoveToNode || currentDroneAction.mActionType == E_DroneActionTypes::e_MoveToUGV) {
+			if (droneActionsSoFar.empty()) {
+				throw std::runtime_error("Drone Actions Vector is empty and this should be impossible");
+
+			}
+			DroneAction dronePrev = droneActionsSoFar.back(); 
+			double dist_prev_next = distAtoB(dronePrev.fX, dronePrev.fY, currentDroneAction.fX, currentDroneAction.fY);
+			double t_duration = dist_prev_next/UAV_VMax;
+			totalFlyTime += t_duration;
+
+		}
+
+		droneActionsSoFar.push_back(currentDroneAction);
+		// * If the action type is a land on UGV we are this energy step and we have our flight time
+		if (currentDroneAction.mActionType == E_DroneActionTypes::e_LandOnUGV) {
+			break; 
+		}
+	}
+
+	
+	// Energy from launching and landing
+	double energyPerSecond = UAV_current_object.getJoulesPerSecondFlying(UAV_current_object.maxSpeed);
+	double joules = totalFlyTime*energyPerSecond;
+	// Add in energy required to launch and to land
+	joules += UAV_current_object.energyToTakeOff + UAV_current_object.energyToLand;
+
+	if (DEBUG_SOL) {
+		printf("The drone used this much energy from launching + visiting + landing: [%f]\n", joules);
+	}
+
+	return joules;
+}
+
+void Solver::calcDroneWaypointActions(int droneId, int waypointId, std::map< int, std::map<int, std::vector<DroneAction>>>& DroneWaypointActions, std::map< int, std::map<int, std::vector<double>>>& DroneWaypointActionsTimeDifferences, std::queue<DroneAction> drone_action_queue, double prevActionTime) {
+	printf("inside the waypoint action function \n"); 
+
+	while (!drone_action_queue.empty()) {
+		DroneAction currentDroneAction = drone_action_queue.front();
+		drone_action_queue.pop(); // Remove the action after printing
+		printf("  [%d] %d(%d) : (%f, %f) - %f\n", currentDroneAction.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(currentDroneAction.mActionType), currentDroneAction.mDetails, currentDroneAction.fX, currentDroneAction.fY, currentDroneAction.fCompletionTime);
+
+		if (currentDroneAction.mActionType == E_DroneActionTypes::e_AtUGV) {
+			prevActionTime = currentDroneAction.fCompletionTime; 
+			printf(" special prev time [%f] \n", prevActionTime); 
+			continue; 
+		}
+		DroneWaypointActions[droneId][waypointId].push_back(currentDroneAction);
+		double timeDifference = currentDroneAction.fCompletionTime - prevActionTime; 
+		printf(" current time [%f] and previous time [%f] \n", currentDroneAction.fCompletionTime, prevActionTime);
+		printf("time difference [%f]\n", timeDifference); 
+		DroneWaypointActionsTimeDifferences[droneId][waypointId].push_back(timeDifference);
+		prevActionTime = currentDroneAction.fCompletionTime;
+
+		// * If the action type is a land on UGV we are done with this waypoint 
+		if (currentDroneAction.mActionType == E_DroneActionTypes::e_LandOnUGV) {
+			break; 
+		}
+	}
+}
+
+
+
+void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV){
+	if(DEBUG_SOL) {
+		printf("Hello from Run Depleted Solver!\n");
+		printf("Building Action Lists to Calculate Energies\n");
+	}
+
+	// Intialize data strucutures 
+	std::vector<DroneAction> drone_action_list;
+	std::vector<UGVAction> ugv_action_list;
+	std::vector<std::queue<DroneAction>> drone_action_queues(input->GetMa());
+	std::vector<std::queue<UGVAction>> ugv_action_queues(input->GetMg());
+
+
+	// Add the items into the queues 
+	// Print the actions of each robot
+	for(int j = 0; j < input->GetMa(); j++) {
+		sol_final->GetDroneActionList(j, drone_action_list);
+		for(DroneAction action : drone_action_list) {
+			drone_action_queues[j].push(action);
+		}
+		drone_action_list.clear();
+	}
+	for(int j = 0; j < input->GetMg(); j++) {
+		sol_final->GetUGVActionList(j, ugv_action_list);
+		for(UGVAction action : ugv_action_list) {
+			ugv_action_queues[j].push(action);
+		}
+		ugv_action_list.clear();
+	}
+
+
+	// Loop through all the UGV 
+	
+	for (size_t j = 0; j < ugv_action_queues.size(); ++j) { 
+		printf("---------------------------------------------------------------------------\n");
+		printf("Using the Depleted solver to see if UGV: [%ld] can be optimized (do a loop)\n", j);
+		printf("---------------------------------------------------------------------------\n");
+		// * This variables will store which actions from the UGVActionsSoFar have been added to the NewUGVActionList
+		size_t newUGVSolIndex = 0; 
+		double energyUsed = 0; 
+		double firstMoveEnergyUsed = 0; 
+		std::vector<UGVAction> UGVActionsSoFar;
+		std::vector<double> UGVActionsSoFarTimes;
+		// * First int is each drone, second int is a particular waypoint 
+		std::map< int, std::map<int, std::vector<DroneAction>>> DroneWaypointActions; 
+		std::map< int, std::map<int, std::vector<double>>> DroneWaypointActionsTimeDifferences; 
+		// * This stores how much time each action adds so I can add this to the previous time during a loop 
+		std::vector<double> UGVLoopingActionsTimes;
+		std::vector<UGVAction> UGVLoopingActions;
+		// * This maps a the drone actions so far for a particular drone  
+		std::map<int , std::vector<DroneAction>> droneActionsSoFar;
+		std::vector<UGVAction> newUGVActionList; 
+		UGVAction previousMoveAction(E_UGVActionTypes::e_MoveToDepot, 0, 0, 0);
+		UGVAction firstWaypoint(E_UGVActionTypes::e_MoveToDepot, 0, 0, 0);
+		bool hasMoved = false;
+		UGV currentUGV = input->getUGV(j);
+		int currentUGVId = static_cast<int>(j); 
+
+
+		// Now go through the action queue for each respective UGV
+		while (!ugv_action_queues[currentUGVId].empty()) {
+			UGVAction action = ugv_action_queues[currentUGVId].front();
+			ugv_action_queues[currentUGVId].pop(); // Remove the action after printing
+			if (DEBUG_SOL) {
+				printf("  [%d] %d(%d) : (%f, %f) - %f\n",
+					action.mActionID,
+					static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType),
+					action.mDetails,
+					action.fX,
+					action.fY,
+					action.fCompletionTime);	
+			}
+
+			switch (action.mActionType) {
+				case E_UGVActionTypes::e_AtDepot:
+					if (DEBUG_SOL) {
+						printf("At depot (%d) \n", action.mDetails);
+					}
+					break; 
+				case E_UGVActionTypes::e_MoveToWaypoint:
+					if (UGVActionsSoFar.empty()) {
+						throw std::runtime_error("UGV Actions Vector is empty and this should be impossible");
+					}
+
+					if (DEBUG_SOL) {
+						printf("Currently at waypoint (%f, %f)\n" , action.fX, action.fY); 
+						printf("Came from the following (%f, %f)\n", UGVActionsSoFar.back().fX, UGVActionsSoFar.back().fY);  
+					} 
+
+
+					// * Assuming this is not the first move to waypoint in this trip, there has been some waiting time since the last move
+					if (!hasMoved) {
+						firstMoveEnergyUsed = calcUGVMovingEnergy(UGVActionsSoFar.back(), action, currentUGV); 
+						hasMoved = true; 
+						firstWaypoint = action; 
+						double actionTimeDifference = action.fCompletionTime - UGVActionsSoFar.back().fCompletionTime;
+						UGVActionsSoFar.push_back(action);
+						UGVActionsSoFarTimes.push_back(actionTimeDifference);
+						continue; 
+					}
+					else {
+						// * We need to calculate the time in between the prevMoveAction and the previous action from the current action 
+						double ugv_wait_time = UGVActionsSoFar.back().fCompletionTime - previousMoveAction.fCompletionTime;
+						double ugv_wait_energy = currentUGV.joulesPerSecondWhileWaiting*ugv_wait_time;
+						energyUsed += calcUGVMovingEnergy(UGVActionsSoFar.back(), action, currentUGV);
+						energyUsed += ugv_wait_energy; 
+
+						if(DEBUG_SOL) {
+							printf("   UGV energy waiting: %f\n", ugv_wait_energy);
+						}
+
+					}
+					break; 
+				case E_UGVActionTypes::e_LaunchDrone:
+					if (DEBUG_SOL) {
+						printf("Launching Drone\n");
+					}
+					{
+						int launchedDroneId = action.mDetails;
+						int waypointId = UGVActionsSoFar.back().mDetails; 
+						std::queue<DroneAction>& launchedDroneQueue = drone_action_queues[launchedDroneId]; 
+						std::vector<DroneAction>& launchedDroneActionsSoFar = droneActionsSoFar[launchedDroneId];
+						
+						double prevActionTime;  
+						if (!launchedDroneActionsSoFar.empty()) {
+							prevActionTime = launchedDroneActionsSoFar.back().fCompletionTime;
+						}
+						else {
+							prevActionTime = 0.0; 
+						}
+
+
+						
+						printf("\n");
+						printf("drone id [%d] and waypoint id [%d] \n", launchedDroneId, waypointId);
+						printf("\n");
+
+						calcDroneWaypointActions(launchedDroneId, waypointId, DroneWaypointActions, DroneWaypointActionsTimeDifferences, launchedDroneQueue, prevActionTime); 
+						double joules = calcDroneMovingEnergy(launchedDroneActionsSoFar, launchedDroneQueue, input->getUAV(launchedDroneId), input->GetDroneVMax(launchedDroneId));
+
+						for (std::size_t i = 0; i < launchedDroneActionsSoFar.size(); i++) {
+							DroneAction action = launchedDroneActionsSoFar[i];
+							if (DEBUG_SOL) {
+								printf("  [%d] %d(%d) : (%f, %f) - %f\n",
+									action.mActionID,
+									static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType),
+									action.mDetails,
+									action.fX,
+									action.fY,
+									action.fCompletionTime);	
+								}
+						}
+						
+						energyUsed += joules/currentUGV.chargeEfficiency;
+					}
+					break;
+				case E_UGVActionTypes::e_MoveToDepot:
+					if (DEBUG_SOL) {
+						printf("UGV is considering wether to return to depot of loop again \n");
+					}
+					{
+						// We need to compute how much energy it will take to return to the depot 
+						double returnDepotEnergy = calcUGVMovingEnergy(UGVActionsSoFar.back(), action, currentUGV);
+						// We need to compute how much energy it will take to return to the first waypoint 
+						double returnFirstWaypointEnergy = calcUGVMovingEnergy(firstWaypoint, action, currentUGV);
+
+						// Figure out how much energy a second loop would cost 
+						double loopEnergy = firstMoveEnergyUsed + energyUsed + returnFirstWaypointEnergy + energyUsed + returnDepotEnergy; 
+
+
+						if (SANITY_PRINT) {
+							printf("\n");
+							printf("The energy for the fist move is [%f]\n", firstMoveEnergyUsed); 
+							printf("The energy to return to the depot is [%f]\n", returnDepotEnergy);
+							printf("The energy to return to the first waypoint is [%f]\n", returnFirstWaypointEnergy);
+							printf("The energy to up to this point is: [%f]\n", energyUsed);
+							printf("The energy for another loop is [%f]\n", loopEnergy); 
+							printf("The UGV has this much total energy [%f]\n", input->GetUGVBatCap(currentUGVId));
+							printf("\n");
+						}
+
+						// * Figure out how many loops we can do 
+						int numLoops = 0;  
+						while (loopEnergy < input->GetUGVBatCap(currentUGVId)) {
+							numLoops++; 
+							loopEnergy += returnFirstWaypointEnergy + energyUsed; 
+						}
+						
+						if (numLoops == 0) {
+							printf("\n");
+							printf("---------------------------------------------------------\n");
+							printf("This Trip could not be optimized by the depleted solver \n");
+							printf("---------------------------------------------------------\n");
+							printf("\n");
+					
+
+
+							break;
+						} else {
+							printf("\n");
+							printf("---------------------------------------------------------\n");
+							printf("This input IS ABLE to be optimized by the depleted solver\n");
+							printf("---------------------------------------------------------\n");
+							printf("\n");
+						}
+
+						
+						if (DEBUG_SOL) {
+							printf("UGV looping Actions\n"); 
+							for(UGVAction action : UGVLoopingActions) {
+								printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+							}
+						}
+
+
+						// * These two base case must be handled 
+						if (newUGVSolIndex == 0) {
+							UGVAction copyAction = UGVActionsSoFar[newUGVSolIndex];
+							double completionTime = 0;
+							newUGVActionList.emplace_back(copyAction.mActionType, copyAction.fX, copyAction.fY, completionTime, copyAction.mDetails);
+							newUGVSolIndex++; 
+						} 
+
+						// * Add all the actions from the newUGVSolIndex that havent been added yet
+						while (newUGVSolIndex < UGVActionsSoFar.size()) {
+							UGVAction copyAction = UGVActionsSoFar[newUGVSolIndex];
+							double completionTime = newUGVActionList.back().fCompletionTime + UGVActionsSoFarTimes[newUGVSolIndex];
+							newUGVActionList.emplace_back(copyAction.mActionType, copyAction.fX, copyAction.fY, completionTime, copyAction.mDetails);
+							newUGVSolIndex++; 
+						}
+
+	
+						// * Add the looped actions to the UGVActions
+						for (int i = 0; i < numLoops; i++) {
+							// * Create and add a action moving to the first waypoint cords 
+							double dist_prev_next = distAtoB(newUGVActionList.back().fX, newUGVActionList.back().fY, firstWaypoint.fX, firstWaypoint.fY);
+							double t_duration = dist_prev_next/currentUGV.ugv_v_crg;
+							double ugv_arrival_time = newUGVActionList.back().fCompletionTime + t_duration;
+							// TODO need to make sure the drones are charged by the time we arrive at first way point again have to wait for them to charge if not 
+							UGVAction moveToFirstWaypoint(E_UGVActionTypes::e_MoveToWaypoint, firstWaypoint.fX, firstWaypoint.fY, ugv_arrival_time ,firstWaypoint.mDetails);
+							newUGVActionList.push_back(moveToFirstWaypoint);
+
+
+							// * Create new actions for the looping actions + update new arrival times + add them to new list 
+							int index = 0; 
+							for (UGVAction loopAction : UGVLoopingActions) {
+								double completionTime = newUGVActionList.back().fCompletionTime + UGVLoopingActionsTimes[index];
+								newUGVActionList.emplace_back(loopAction.mActionType, loopAction.fX, loopAction.fY, completionTime, loopAction.mDetails);
+								index++; 
+							}
+						}
+
+
+
+						// * Rest variables related to the currnet (now that we are returning to a depot) BUT we can still leave for a new trip
+						UGVLoopingActions.clear(); 
+						UGVLoopingActionsTimes.clear(); 
+
+					
+
+
+					}
+				default:
+					if (DEBUG_SOL) {
+						printf("This action is currently not being considered \n");
+					}
+					break;
+			}
+
+			// * If the UGV has already moved to the first locaction -> we want to keep track of these actions b/c they will represent the loop
+			double actionTimeDifference;
+			if (UGVActionsSoFar.size() == 0) {
+				actionTimeDifference = 0; 
+			} else {
+				actionTimeDifference = action.fCompletionTime - UGVActionsSoFar.back().fCompletionTime;
+			}
+			if (hasMoved) {
+				UGVLoopingActions.push_back(action); 
+				UGVLoopingActionsTimes.push_back(actionTimeDifference); 
+			}
+
+			// * Regardless of the action type always add it to actions and action times thus far 
+			UGVActionsSoFar.push_back(action);
+			UGVActionsSoFarTimes.push_back(actionTimeDifference);
+
+	
+		}
+
+
+		while (newUGVSolIndex < UGVActionsSoFar.size()) {
+			UGVAction action = UGVActionsSoFar[newUGVSolIndex];
+			double completionTime; 
+			if (newUGVActionList.size() == 0) {
+				completionTime = UGVActionsSoFarTimes[newUGVSolIndex];
+			}
+			else{
+				completionTime = newUGVActionList.back().fCompletionTime + UGVActionsSoFarTimes[newUGVSolIndex];
+			}
+			newUGVActionList.emplace_back(action.mActionType, action.fX, action.fY, completionTime, action.mDetails);
+			newUGVSolIndex++; 
+		}
+
+		
+
+
+		for (const auto& dronePair : DroneWaypointActions) {
+			int droneId = dronePair.first; // Access the drone ID
+			const auto& waypointMap = dronePair.second; // Access the inner map
+
+			printf("Drone ID: %d\n", droneId);
+
+			for (const auto& waypointPair : waypointMap) {
+				int waypointId = waypointPair.first; // Access the waypoint ID
+				const auto& actions = waypointPair.second; // Access the vector of actions
+				const auto& timeDifferences = DroneWaypointActionsTimeDifferences.at(droneId).at(waypointId); // Get corresponding time differences
+
+				printf("  Waypoint ID: %d\n", waypointId);
+
+				for (size_t i = 0; i < actions.size(); ++i) {
+					const DroneAction& action = actions[i];
+					double timeDifference = timeDifferences[i]; // Corresponding time difference
+
+					printf("    [%d] %d(%d) : (%f, %f) - %f | Time Difference: %f\n",
+						action.mActionID,
+						static_cast<std::underlying_type<E_DroneActionTypes>::type>(action.mActionType),
+						action.mDetails, action.fX, action.fY, action.fCompletionTime,
+						timeDifference);
+				}
+			}
+		}
+
+		std::map<int, std::vector<DroneAction>> newDroneActionsLists;
+
+		// Initialize empty vectors for all drones mapped to a particular UGV 
+		for (const auto& dronePair : DroneWaypointActions) {
+			int droneId = dronePair.first; // Access the drone ID
+			newDroneActionsLists[droneId] = {}; // Initialize an empty vector for the drone ID
+		}
+
+		printf("Initialized keys for drone IDs:\n");
+		for (const auto& pair : newDroneActionsLists) {
+			printf("Drone ID: %d initialized with empty action list.\n", pair.first);
+		}
+		int droneId; 
+		int waypointId;
+		int index; 
+		for (UGVAction newUGVAction : newUGVActionList) {
+			switch(newUGVAction.mActionType) {
+				case E_UGVActionTypes::e_MoveToWaypoint:
+					waypointId = newUGVAction.mDetails;
+					break; 
+				case E_UGVActionTypes::e_AtDepot:
+					// * If the UGV is at the Depot, we should add corresponing the Drone Action at UGV for all UGV - Drone pairs 
+					for (auto& dronePair : newDroneActionsLists) {
+						droneId = dronePair.first; 
+						auto& actionList = dronePair.second; 
+						// * Add the new action to the drone's action list
+						actionList.emplace_back(E_DroneActionTypes::e_AtUGV, newUGVAction.fX, newUGVAction.fY, newUGVAction.fCompletionTime, newUGVAction.mDetails);
+					}
+					break;
+				case E_UGVActionTypes::e_LaunchDrone:
+					droneId = newUGVAction.mDetails;
+					index = 0; 
+					double completionTime;
+					for (DroneAction droneAction : DroneWaypointActions[droneId][waypointId]) {
+						if (droneAction.mActionType == E_DroneActionTypes::e_LaunchFromUGV) {
+							completionTime = newUGVAction.fCompletionTime; 
+						}
+						else {
+							double prevDroneActionTime = newDroneActionsLists[droneId].back().fCompletionTime;
+							completionTime = prevDroneActionTime + DroneWaypointActionsTimeDifferences[droneId][waypointId][index]; 
+						}
+						newDroneActionsLists[droneId].emplace_back(droneAction.mActionType, droneAction.fX, droneAction.fY, completionTime, droneAction.mDetails); 
+						index++; 
+					}
+
+					break; 
+				case E_UGVActionTypes::e_KernelEnd:
+					for (auto& dronePair : newDroneActionsLists) {
+						droneId = dronePair.first; 
+						auto& actionList = dronePair.second; 
+						// * Add the new action to the drone's action list
+						actionList.emplace_back(E_DroneActionTypes::e_KernelEnd, newUGVAction.fX, newUGVAction.fY, newUGVAction.fCompletionTime, newUGVAction.mDetails);
+					}
+					break; 
+				default:
+					if (DEBUG_SOL) {
+						printf(" This action type is not currently being considered \n");
+					}
+					break; 
+			}
+		}
+
+		if (SANITY_PRINT) {
+			printf("-----------------------------\n");
+			printf("New UGVActionList for UGV [%ld]\n", j);
+			for (UGVAction action : newUGVActionList) {
+				printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
+			}
+			printf("-----------------------------\n");
+			for (const auto& pair : newDroneActionsLists) {
+				int droneId = pair.first;
+				const auto& actions = pair.second;
+
+				std::cout << "Drone ID: " << droneId << std::endl;
+
+				for (DroneAction action : actions) {
+					printf("    [%d] %d(%d) : (%f, %f) - %f\n",
+						action.mActionID,
+						static_cast<std::underlying_type<E_DroneActionTypes>::type>(action.mActionType),
+						action.mDetails, action.fX, action.fY, action.fCompletionTime);
+				}
+			}
+			printf("-----------------------------\n");
+		}
+
+		// * Now that we have our new UGV Action list and the corresponding Drone actions list we need to update the solution 
+		sol_final->swapUGVActionList(currentUGVId, newUGVActionList);
+		for (const auto& pair : newDroneActionsLists) {
+				int droneId = pair.first;
+				const auto& newDroneActionList = pair.second;
+				sol_final->swapDroneActionLists(droneId, newDroneActionList);
+			}
+
+	}
+}
+
+
+
 /*
 
 ../../build/patrolling-solver ../Exp_01/plot_1_2_10_1.yaml 2 0 0 "" 5
@@ -794,4 +1306,6 @@ void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& 
 		printf("\n\n");
 	}
 }
+
+
 

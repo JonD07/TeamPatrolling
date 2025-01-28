@@ -33,7 +33,7 @@ enum class E_DroneActionTypes {
 };
 
 enum class E_UGVActionTypes {
-	e_LaunchDrone=0,		// 0
+	e_LaunchDrone=0,	// 0
 	e_ReceiveDrone,		// 1
 	e_MoveToNode,		// 2
 	e_MoveToWaypoint,	// 3
@@ -160,6 +160,14 @@ public:
 	void ClearDroneSolution(int j);
 	// Deletes the current plan (actions and completion times) for UGV j
 	void ClearUGVSolution(int j);
+	// Helper function to convert DroneActionType enum to string
+	std::string droneActionTypeToString(E_DroneActionTypes actionType);
+	// Helper function to convert UGVActionType enum to string
+	std::string ugvActionTypeToString(E_UGVActionTypes actionType);
+	// Function to swap an Entire UGV Action List out
+	void swapUGVActionList(int UGVId, std::vector<UGVAction>& newActionList);
+	// Function to swap an Entire Drone Action List out
+	void swapDroneActionLists(int DroneId, const std::vector<DroneAction>& newActionList); 
 
 private:
 	PatrollingInput* m_input;
@@ -168,10 +176,6 @@ private:
 	std::vector<std::vector<DroneAction>> m_Aa;
 	std::vector<std::vector<UGVAction>> m_Ag;
 
-	// Helper function to convert DroneActionType enum to string
-	std::string droneActionTypeToString(E_DroneActionTypes actionType);
-	// Helper function to convert UGVActionType enum to string
-	std::string ugvActionTypeToString(E_UGVActionTypes actionType);
 	// Reduce precision of floating point number and convert to string
 	std::string floatingPointToString(double val);
 };
