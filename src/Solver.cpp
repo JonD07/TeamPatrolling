@@ -914,15 +914,9 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 							}
 						}
 
-
-
 						// * Rest variables related to the currnet (now that we are returning to a depot) BUT we can still leave for a new trip
 						UGVLoopingActions.clear(); 
 						UGVLoopingActionsTimes.clear(); 
-
-					
-
-
 					}
 				default:
 					if (DEBUG_SOL) {

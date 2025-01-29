@@ -168,6 +168,8 @@ public:
 	void swapUGVActionList(int UGVId, std::vector<UGVAction>& newActionList);
 	// Function to swap an Entire Drone Action List out
 	void swapDroneActionLists(int DroneId, const std::vector<DroneAction>& newActionList); 
+	// Function two actions in a particular UGVAction List
+	void swapUGVActions(int ugv_num, int index1, int index2); 
 
 private:
 	PatrollingInput* m_input;

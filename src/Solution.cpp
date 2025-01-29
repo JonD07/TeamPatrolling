@@ -897,3 +897,18 @@ void Solution::swapDroneActionLists(int DroneId, const std::vector<DroneAction>&
 		this->PushDroneAction(DroneId, actionToPush); 
 	}
 }
+
+// Function swaps any two actions in a action lst 
+void Solution::swapUGVActions(int ugv_num, int index1, int index2) {
+    std::vector<UGVAction>& actionList = m_Ag.at(ugv_num);
+
+    // Bounds checking to prevent out-of-range errors
+    if (index1 < 0 || index1 >= actionList.size() || index2 < 0 || index2 >= actionList.size()) {
+        throw std::out_of_range("Index out of range in swapUGVActions");
+    }
+
+    // Perform the swap
+	UGVAction temp = actionList[index1];  
+    actionList[index1] = actionList[index2];  
+    actionList[index2] = temp;  
+}

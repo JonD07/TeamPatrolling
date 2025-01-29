@@ -12,6 +12,7 @@
 #include "Solver_ILO.h"
 #include "Solver_OptLaunch.h"
 #include "Solver_Depleted.h"
+#include "Solver_LLS.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -122,6 +123,11 @@ int main(int argc, char *argv[]) {
 
 	case e_Algo_DEPLETED: { 			// algo: 4
 		solver = new Solver_Depleted();
+	}
+	break;
+
+	case e_Algo_LLS: { 				// algo: 5 
+		solver = new Solver_LLS(); 
 	}
 	break;
 
