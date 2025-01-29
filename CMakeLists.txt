@@ -86,7 +86,7 @@ add_executable(${CMAKE_PROJECT_NAME}
 	src/VRPSolver.cpp
 	src/ClusteringAlgorithm.cpp 
 	src/LKH_TSP_Solver.cpp 
-	src/DepletedSolver.cpp
+	src/Solver_Depleted.cpp
 )
 
 if(CXX)
