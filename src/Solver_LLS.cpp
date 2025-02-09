@@ -26,16 +26,38 @@ Solver_LLS::Solver_LLS() {
 Solver_LLS::~Solver_LLS() { }
 
 
+// *TODO Make sure its okay to consider timing here i.e. overlapping L/L actions only need to be on top of each other but they take different amounts of time
 bool Solver_LLS::areActionsOverlapping(const UGVAction& action1, const UGVAction& action2) {
     // Compute Euclidean distance between the two actions
     double dx = action1.fX - action2.fX;
     double dy = action1.fY - action2.fY;
     double distance = std::sqrt(dx * dx + dy * dy);
 
+	// Check if the action has effectively no movement
+	bool no_movement = (distance < LLS_DISTANCE_TOLERANCE);
+
     // Check if actions are within distance tolerance AND action2 happens after action1 within time tolerance
-    return (distance < LLS_DISTANCE_TOLERANCE) && 
-           ((action2.fCompletionTime - action1.fCompletionTime) > 0) &&
-           ((action2.fCompletionTime - action1.fCompletionTime) < LLS_TIME_TOLERANCE);
+    return no_movement;
+}
+
+bool Solver_LLS::isMoveADummy(const UGVAction& action, const UGVAction& prev_action) {
+	// Compute Euclidean distance between the two actions
+    double dx = action.fX - prev_action.fX;
+    double dy = action.fY - prev_action.fY;
+    double distance = std::sqrt(dx * dx + dy * dy);
+
+    // Check if the action has effectively no movement
+    bool no_movement = (distance < LLS_DISTANCE_TOLERANCE);
+
+    // Check if the action has effectively no time duration
+    bool no_time = (action.fCompletionTime - prev_action.fCompletionTime) < LLS_TIME_TOLERANCE;
+    return no_movement && no_time;
+}
+
+bool Solver_LLS::isOverlappingLaunchOrReceive(const UGVAction& action1, const UGVAction& action2) {
+    return areActionsOverlapping(action1, action2) &&
+           (action1.mActionType == E_UGVActionTypes::e_LaunchDrone || action1.mActionType == E_UGVActionTypes::e_ReceiveDrone) &&
+           (action2.mActionType == E_UGVActionTypes::e_LaunchDrone || action2.mActionType == E_UGVActionTypes::e_ReceiveDrone);
 }
 
 void Solver_LLS::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_to_UGV, PatrollingInput* input, Solution* sol_current) {
@@ -55,40 +77,65 @@ void Solver_LLS::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_
 
 
         // * Search for Launch/Lands next to each other 
-        for (size_t curr_ugv_index = 0; curr_ugv_index < curr_UGV_actions.size() - 1; curr_ugv_index++) {
-            UGVAction curr_action = curr_UGV_actions[curr_ugv_index];
-            UGVAction next_action = curr_UGV_actions[curr_ugv_index + 1];
+        for (size_t curr_ugv_index = 0; curr_ugv_index < curr_UGV_actions.size() - 2; curr_ugv_index++) {
+            UGVAction& prev_action = curr_UGV_actions[curr_ugv_index];       
+			UGVAction& curr_action = curr_UGV_actions[curr_ugv_index + 1];  
+			UGVAction& next_action = curr_UGV_actions[curr_ugv_index + 2];  
 
             switch (curr_action.mActionType) {
-                case E_UGVActionTypes::e_LaunchDrone:
-                    if (next_action.mActionType != E_UGVActionTypes::e_ReceiveDrone) {
-                        break; 
-                    }
-                    [[fallthrough]];
-                case E_UGVActionTypes::e_ReceiveDrone:
-                    if (next_action.mActionType != E_UGVActionTypes::e_LaunchDrone) {
-                        break; 
-                    }
+                case E_UGVActionTypes::e_MoveToWaypoint:
+                    // * Does the MoveToWaypoint a dummy?
+					printf("\n");
+					printf("  [%d] %d(%d) : (%f, %f) - %f\n", prev_action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(prev_action.mActionType), prev_action.mDetails, prev_action.fX, prev_action.fY, prev_action.fCompletionTime);
+					printf("  [%d] %d(%d) : (%f, %f) - %f\n", curr_action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(curr_action.mActionType), curr_action.mDetails, curr_action.fX, curr_action.fY, curr_action.fCompletionTime);
+					printf("\n");
+					//*TODO this function needs to be changed to incorporate start and end time by using the previous action in order to see if it uses zero time 
+                    if (isMoveADummy(curr_action, prev_action)) {
+						if (DEBUG_LLS) {
+							printf("A dummy MoveToWaypoint has been found\n");
+						}
+						if (isOverlappingLaunchOrReceive(prev_action, next_action)) {
+							if (DEBUG_LLS) {
+								printf("A overlapping launch and/or receive has been found\n");
+							}
+							// * Create a temporary solution
+							Solution sol_temp(*sol_current);
 
-                    // * Are the launch and land actions overlapping?
-                    if (areActionsOverlapping(curr_action, next_action)) {
-                        // * Swap the actions and rerun optimizer
-                        sol_current->swapUGVActions(ugv_num, curr_ugv_index, curr_ugv_index + 1); 
-                        optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_current);
-                        double new_par = sol_current->CalculatePar(); 
+							// * Swap the actions and rerun optimizer
+							int prev_action_index = curr_ugv_index; 
+							int next_action_index = curr_ugv_index + 2; 
+							sol_temp.swapUGVActions(ugv_num, prev_action_index, next_action_index); 
+							// * Did we improve the solution?**
+							printf("prev par %f\n", prev_best_par);
+							sol_current->PrintSolution();
+							double new_par = sol_temp.CalculatePar(); 
 
-                        // **Did we improve the solution?**
-                        if (new_par < prev_best_par) {
-                            printf("The LLS has made a successful switch\n");
-                            prev_best_par = new_par;
-                            swapped = true;  
-                            break;  // * Exit the for loop to restart while loop
-                        } else {
-                            printf("The LLS switch was NOT successful");
-                            // * No improvement -> Undo swap
-                            sol_current->swapUGVActions(ugv_num, curr_ugv_index, curr_ugv_index + 1); 
-                        }
-                    }
+							printf("new par %f\n", new_par);
+							sol_temp.PrintSolution();
+
+							optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_temp);
+							new_par = sol_temp.CalculatePar(); 
+							printf("new par %f\n", new_par);
+							sol_temp.PrintSolution();
+
+
+							if (new_par < prev_best_par) {
+								if (DEBUG_LLS) {
+									printf("The LLS has made a successful switch\n");
+								}
+
+								prev_best_par = new_par;
+								swapped = true;  
+								*sol_current = sol_temp;
+								break;  // * Exit the for loop to restart while loop
+							} else {
+								// * No improvement 
+								if (DEBUG_LLS) {
+									printf("The LLS switch was NOT successful\n");
+								}
+							}
+                    	}
+					}
                     break;
                 default:
                     break; 
@@ -121,7 +168,7 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 	input->AssignDronesToUGV(drones_to_UGV);
 	
 	// Sanity print
-	if(DEBUG_ILO) {
+	if(DEBUG_LLS) {
 		printf("UGVs-to-Drones:\n");
 		for(int j_g = 0; j_g < input->GetMg(); j_g++) {
 			printf(" UGV %d:\n  ", j_g);
@@ -135,7 +182,7 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 	/// Find Baseline Solution
 	RunBaseline(input, sol_final, drones_to_UGV);
 
-	if(DEBUG_ILO) {
+	if(DEBUG_LLS) {
 		// Record this so we can watch how well the optimizer is improving things
 		FILE * pOutputFile;
 		pOutputFile = fopen("ilo_improvement.dat", "a");
@@ -155,7 +202,7 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 		Solution sol_new(*sol_final);
 		opt_flag = false;
 
-		if(DEBUG_ILO) {
+		if(DEBUG_LLS) {
 			printf("**** ILO ****\nCurrent par = %f\n", sol_new.CalculatePar());
 		}
 
@@ -163,7 +210,7 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 		for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
 
 			/// For each drone...
-			if(DEBUG_ILO) {
+			if(DEBUG_LLS) {
 				printf(" Update Sub-tours\n");
 			}
 			for(int drone_j : drones_to_UGV.at(ugv_num)) {
@@ -172,7 +219,7 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 			}
 
 			/// optimize-launch-land()
-			if(DEBUG_ILO) {
+			if(DEBUG_LLS) {
 				printf(" Optimizing step\n");
 			}
 			LLSRelaxAll(ugv_num, drones_to_UGV, input, &sol_new);
@@ -180,7 +227,7 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 
 		/// Did we improve the solution?
 		if(sol_new.CalculatePar() < sol_final->CalculatePar()) {
-			if(DEBUG_ILO) {
+			if(DEBUG_LLS) {
 				printf("  Found better solution!\n");
 			}
 			/// Update the final solution
@@ -192,7 +239,7 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 
 
 
-		if(DEBUG_ILO) {
+		if(DEBUG_LLS) {
 			printf("New Solution, PAR = %f\n", sol_final->CalculatePar());
 		}
 	/// While we made an improvement
@@ -202,7 +249,7 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 
 
 
-	if(DEBUG_ILO) {
+	if(DEBUG_LLS) {
 		sol_final->PrintSolution();
 		printf("\nFinal Solution:\n");
 		sol_final->PrintSolution();
@@ -232,7 +279,7 @@ bool Solver_LLS::updateSubtours(int drone_id, Solution* sol_final) {
 	 * return opt-flag
 	 */
 
-	if(DEBUG_ILO)
+	if(DEBUG_LLS)
 		printf(" Updating sub-tours for drone %d\n", drone_id);
 
 	/// opt-flag := False
@@ -252,7 +299,7 @@ bool Solver_LLS::updateSubtours(int drone_id, Solution* sol_final) {
 	std::vector<DroneAction> old_action_list;
 	sol_final->GetDroneActionList(drone_id, old_action_list);
 
-	if(DEBUG_ILO)
+	if(DEBUG_LLS)
 		printf(" Running through actions\n");
 
 	for(DroneAction a : old_action_list) {

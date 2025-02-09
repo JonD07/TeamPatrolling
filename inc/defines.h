@@ -32,8 +32,8 @@
 #define DRONE_PER_UGV	2 //scenario should define all of this
 
 // This is tolerance used to consider if launch and land actions are considered on top of each other
-#define LLS_DISTANCE_TOLERANCE	1e-6 
-#define LLS_TIME_TOLERANCE	1
+#define LLS_DISTANCE_TOLERANCE	1.0
+#define LLS_TIME_TOLERANCE	1.0
 
 enum {
 	e_Algo_COMP = 0,
