@@ -17,10 +17,10 @@
 
 #define DEBUG_MAIN	DEBUG || 0
 
-#define DEFAULT_PRINT_ACTIONS	true
-#define DEFAULT_PRINT_RESULTS	1
+#define DEFAULT_PRINT_ACTIONS	false
+#define DEFAULT_PRINT_RESULTS	0
 #define DATA_LOG_FORMAT	"alg_%d.dat"
-#define DEFAULT_DATA_LOG_PATH	"./"
+#define DEFAULT_DATA_LOG_PATH	"0"
 #define DEFAULT_RUN_NUM	0
 #define DEFAULT_VEHICLE_DEFINE_LOCATION "../../VehicleInputs/StandardDefinitionVehicle.yaml"
 
