@@ -12,6 +12,7 @@
 #include "Solver_ILO.h"
 #include "Solver_OptLaunch.h"
 #include "Solver_Depleted.h"
+#include "Solver_LLS.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -125,6 +126,11 @@ int main(int argc, char *argv[]) {
 	}
 	break;
 
+	case e_Algo_LLS: { 				// algo: 5 
+		solver = new Solver_LLS(); 
+	}
+	break;
+
 	case e_Algo_COMP:
 	default:
 		// No valid algorithm given
@@ -163,9 +169,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	if(print_actions) {
-//		Solution runtime_solution(&input);
-//		runtime_solution.CreateRuntimeSolution(solution);
-//		runtime_solution.GenerateYAML("output_plan.yaml");
+		//Solution runtime_solution(&input);
+		//runtime_solution.CreateRuntimeSolution(solution);
+		//runtime_solution.GenerateYAML("output_plan.yaml");
+		solution.PrintSolution(); 
 
 		solution.GenerateYAML("output_plan.yaml");
 	}
