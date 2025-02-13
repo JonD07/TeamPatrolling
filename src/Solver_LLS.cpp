@@ -26,7 +26,6 @@ Solver_LLS::Solver_LLS() {
 Solver_LLS::~Solver_LLS() { }
 
 
-// *TODO Make sure its okay to consider timing here i.e. overlapping L/L actions only need to be on top of each other but they take different amounts of time
 bool Solver_LLS::areActionsOverlapping(const UGVAction& action1, const UGVAction& action2) {
     // Compute Euclidean distance between the two actions
     double dx = action1.fX - action2.fX;
@@ -56,10 +55,18 @@ bool Solver_LLS::isMoveADummy(const UGVAction& action, const UGVAction& prev_act
 
 bool Solver_LLS::isOverlappingLaunchOrReceive(const UGVAction& action1, const UGVAction& action2) {
     return areActionsOverlapping(action1, action2) &&
+			//* ensures that action1 is either a Launch or Land and that action2 is either a Launch or Land 
            (action1.mActionType == E_UGVActionTypes::e_LaunchDrone || action1.mActionType == E_UGVActionTypes::e_ReceiveDrone) &&
            (action2.mActionType == E_UGVActionTypes::e_LaunchDrone || action2.mActionType == E_UGVActionTypes::e_ReceiveDrone);
 }
 
+/*
+*  This function is attemps to switch corresponding UGV launch and land actions that have been placed on top of each other by the optimizer 
+*  First the function looks for a dummy waypoint that has a launch and land sandwhiching it 
+*  If it finds one of these, it makes a dummy sol, switches the actions and runs the optimizer again and then sees if the PAR is better
+*  If its better -> switch the current soln to this temp soln and we restart the whole process from the beg of the while loop since this change could introduce new optimization potential 
+*  TODO it is possible that we would need to record the successful swaps we are making if it turns out we there is a lot of repeated useless work happening every time we restart the loop
+*/
 void Solver_LLS::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_to_UGV, PatrollingInput* input, Solution* sol_current) {
     if (SANITY_PRINT) {
         printf("Attempting to perform relaxing swaps!\n");
@@ -71,7 +78,6 @@ void Solver_LLS::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_
         bool swapped = false;  
 
         // * Retrieve the updated UGV action list after every iteration
-        // TODO discuss this operation (its expensive)
         std::vector<UGVAction> curr_UGV_actions;
         sol_current->GetUGVActionList(ugv_num, curr_UGV_actions); 
 
@@ -85,11 +91,6 @@ void Solver_LLS::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_
             switch (curr_action.mActionType) {
                 case E_UGVActionTypes::e_MoveToWaypoint:
                     // * Does the MoveToWaypoint a dummy?
-					printf("\n");
-					printf("  [%d] %d(%d) : (%f, %f) - %f\n", prev_action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(prev_action.mActionType), prev_action.mDetails, prev_action.fX, prev_action.fY, prev_action.fCompletionTime);
-					printf("  [%d] %d(%d) : (%f, %f) - %f\n", curr_action.mActionID, static_cast<std::underlying_type<E_UGVActionTypes>::type>(curr_action.mActionType), curr_action.mDetails, curr_action.fX, curr_action.fY, curr_action.fCompletionTime);
-					printf("\n");
-					//*TODO this function needs to be changed to incorporate start and end time by using the previous action in order to see if it uses zero time 
                     if (isMoveADummy(curr_action, prev_action)) {
 						if (DEBUG_LLS) {
 							printf("A dummy MoveToWaypoint has been found\n");
@@ -105,19 +106,21 @@ void Solver_LLS::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_
 							int prev_action_index = curr_ugv_index; 
 							int next_action_index = curr_ugv_index + 2; 
 							sol_temp.swapUGVActions(ugv_num, prev_action_index, next_action_index); 
+							
 							// * Did we improve the solution?**
-							printf("prev par %f\n", prev_best_par);
-							sol_current->PrintSolution();
-							double new_par = sol_temp.CalculatePar(); 
+							if (DEBUG_LLS) {
+								printf("Prev best par and corresponding solution %f\n", prev_best_par);
+								sol_current->PrintSolution();
+							}
 
-							printf("new par %f\n", new_par);
-							sol_temp.PrintSolution();
 
 							optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_temp);
-							new_par = sol_temp.CalculatePar(); 
-							printf("new par %f\n", new_par);
-							sol_temp.PrintSolution();
-
+							double new_par = sol_temp.CalculatePar(); 
+							
+							if (DEBUG_LLS) {
+								printf("New par and temp sol %f\n", new_par);
+								sol_temp.PrintSolution();
+							}
 
 							if (new_par < prev_best_par) {
 								if (DEBUG_LLS) {
@@ -136,19 +139,18 @@ void Solver_LLS::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_
 							}
                     	}
 					}
-                    break;
+                    break; //* Exits the switch statement 
                 default:
-                    break; 
+                    break; //* Exits the switch statement
             }
 
             if (swapped) {
-                break;  // * Exit the for loop to restart while loop
+                break;  // * Exit the for loop to restart while loop since we have a found a optimization 
             }
         }
-
-        // * If no swaps occurred, we're done optimizing
+       
         if (!swapped) {
-            break;
+            break;  // * If no swaps occurred, we're done optimizing (We have RelaxedAll) and we need to quit 
         }
     }
 }
