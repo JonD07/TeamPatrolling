@@ -37,6 +37,28 @@ struct Node {
 };
 
 
+struct Obstacle : public Node {
+    double radius;
+
+    Obstacle() {radius = 0.0;}
+
+    Obstacle(const std::string& id, const std::string& type, const Location& loc, double r)
+        : radius(r) {
+        this->ID = id;
+        this->type = type;
+        this->location = loc;
+        this->time_last_service = 0.0; 
+    }
+
+	void printInfo() const {
+    std::cout << "Obstacle ID: " << ID << "\n";
+    std::cout << "  Type: " << type << "\n";
+    std::cout << "  Location: (" << location.x << ", " << location.y << ")\n";
+    std::cout << "  Radius: " << radius << "\n";
+}
+};
+
+
 class PatrollingInput : public Input {
 public:
 	/*
@@ -60,6 +82,8 @@ public:
 	int GetMg() {return mRg.size();}
 	// Get list of nodes
 	const std::vector<Node>& GetNodes() {return nodes;}
+	// Get list of obstacles 
+	const std::vector<Obstacle>& GetObstacles() const { return obstacles; }
 	// Get the location of the depot (we assume a single depot)
 	void GetDepot(int j, double* x, double* y);
 	// Get the initial location of drone j
@@ -106,10 +130,12 @@ private:
 	std::vector<UAV> mRa;
 	std::vector<UGV> mRg;
 	std::vector<Node> nodes;
+	std::vector<Obstacle> obstacles;
 	double depot_x;
 	double depot_y;
 	void parseAgents(const YAML::Node& agents);
 	void parseScenario(const YAML::Node& scenario);
 	void parseUAVs(const YAML::Node& UAVs);
 	void parseUGVs(const YAML::Node& UGVs);
+	void parseObstacles(const YAML::Node& Obstacles); 
 };

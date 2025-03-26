@@ -43,6 +43,11 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
         const YAML::Node& scenario = config["scenario"];
         parseScenario(scenario);
 
+		// Parse the obstacle information if it exists 
+		if (scenario["obstacles"]) {
+			parseObstacles(scenario["obstacles"]);
+		}
+
 	} catch (const std::exception &e) {
 		fprintf(stderr, "[ERROR]:PatrollingInput() %s\n", e.what());
 		read_success = false;
@@ -257,6 +262,20 @@ void PatrollingInput::parseScenario(const YAML::Node& scenario) {
             std::cout << "    Time Last Service: " << node.time_last_service << std::endl;
         }
     }
+}
+
+void PatrollingInput::parseObstacles(const YAML::Node& obs) {
+	for (const auto& nodeNode : obs) {
+		Obstacle new_obs; 
+		new_obs.ID = nodeNode["ID"].as<std::string>();
+		new_obs.type = nodeNode["type"].as<std::string>();
+		new_obs.location.x = nodeNode["location"]["x"].as<double>();
+		new_obs.location.y = nodeNode["location"]["y"].as<double>();
+		new_obs.radius = nodeNode["radius"].as<double>(); 
+
+		new_obs.printInfo(); 
+		obstacles.push_back(new_obs); 
+	}
 }
 
 PatrollingInput::~PatrollingInput() {
