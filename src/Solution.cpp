@@ -252,6 +252,7 @@ double Solution::CalculatePar() {
 
 // Prints this solution
 void Solution::PrintSolution() {
+	
 	printf("Solution: N = %d, Ma = %d, Mg = %d\n", m_input->GetN(), m_input->GetMa(), m_input->GetMg());
 
 	// Print the actions of each robot
@@ -897,3 +898,44 @@ void Solution::swapDroneActionLists(int DroneId, const std::vector<DroneAction>&
 		this->PushDroneAction(DroneId, actionToPush); 
 	}
 }
+
+void Solution::swapUGVActions(int ugv_num, int index1, int index2) {
+	std::vector<UGVAction>& actionList = m_Ag.at(ugv_num);
+
+	// Bounds checking to prevent out-of-range errors
+	if(index1 < 0 || index1 >= actionList.size() || index2 < 0 || index2 >= actionList.size()) {
+		throw std::out_of_range("Index out of range in swapUGVActions");
+	}
+
+	UGVAction& ugv_action1 = actionList[index1];
+	UGVAction& ugv_action2 = actionList[index2];
+
+	// Swap the actions (manually, since std::swap isn't available)
+	UGVAction temp = std::move(ugv_action1);
+	ugv_action1 = std::move(ugv_action2);
+	ugv_action2 = std::move(temp);
+
+	// Swap the completion times explicitly
+	std::swap(ugv_action1.fCompletionTime, ugv_action2.fCompletionTime);
+
+	// Update the new completion times for the drones as well
+	int action1_drone_id = ugv_action1.mDetails; 
+	std::vector<DroneAction>& action1List = m_Aa[action1_drone_id];
+	for(DroneAction& drone_action : action1List) {
+		if(drone_action.fCompletionTime == ugv_action2.fCompletionTime ) {
+			drone_action.fCompletionTime = ugv_action1.fCompletionTime;
+			break;
+		}
+	}
+
+	int action2_drone_id = ugv_action2.mDetails;
+	std::vector<DroneAction>& action2List = m_Aa[action2_drone_id];
+	for(DroneAction& drone_action : action2List) {
+		if(drone_action.fCompletionTime == ugv_action1.fCompletionTime ) {
+			drone_action.fCompletionTime = ugv_action2.fCompletionTime;
+			break; 
+		}
+	}
+}
+
+
