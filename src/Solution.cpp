@@ -169,7 +169,7 @@ double Solution::CalculatePar() {
 		}
 	}
 
-	// Sanity print
+	// Sanity P:
 	if(DEBUG_SOL) {
 		printf("Cycling through visits to build S:\n");
 	}

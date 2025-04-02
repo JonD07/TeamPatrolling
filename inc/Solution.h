@@ -72,6 +72,17 @@ struct DroneAction {
 	}
 };
 
+inline std::string ugvActionTypeToString(E_UGVActionTypes type) {
+	switch (type) {
+		case E_UGVActionTypes::e_AtDepot:         return "AtDepot";
+		case E_UGVActionTypes::e_MoveToWaypoint:  return "MoveToWaypoint";
+		case E_UGVActionTypes::e_LaunchDrone:     return "LaunchDrone";
+		case E_UGVActionTypes::e_ReceiveDrone:    return "ReceiveDrone";
+		case E_UGVActionTypes::e_KernelEnd:       return "KernelEnd";
+		default:                                  return "Unknown";
+	}
+}
+
 struct UGVAction {
 	int mActionID;
 	E_UGVActionTypes mActionType;
@@ -99,6 +110,14 @@ struct UGVAction {
 		mActionType = other.mActionType;
 		fCompletionTime = other.fCompletionTime;
 		mDetails = other.mDetails;
+	}
+
+	void print() const {
+	std::cout << "UGVAction #" << mActionID << "\n";
+	std::cout << "  Type: " << ugvActionTypeToString(mActionType) << "\n";
+	std::cout << "  Location: (" << fX << ", " << fY << ")\n";
+	std::cout << "  Completion Time: " << fCompletionTime << "\n";
+	std::cout << "  Details: " << mDetails << "\n";
 	}
 };
 

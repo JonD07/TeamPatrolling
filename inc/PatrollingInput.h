@@ -50,6 +50,12 @@ struct Obstacle : public Node {
         this->time_last_service = 0.0; 
     }
 
+	bool containsPoint(double px, double py) const {
+		double dx = px - location.x;
+		double dy = py - location.y;
+		return (dx * dx + dy * dy) <= (radius * radius);
+	}
+
 	void printInfo() const {
     std::cout << "Obstacle ID: " << ID << "\n";
     std::cout << "  Type: " << type << "\n";

@@ -13,6 +13,7 @@
 #include "Solver_OptLaunch.h"
 #include "Solver_Depleted.h"
 #include "Solver_LLS.h"
+#include "Solver_OBS.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -130,6 +131,11 @@ int main(int argc, char *argv[]) {
 		solver = new Solver_LLS(); 
 	}
 	break;
+
+	case e_Algo_OBS: {				// algo: 6
+		solver = new Solver_OBS(); 
+	}
+	break; 
 
 	case e_Algo_COMP:
 	default:

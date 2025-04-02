@@ -19,6 +19,7 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 	// Read status
 	bool read_success = true;
 
+
 	try {
 		// Load the YAML file
 		YAML::Node config = YAML::LoadFile(scenario_input);
@@ -46,6 +47,9 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 		// Parse the obstacle information if it exists 
 		if (scenario["obstacles"]) {
 			parseObstacles(scenario["obstacles"]);
+		}
+		else {
+			std::cout << "error finding the obs" << std::endl; 
 		}
 
 	} catch (const std::exception &e) {
