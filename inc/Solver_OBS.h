@@ -23,6 +23,6 @@ public:
     ~Solver_OBS();  
 
     void Solve(PatrollingInput* input, Solution* sol_final) override;
-    bool checkForObstacle(UGVAction& action1, UGVAction& action2, Obstacle); 
+    static bool checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle); 
     bool isActionInsideObstacle(const UGVAction& action, const Obstacle& obstacle);
 };

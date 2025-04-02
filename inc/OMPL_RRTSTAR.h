@@ -59,7 +59,7 @@ public:
     const UGVAction& action_start, 
     const UGVAction& action_goal, 
     const std::vector<Obstacle>& obstacles);
-    std::vector<Obstacle> get_subproblem_obstacles(const std::vector<Obstacle> &all_obstacles); 
+    std::vector<Obstacle> get_subproblem_obstacles(const std::vector<Obstacle>& all_obstacles); 
 
 
 };

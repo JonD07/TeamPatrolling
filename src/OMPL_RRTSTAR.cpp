@@ -1,4 +1,5 @@
 #include "OMPL_RRTSTAR.h"
+#include "Solver_OBS.h"
 #include "PatrollingInput.h"
 #include "Solution.h"
 #include "defines.h"
@@ -103,28 +104,63 @@ std::vector<std::pair<double, double>> OMPL_RRTSTAR::findPathBetweenActions(
 
 
 std::vector<std::pair<double, double>> OMPL_RRTSTAR::findPathXY(
-    const UGVAction &action_start, const UGVAction &action_goal, 
+    const UGVAction& action_start, const UGVAction& action_goal, 
     const std::vector<Obstacle>& subproblem_obstacles) {
     
-    // * Set up the subproblem 
     std::vector<std::pair<double, double>> resultPath;    
     auto space = std::make_shared<ob::SE2StateSpace>();
     space->setBounds(bounds);
-
-    og::SimpleSetup ss(space);
-    ss.setStateValidityChecker([&subproblem_obstacles](const ob::State *state) {
+    
+    auto si = std::make_shared<ob::SpaceInformation>(space);
+    
+    // State validity checker
+    si->setStateValidityChecker([&subproblem_obstacles](const ob::State* state) {
         return isStateValid(state, subproblem_obstacles);
     });
+    
+    // Inline MotionValidator subclass
+    class LocalMotionValidator : public ob::MotionValidator {
+    public:
+        LocalMotionValidator(const ob::SpaceInformationPtr& si, 
+                           const std::vector<Obstacle>& obstacles)
+            : ob::MotionValidator(si), obstacles_(obstacles) {}
 
+        bool checkMotion(const ob::State* s1, const ob::State* s2) const override {
+            const auto* se2s1 = s1->as<ob::SE2StateSpace::StateType>();
+            const auto* se2s2 = s2->as<ob::SE2StateSpace::StateType>();
+            double x1 = se2s1->getX(), y1 = se2s1->getY();
+            double x2 = se2s2->getX(), y2 = se2s2->getY();
+            
+            for (const auto& obstacle : obstacles_) {
+                if (Solver_OBS::checkForObstacle(x1, y1, x2, y2, obstacle)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Required second overload (even if unused by RRT*)
+        bool checkMotion(const ob::State* s1, const ob::State* s2, 
+                        std::pair<ob::State*, double>& lastValid) const override {
+            return checkMotion(s1, s2); // Simple fallback, no lastValid support
+        }
+
+    private:
+        const std::vector<Obstacle>& obstacles_;
+    };
+
+    si->setMotionValidator(std::make_shared<LocalMotionValidator>(si, subproblem_obstacles));
+
+    og::SimpleSetup ss(si);
+    
     ob::ScopedState<> start(space);
     start->as<ob::SE2StateSpace::StateType>()->setXY(action_start.fX, action_start.fY);
-
     ob::ScopedState<> goal(space);
     goal->as<ob::SE2StateSpace::StateType>()->setXY(action_goal.fX, action_goal.fY);
     ss.setStartAndGoalStates(start, goal);
 
     auto planner = std::make_shared<og::RRTstar>(ss.getSpaceInformation());
-    planner->setRange(60);
+    planner->setRange(50.0);
     ss.setPlanner(planner);
 
     if (DEBUG_OMPL) {
@@ -134,20 +170,16 @@ std::vector<std::pair<double, double>> OMPL_RRTSTAR::findPathXY(
             subproblem_obstacles.size());
     }
 
-
     ob::PlannerStatus solved = ss.solve(OMPL_PLANING_TIME);
 
-    // * Process the result
     if (solved) {
-        if (DEBUG_OMPL) {
-            printf("Found a path\n");
-        }
+        if (DEBUG_OMPL) printf("Found a path\n");
         
         ss.simplifySolution();
         const og::PathGeometric& path = ss.getSolutionPath();
         
         for (size_t i = 0; i < path.getStateCount(); ++i) {
-            const auto *state = path.getState(i)->as<ob::SE2StateSpace::StateType>();
+            const auto* state = path.getState(i)->as<ob::SE2StateSpace::StateType>();
             resultPath.push_back(std::make_pair(state->getX(), state->getY()));
         }
         
@@ -160,6 +192,8 @@ std::vector<std::pair<double, double>> OMPL_RRTSTAR::findPathXY(
         }
     } else if (DEBUG_OMPL) {
         printf("No path found :/ \n");
+        std::cerr << "Obstacle is not able to be passed around\n"; 
+        exit(1);
     }
     
     return resultPath;

@@ -14,12 +14,12 @@ Solver_OBS::Solver_OBS() {
 Solver_OBS::~Solver_OBS() {}
 
 
-bool Solver_OBS::checkForObstacle(UGVAction& action1, UGVAction& action2, Obstacle obstacle) {
+bool Solver_OBS::checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle) {
     /*
-    * Determines whether the line segment between two UGV actions intersects a circular obstacle.
+    * Determines whether the line segment between two points intersects a circular obstacle.
     *
     * The function computes:
-    *  - The vector from action1 to action2 (the segment being evaluated)
+    *  - The vector from (x1, y1) to (x2, y2) (the segment being evaluated)
     *  - The projection of the obstacle's center onto that segment
     *  - The closest point on the line to the obstacle
     *
@@ -29,10 +29,10 @@ bool Solver_OBS::checkForObstacle(UGVAction& action1, UGVAction& action2, Obstac
     *
     * Special handling is included for degenerate cases where the segment length is effectively zero.
     */
-    double lineVecX = action2.fX - action1.fX;
-    double lineVecY = action2.fY - action1.fY;
-    double dx = obstacle.location.x - action1.fX;
-    double dy = obstacle.location.y - action1.fY;
+    double lineVecX = x2 - x1;
+    double lineVecY = y2 - y1;
+    double dx = obstacle.location.x - x1;
+    double dy = obstacle.location.y - y1;
     double lineLength = std::sqrt(lineVecX * lineVecX + lineVecY * lineVecY);
 
     if (lineLength < std::numeric_limits<double>::epsilon()) {
@@ -46,8 +46,8 @@ bool Solver_OBS::checkForObstacle(UGVAction& action1, UGVAction& action2, Obstac
 
     double projectionLength = dx * unitLineVecX + dy * unitLineVecY;
 
-    double closestX = action1.fX + projectionLength * unitLineVecX;
-    double closestY = action1.fY + projectionLength * unitLineVecY;
+    double closestX = x1 + projectionLength * unitLineVecX;
+    double closestY = y1 + projectionLength * unitLineVecY;
 
     double distanceToCenter = std::sqrt(
         (closestX - obstacle.location.x) * (closestX - obstacle.location.x) +
@@ -59,13 +59,13 @@ bool Solver_OBS::checkForObstacle(UGVAction& action1, UGVAction& action2, Obstac
         projectionLength <= lineLength;
 
     bool isEndpoint1InCircle = std::sqrt(
-        (action1.fX - obstacle.location.x) * (action1.fX - obstacle.location.x) +
-        (action1.fY - obstacle.location.y) * (action1.fY - obstacle.location.y)
+        (x1 - obstacle.location.x) * (x1 - obstacle.location.x) +
+        (y1 - obstacle.location.y) * (y1 - obstacle.location.y)
     ) <= obstacle.radius;
 
     bool isEndpoint2InCircle = std::sqrt(
-        (action2.fX - obstacle.location.x) * (action2.fX - obstacle.location.x) +
-        (action2.fY - obstacle.location.y) * (action2.fY - obstacle.location.y)
+        (x2 - obstacle.location.x) * (x2 - obstacle.location.x) +
+        (y2 - obstacle.location.y) * (y2 - obstacle.location.y)
     ) <= obstacle.radius;
 
     return isEndpoint1InCircle || isEndpoint2InCircle || 
@@ -112,8 +112,9 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
     std::vector<Obstacle> input_obstacles = input->GetObstacles(); 
     OMPL_RRTSTAR pathSolver; 
 
-	for(int j = 0; j < input->GetMg(); j++) {
-		sol_final->GetUGVActionList(j, ugv_action_list);
+	for(int UGV_ID = 0; UGV_ID < input->GetMg(); UGV_ID++) {
+		sol_final->GetUGVActionList(UGV_ID, ugv_action_list);
+        std::vector<UGVAction> new_UGV_action_list; 
 		for(size_t UGV_action_index = 0; UGV_action_index < ugv_action_list.size(); UGV_action_index++) {
             UGVAction curr_action = ugv_action_list[UGV_action_index];
 
@@ -134,8 +135,8 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 
                     for (Obstacle obstacle : input_obstacles) {
                         UGVAction action1 = ugv_action_list[UGV_action_index - 1];
-                        UGVAction action2 = ugv_action_list[UGV_action_index];
-                        bool obstacle_found = checkForObstacle(action1, action2, obstacle);
+                        UGVAction action2 = curr_action;
+                        bool obstacle_found = checkForObstacle(action1.fX, action1.fY, action2.fX, action2.fY, obstacle);
                         if (obstacle_found) {
                             if(DEBUG_OBS) {
                                 printf("This obstacle:\n");
@@ -150,11 +151,20 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
                             
                             if (!path.empty()) {
                                 // * Path found successfully!
-
-                                
-                                // TODO Convert the path to UGV actions                                
-                                // TODO rigure out how to replace actions 
-                                // TODO Find out what to do next 
+                                for (int i = 0; i < path.size(); i++) {
+                                    if (i == 0) {
+                                        // * This item has already been added under the default clause since it technically the previous action 
+                                    }
+                                    // * Make sure the second path item mathces the second action 
+                                    else if (i == path.size() - 1) {
+                                        new_UGV_action_list.emplace_back(action2.mActionType, action2.fX, action2.fY, action2.fCompletionTime, action2.mDetails);
+                                    }
+                                    else {
+                                        // TODO fix the completetion times here 
+                                        new_UGV_action_list.emplace_back(E_UGVActionTypes::e_MoveToWaypoint, path[i].first, path[i].second, action2.fCompletionTime, 0);
+                                    }
+                                }
+                
                                 break;
                             }
                         }
@@ -163,11 +173,17 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 
                     break; 
                 default:
+                    // * If its not a move we still need to add it to our new list 
+                    new_UGV_action_list.emplace_back(curr_action.mActionType, curr_action.fX, curr_action.fY, curr_action.fCompletionTime, curr_action.mDetails);
                     break;
             }
         }   
+        sol_final->swapUGVActionList(UGV_ID, new_UGV_action_list); 
         
 	}
+
+    printf("New final solution (should remain unchanged if there is either no obstacles or no collisions)\n");
+    sol_final->PrintSolution();
 
 }
 

@@ -38,7 +38,8 @@
 // OMPL Constants 
 #define OMPL_PLANING_TIME 3.0 
 #define OMPL_SUBPROBLEM_PADDING 100.0 
-
+// TODO figure out if I need to implement a buffer dist 
+#define OMPL_OBST_BUFFER_DIST 5
 
 enum {
 	e_Algo_COMP = 0,
