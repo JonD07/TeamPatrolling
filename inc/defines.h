@@ -41,6 +41,8 @@
 // TODO figure out if I need to implement a buffer dist 
 #define OMPL_OBST_BUFFER_DIST 5
 
+#define OBSTALCE_GURI_CORRIDOR_SIZE 8
+
 enum {
 	e_Algo_COMP = 0,
 	e_Algo_GREEDY = 1,

@@ -39,7 +39,8 @@ enum class E_UGVActionTypes {
 	e_MoveToWaypoint,	// 3
 	e_MoveToDepot,		// 4
 	e_AtDepot,			// 5
-	e_KernelEnd			// 6
+	e_KernelEnd, 		// 6
+	e_MoveToPosition 	// 7 
 };
 
 struct DroneAction {
@@ -79,6 +80,7 @@ inline std::string ugvActionTypeToString(E_UGVActionTypes type) {
 		case E_UGVActionTypes::e_LaunchDrone:     return "LaunchDrone";
 		case E_UGVActionTypes::e_ReceiveDrone:    return "ReceiveDrone";
 		case E_UGVActionTypes::e_KernelEnd:       return "KernelEnd";
+		case E_UGVActionTypes::e_MoveToPosition:  return "MoveToPosition";
 		default:                                  return "Unknown";
 	}
 }

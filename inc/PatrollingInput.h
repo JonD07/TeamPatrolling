@@ -61,7 +61,21 @@ struct Obstacle : public Node {
     std::cout << "  Type: " << type << "\n";
     std::cout << "  Location: (" << location.x << ", " << location.y << ")\n";
     std::cout << "  Radius: " << radius << "\n";
-}
+	}
+
+	int get_id() const {
+		if (ID.size() <= 2 || ID.substr(0, 2) != "o_") {
+			throw std::invalid_argument("Obstacle ID format invalid: " + ID);
+		}
+
+		std::string numericPart = ID.substr(2);  // Skip "o_"
+		try {
+			return std::stoi(numericPart);
+		} catch (const std::exception& e) {
+			throw std::invalid_argument("Failed to convert obstacle ID '" + ID + "' to integer.");
+		}
+	}
+
 };
 
 

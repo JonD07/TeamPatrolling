@@ -256,12 +256,14 @@ void Solution::PrintSolution() {
 	printf("Solution: N = %d, Ma = %d, Mg = %d\n", m_input->GetN(), m_input->GetMa(), m_input->GetMg());
 
 	// Print the actions of each robot
+	/*
 	for(int j = 0; j < m_input->GetMa(); j++) {
 		printf("Drone %d:\n", j);
 		for(DroneAction action : m_Aa.at(j)) {
 			printf("  [%d] %d(%d) : (%f, %f) - %f\n", action.mActionID, static_cast<std::underlying_type<E_DroneActionTypes>::type>(action.mActionType), action.mDetails, action.fX, action.fY, action.fCompletionTime);
 		}
 	}
+	*/
 	for(int j = 0; j < m_input->GetMg(); j++) {
 		printf("UGV %d:\n", j);
 		for(UGVAction action : m_Ag.at(j)) {

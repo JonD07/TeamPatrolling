@@ -11,6 +11,8 @@
 
 #include "PatrollingInput.h"
 #include "Solution.h"
+#include "Solver_OBS.h"
+#include "defines.h"
 
 #include <ompl/base/spaces/SE2StateSpace.h>
 #include <ompl/base/SpaceInformation.h>

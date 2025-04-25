@@ -1,8 +1,5 @@
 #include "OMPL_RRTSTAR.h"
-#include "Solver_OBS.h"
-#include "PatrollingInput.h"
-#include "Solution.h"
-#include "defines.h"
+
 
 
 namespace ob = ompl::base;

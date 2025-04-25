@@ -13,9 +13,18 @@
 #include "Solver.h"
 #include "PatrollingInput.h"
 #include "Solution.h"
+#include "Solver_Baseline.h"
+#include "defines.h"
+#include "Solver_ILO.h"
+#include "LaunchOptimizerOBS.h"
+#include "OMPL_RRTSTAR.h"
+
+#include <cstddef>
 
 
 #define DEBUG_OBS DEBUG || 1
+
+
 
 class Solver_OBS: public Solver {
 public:
@@ -23,6 +32,11 @@ public:
     ~Solver_OBS();  
 
     void Solve(PatrollingInput* input, Solution* sol_final) override;
-    static bool checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle); 
-    bool isActionInsideObstacle(const UGVAction& action, const Obstacle& obstacle);
+    bool static checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle); 
+private:
+    LaunchOptimizerOBS optimizer;
+	bool updateSubtours(int drone_id, Solution* sol_final);
+    bool moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* sol_current);
+    bool isActionInsideObstacle(const UGVAction& action, const Obstacle& obstacle); 
+
 };

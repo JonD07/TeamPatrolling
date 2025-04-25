@@ -1,10 +1,10 @@
 #include "Solver_OBS.h"
-#include "PatrollingInput.h"
 #include "Solution.h"
-#include "Solver_Baseline.h"
-#include "OMPL_RRTSTAR.h"
-#include "defines.h"
-#include <cstddef>
+#include <cstdio>
+
+
+// TODO Remove when done testing
+void runOptimization(); 
 
 Solver_OBS::Solver_OBS() {
     if(SANITY_PRINT)
@@ -12,7 +12,6 @@ Solver_OBS::Solver_OBS() {
 }
 
 Solver_OBS::~Solver_OBS() {}
-
 
 bool Solver_OBS::checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle) {
     /*
@@ -79,7 +78,94 @@ bool Solver_OBS::isActionInsideObstacle(const UGVAction& action, const Obstacle&
     double radiusSquared = obstacle.radius * obstacle.radius;
     return distanceSquared <= radiusSquared;
 }
+
+
  
+bool Solver_OBS::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* sol_current) {
+	
+	std::vector<UGVAction> curr_UGV_actions;
+	sol_current->GetUGVActionList(ugv_num, curr_UGV_actions);
+	bool moved_around_obstacle = false; 
+
+	// * Loop through each UGV actions to check for obstacles, find a path around a obstalce if it exists
+	std::vector<UGVAction> new_UGV_action_list; 
+    std::vector<UGVAction> ugv_action_list;\
+	sol_current->GetUGVActionList(ugv_num, ugv_action_list);
+    std::vector<Obstacle> input_obstacles = input->GetObstacles(); 
+    OMPL_RRTSTAR pathSolver; 
+	for(size_t UGV_action_index = 0; UGV_action_index < ugv_action_list.size(); UGV_action_index++) {
+            UGVAction curr_action = ugv_action_list[UGV_action_index];
+
+            // TODO something needs to be done if a obstacle is directly over a obstacle 
+            for (Obstacle obstacle : input_obstacles) {
+                if (isActionInsideObstacle(ugv_action_list[UGV_action_index], obstacle)) {
+                        std::cerr << "Action is directly on top of obstacle this case can't be handled right now\n"; 
+                        std::exit(1);
+                }
+            }
+
+
+            switch(curr_action.mActionType) {
+                case E_UGVActionTypes::e_MoveToDepot: 
+				case E_UGVActionTypes::e_MoveToWaypoint:
+                    if ( UGV_action_index  == 0) {
+                        std::cerr << "Action before a move is invalid; Action list is likely malformed\n"; 
+                        std::exit(1);
+                    }
+
+                    for (Obstacle obstacle : input_obstacles) {
+                        UGVAction action1 = ugv_action_list[UGV_action_index - 1];
+                        UGVAction action2 = curr_action;
+                        bool obstacle_found = checkForObstacle(action1.fX, action1.fY, action2.fX, action2.fY, obstacle);
+                        if (obstacle_found) {
+							// * Set the return variable to true if we have to move around even 1 obstacle 
+							moved_around_obstacle = true; 
+                            if(DEBUG_OBS) {
+                                printf("This obstacle:\n");
+                                obstacle.printInfo();
+                                printf("Was found between:\n"); 
+                                action1.print(); 
+                                action2.print(); 
+                            }
+                            // * Find a path around the obstacle
+                            std::vector<std::pair<double, double>> path = 
+                                pathSolver.findPathBetweenActions(action1, action2, input_obstacles);
+                            
+                            if (!path.empty()) {
+                                // * Path found successfully!
+
+								if (path.size() < 3) {
+									throw std::runtime_error("Path around a obstalce should contain at least points");
+								}
+
+								// * Add all middle items in the path to be MoveToPosition Actions
+								for (int i = 1; i < path.size() - 1; i++) {
+									// * The details holds the ID of the obstacle that this action is moving around, this is important later in the omptimizer 
+									int obstalce_id = obstacle.get_id();
+									new_UGV_action_list.emplace_back(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, action2.fCompletionTime, obstalce_id);
+                                }
+                            }
+                        } 
+
+						
+                    }
+
+
+                    break; 
+                default:
+					// * Do nothing
+					break; 
+            }
+			// * Make sure to add the action to the action list 
+			new_UGV_action_list.emplace_back(curr_action.mActionType, curr_action.fX, curr_action.fY, curr_action.fCompletionTime, curr_action.mDetails);
+
+        } 
+	sol_current->swapUGVActionList(ugv_num, new_UGV_action_list); 
+	return moved_around_obstacle; 
+}
+
+
+
 
 void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
     // Get the POI Nodes from the input
@@ -103,87 +189,263 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 
 	// Run the baseline solver to get an initial solution
 	RunBaseline(input, sol_final, drones_to_UGV);
-	printf("now printing the solution \n");
+	printf("solution after baseline \n");
 	sol_final->PrintSolution(); 
 
-
-    // * Loop through each UGV actions to check for obstacles, find a path around a obstalce if it exists
-    std::vector<UGVAction> ugv_action_list;
-    std::vector<Obstacle> input_obstacles = input->GetObstacles(); 
-    OMPL_RRTSTAR pathSolver; 
-
-	for(int UGV_ID = 0; UGV_ID < input->GetMg(); UGV_ID++) {
-		sol_final->GetUGVActionList(UGV_ID, ugv_action_list);
-        std::vector<UGVAction> new_UGV_action_list; 
-		for(size_t UGV_action_index = 0; UGV_action_index < ugv_action_list.size(); UGV_action_index++) {
-            UGVAction curr_action = ugv_action_list[UGV_action_index];
-
-            // TODO something needs to be done if a obstacle is directly over a obstacle 
-            for (Obstacle obstacle : input_obstacles) {
-                if (isActionInsideObstacle(ugv_action_list[UGV_action_index], obstacle)) {
-                        std::cerr << "Action is directly on top of obstacle this case can't be handled right now\n"; 
-                        std::exit(1);
-                }
-            }
-            switch(curr_action.mActionType) {
-                case E_UGVActionTypes::e_MoveToDepot: 
-				case E_UGVActionTypes::e_MoveToWaypoint:
-                    if ( UGV_action_index  == 0) {
-                        std::cerr << "Action before a move is invalid; Action list is likely malformed\n"; 
-                        std::exit(1);
-                    }
-
-                    for (Obstacle obstacle : input_obstacles) {
-                        UGVAction action1 = ugv_action_list[UGV_action_index - 1];
-                        UGVAction action2 = curr_action;
-                        bool obstacle_found = checkForObstacle(action1.fX, action1.fY, action2.fX, action2.fY, obstacle);
-                        if (obstacle_found) {
-                            if(DEBUG_OBS) {
-                                printf("This obstacle:\n");
-                                obstacle.printInfo();
-                                printf("Was found between:\n"); 
-                                action1.print(); 
-                                action2.print(); 
-                            }
-                            // * Find a path around the obstacle
-                            std::vector<std::pair<double, double>> path = 
-                                pathSolver.findPathBetweenActions(action1, action2, input_obstacles);
-                            
-                            if (!path.empty()) {
-                                // * Path found successfully!
-                                for (int i = 0; i < path.size(); i++) {
-                                    if (i == 0) {
-                                        // * This item has already been added under the default clause since it technically the previous action 
-                                    }
-                                    // * Make sure the second path item mathces the second action 
-                                    else if (i == path.size() - 1) {
-                                        new_UGV_action_list.emplace_back(action2.mActionType, action2.fX, action2.fY, action2.fCompletionTime, action2.mDetails);
-                                    }
-                                    else {
-                                        // TODO fix the completetion times here 
-                                        new_UGV_action_list.emplace_back(E_UGVActionTypes::e_MoveToWaypoint, path[i].first, path[i].second, action2.fCompletionTime, 0);
-                                    }
-                                }
-                
-                                break;
-                            }
-                        }
-                    }
+	// TODO actually not sure about this
+	/*
+	// Make sure to route around obstacles before we optmize for the first time
+	for (int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
+		moveAroundObstacles(ugv_num, input, sol_final);
+	}
+	*/
+	
+	std::cout << "---------------------------" << std::endl;
+	printf("after moving around #1\n");
+	sol_final->PrintSolution();
 
 
-                    break; 
-                default:
-                    // * If its not a move we still need to add it to our new list 
-                    new_UGV_action_list.emplace_back(curr_action.mActionType, curr_action.fX, curr_action.fY, curr_action.fCompletionTime, curr_action.mDetails);
-                    break;
-            }
-        }   
-        sol_final->swapUGVActionList(UGV_ID, new_UGV_action_list); 
-        
+	
+	if(DEBUG_OBS) {
+	// Record this so we can watch how well the optimizer is improving things
+	FILE * pOutputFile;
+	pOutputFile = fopen("ilo_improvement.dat", "a");
+	fprintf(pOutputFile, "%d %f ", input->GetN(), sol_final->GetTotalTourTime(0));
+	fclose(pOutputFile);
 	}
 
-    printf("New final solution (should remain unchanged if there is either no obstacles or no collisions)\n");
-    sol_final->PrintSolution();
+	bool opt_flag = true;
+	bool obstacle_moved_around = false; 
+	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
+		// Need to break things up a little before continuing...
+		optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+	}
 
+	/// Do..
+	do {
+		// Create a temporary solution
+		Solution sol_new(*sol_final);
+		opt_flag = false;
+
+		if(DEBUG_OBS) {
+			printf("**** ILO ****\nCurrent par = %f\n", sol_new.CalculatePar());
+		}
+
+		/// For each UGV...
+		for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
+
+			/// For each drone...
+			if(DEBUG_OBS) {
+				printf(" Update Sub-tours\n");
+			}
+			for(int drone_j : drones_to_UGV.at(ugv_num)) {
+				/// Update-Subtours()
+				updateSubtours(drone_j, &sol_new);
+			}
+
+			/// optimize-launch-land()
+			if(DEBUG_OBS) {
+				printf(" Optimizing step\n");
+			}
+			std::cout << "---------------------------" << std::endl;
+			printf("before moving around\n");
+			sol_new.PrintSolution();
+			
+			obstacle_moved_around = moveAroundObstacles(ugv_num, input, &sol_new);
+			
+			std::cout << "---------------------------" << std::endl;
+			printf("after moving around\n");
+			sol_new.PrintSolution();
+			
+			std::cout << "---------------------------" << std::endl;
+			optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_new);
+
+		}
+
+		/// Did we improve the solution?
+		printf("after opt around\n");
+		sol_new.PrintSolution();
+
+		if(sol_new.CalculatePar() < sol_final->CalculatePar()) {
+			if(DEBUG_OBS) {
+				printf(" Found better solution!\n");
+			}
+			/// Update the final solution
+			*sol_final = Solution(sol_new);
+			/// Run again
+			opt_flag = true;
+		} else if (obstacle_moved_around) {
+			if (DEBUG_OBS) {
+				printf("A obstacle in the current solution is being routing around\n");
+				printf("This means that the solution must be swapped even though it could be worse\n");
+
+				/// Update the final solution
+				*sol_final = Solution(sol_new);
+				/// Run again
+				opt_flag = true;
+
+				// * Reset the bool
+				obstacle_moved_around = false; 
+
+			}
+		}
+		
+
+		if(DEBUG_OBS) {
+			printf("New Solution, PAR = %f\n", sol_final->CalculatePar());
+		}
+	/// While we made an improvement
+	} while(opt_flag);
+    
+	if(DEBUG_OBS) {
+		sol_final->PrintSolution();
+		printf("\nFinal Solution:\n");
+		sol_final->PrintSolution();
+		printf("\n");
+		// Record this so we can watch how well the optimizer is improving things
+		FILE * pOutputFile;
+		pOutputFile = fopen("ilo_improvement.dat", "a");
+		fprintf(pOutputFile, "%d %f ", input->GetN(), sol_final->GetTotalTourTime(0));
+		fclose(pOutputFile);
+	}
+	
 }
 
+
+bool Solver_OBS::updateSubtours(int drone_id, Solution* sol_final) {
+	if(DEBUG_OBS)
+		printf(" Updating sub-tours for drone %d\n", drone_id);
+
+	/// opt-flag := False
+	bool opt_flag = false;
+
+	// Start a new action list
+	std::vector<DroneAction> new_action_list;
+	std::vector<DroneAction> sub_tour_action_list;
+
+	// Create a sub-tour vector
+	std::vector<TSPVertex> lst;
+	double old_subtour_dist = 0.0;
+	double prev_x=0.0, prev_y=0.0;
+	DroneAction sub_tour_start(E_DroneActionTypes::e_LaunchFromUGV, prev_x, prev_y, 0.0);
+
+	// Run through this drones action list...
+	std::vector<DroneAction> old_action_list;
+	sol_final->GetDroneActionList(drone_id, old_action_list);
+
+	if(DEBUG_OBS)
+		printf(" Running through actions\n");
+
+	for(DroneAction a : old_action_list) {
+		// Are we starting a new sub-tour?
+		if(a.mActionType == E_DroneActionTypes::e_LaunchFromUGV) {
+
+			// Clear old sub-tour
+			lst.clear();
+			sub_tour_action_list.clear();
+			old_subtour_dist = 0.0;
+
+			// Create a TSP vertex
+			TSPVertex depot;
+			depot.nID = -1;
+			depot.x = a.fX;
+			depot.y = a.fY;
+			lst.push_back(depot);
+
+			// Record where we started the sub-tour
+			sub_tour_start.mActionID = a.mActionID;
+			sub_tour_start.mActionType = a.mActionType;
+			sub_tour_start.fX = a.fX;
+			sub_tour_start.fY = a.fY;
+			sub_tour_start.fCompletionTime = a.fCompletionTime;
+			sub_tour_start.mDetails = a.mDetails;
+			prev_x = a.fX;
+			prev_y = a.fY;
+		}
+		// Did we move to a node?
+		else if(a.mActionType == E_DroneActionTypes::e_MoveToNode) {
+			// Add node to current sub-tour
+			TSPVertex node;
+			node.nID = a.mDetails;
+			node.x = a.fX;
+			node.y = a.fY;
+			lst.push_back(node);
+			sub_tour_action_list.push_back(a);
+
+			// Update sub-tour distance
+			old_subtour_dist += distAtoB(prev_x, prev_y, a.fX, a.fY);
+			prev_x = a.fX;
+			prev_y = a.fY;
+		}
+		// Is this the end of the tour?
+		else if(a.mActionType == E_DroneActionTypes::e_MoveToUGV) {
+			TSPVertex terminal;
+			terminal.nID = -2;
+			terminal.x = a.fX;
+			terminal.y = a.fY;
+			lst.push_back(terminal);
+
+			// Update sub-tour distance
+			old_subtour_dist += distAtoB(prev_x, prev_y, a.fX, a.fY);
+
+			// Run TSP solver....
+			std::vector<TSPVertex> result;
+			solverTSP_LKH(lst, result, 1000);
+
+			// Determine the distance of this new tour
+			double new_subtour_dist = 0;
+			std::vector<TSPVertex>::iterator nxt = result.begin()++;
+			std::vector<TSPVertex>::iterator prev = result.begin();
+			while(nxt != result.end()) {
+				// Get distance to next stop
+				new_subtour_dist += distAtoB(prev->x, prev->y, nxt->x, nxt->y);
+				// Update iterators
+				prev = nxt;
+				nxt++;
+			}
+
+			/// Start re-building tour
+			// Add in original take-off
+			new_action_list.push_back(sub_tour_start);
+
+			// Did we find a shorter distance?
+			if(new_subtour_dist < (old_subtour_dist-EPSILON)) {
+				// Found better tour
+				opt_flag = true;
+				// Add in new sub-tour
+				for(TSPVertex v : result) {
+					if(v.nID >= 0) {
+						// Push action for this stop onto the drone
+						DroneAction nodeStop(E_DroneActionTypes::e_MoveToNode, v.x, v.y, 0.0, v.nID);
+						new_action_list.push_back(nodeStop);
+					}
+				}
+			}
+			else {
+				// Just put the original tour back
+				for(DroneAction node_act : sub_tour_action_list) {
+					new_action_list.push_back(node_act);
+				}
+			}
+			// Move to UGV
+			new_action_list.push_back(a);
+		}
+		// Not on a sub-tour...
+		else {
+			// Just push this action back onto the list
+			new_action_list.push_back(a);
+		}
+	}
+
+	// Did we create a new tour?
+	if(opt_flag) {
+		// Clear old solution
+		sol_final->ClearDroneSolution(drone_id);
+		for(DroneAction a : new_action_list) {
+			sol_final->PushDroneAction(drone_id, a);
+		}
+	}
+
+	/// return opt-flag
+	return opt_flag;
+}

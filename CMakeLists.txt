@@ -95,7 +95,9 @@ add_executable(${CMAKE_PROJECT_NAME}
 	src/Solver_Depleted.cpp
 	src/Solver_LLS.cpp
 	src/Solver_OBS.cpp 
+	src/gurobi_test.cpp
 	src/OMPL_RRTSTAR.cpp
+	src/LaunchOptimizerOBS.cpp
 )
 
 if(CXX)

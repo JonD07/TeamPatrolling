@@ -1,16 +1,84 @@
-#include "LaunchOptimizer.h"
-#include "SOCTypes.h"
+#include "LaunchOptimizerOBS.h"
+#include "PatrollingInput.h"
 #include "UAV.h"
 #include "UGV.h"
+#include "defines.h"
+#include "gurobi_c++.h"
+#include <cmath>
+#include <cstddef>
+#include <string>
+
+//TODO remove
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
 
-LaunchOptimizer::LaunchOptimizer() { }
 
-LaunchOptimizer::~LaunchOptimizer() { }
+LaunchOptimizerOBS::LaunchOptimizerOBS() { }
+
+LaunchOptimizerOBS::~LaunchOptimizerOBS() { }
+
+void LaunchOptimizerOBS::addCorridorConstraints(GRBModel& model, GRBVar x, GRBVar y,
+                            const UGVAction& p1, const UGVAction& p2, const UGVAction& p3,
+                            const Obstacle& obstacle) {
+    const std::string obsID = std::to_string(p2.mDetails);
+    const std::string actID = std::to_string(p2.mActionID);
+
+    // ----- Segment p1 → p2 -----
+    if (p2.fX == p1.fX) {
+        if (p1.fX < obstacle.location.x) {
+            model.addConstr(x <= p1.fX, "obs_corr_" + obsID + "_act" + actID + "_seg12_left");
+            model.addConstr(x >= p1.fX - OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg12_left_buffer");
+        } else {
+            model.addConstr(x >= p1.fX, "obs_corr_" + obsID + "_act" + actID + "_seg12_right");
+            model.addConstr(x <= p1.fX + OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg12_right_buffer");
+        }
+    } else {
+        double slope = (p2.fY - p1.fY) / (p2.fX - p1.fX);
+        double intercept = p1.fY - slope * p1.fX;
+        double delta = OBSTALCE_GURI_CORRIDOR_SIZE / std::sqrt(1 + slope * slope);
+        double obs_y_line = slope * obstacle.location.x + intercept;
+
+        if (obstacle.location.y > obs_y_line) {
+            model.addConstr(y <= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg12_above");
+            model.addConstr(y >= slope * x + intercept - delta, "obs_corr_" + obsID + "_act" + actID + "_seg12_above_buffer");
+        } else {
+            model.addConstr(y >= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg12_below");
+            model.addConstr(y <= slope * x + intercept + delta, "obs_corr_" + obsID + "_act" + actID + "_seg12_below_buffer");
+        }
+    }
+
+    // ----- Segment p2 → p3 -----
+    if (p3.fX == p2.fX) {
+        if (p2.fX < obstacle.location.x) {
+            model.addConstr(x <= p2.fX, "obs_corr_" + obsID + "_act" + actID + "_seg23_left");
+            model.addConstr(x >= p2.fX - OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg23_left_buffer");
+        } else {
+            model.addConstr(x >= p2.fX, "obs_corr_" + obsID + "_act" + actID + "_seg23_right");
+            model.addConstr(x <= p2.fX + OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg23_right_buffer");
+        }
+    } else {
+        double slope = (p3.fY - p2.fY) / (p3.fX - p2.fX);
+        double intercept = p2.fY - slope * p2.fX;
+        double delta = OBSTALCE_GURI_CORRIDOR_SIZE / std::sqrt(1 + slope * slope);
+        double obs_y_line = slope * obstacle.location.x + intercept;
+
+        if (obstacle.location.y > obs_y_line) {
+            model.addConstr(y <= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg23_above");
+            model.addConstr(y >= slope * x + intercept - delta, "obs_corr_" + obsID + "_act" + actID + "_seg23_above_buffer");
+        } else {
+            model.addConstr(y >= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg23_below");
+            model.addConstr(y <= slope * x + intercept + delta, "obs_corr_" + obsID + "_act" + actID + "_seg23_below_buffer");
+        }
+    }
+}
 
 
-void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final) {
-	if(DEBUG_LAUNCHOPT)
+void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final) {
+
+	
+	if(DEBUG_LAUNCHOPTOBS)
 		printf("Optimizing UGV %d route\n", ugv_num);
 
 	// Get the POI Nodes from the input
@@ -54,12 +122,18 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 
 	double ugv_tour_start = 0.0;
 
+	// Inject MoveToPosition actions as SOCActions
+	std::vector<UGVAction> ugv_action_list;
+	sol_final->GetUGVActionList(ugv_num, ugv_action_list);
+
+
+
 	bool process_next_team_tour = true;
 	do {
 		// Create a Gurobi environment
 		try {
 			GRBEnv env = GRBEnv();
-			if(DEBUG_LAUNCHOPT) {
+			if(DEBUG_LAUNCHOPTOBS) {
 				printf("Starting up Gurobi\n");
 			}
 			else {
@@ -71,13 +145,24 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 
 			// Queue for actions
 			std::priority_queue<SOCAction, std::vector<SOCAction>, CompareSOCAction> action_queue;
+
+
+			for (const UGVAction& act : ugv_action_list) {
+				if (act.mActionType == E_UGVActionTypes::e_MoveToPosition) {
+					SOCAction soc(act.fCompletionTime, ugv_num, E_SOCActionType::e_MoveToPosition, 0, act.mDetails);
+					action_queue.push(soc);
+					if (DEBUG_LAUNCHOPTOBS) {
+						printf("Injected MoveToPosition SOCAction at time %.2f for obstacle ID %d\n", act.fCompletionTime, act.mDetails);
+					}
+				}
+			}
 			// Create array of drone sub-tours
 			std::vector<SubTour> sub_tours;
 			int subtour_counter = 0;
 			// For each drone assigned to the UGV
 			for(int drone_id : drones_on_UGV) {
 				printf("Drone %d\n", drone_id);
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf(" Get actions for drone %d\n", drone_id);
 				bool on_tour = false;
 				double tour_dist = 0.0;
@@ -102,14 +187,14 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 							prev_x = next_action.fX;
 							prev_y = next_action.fY;
 
-							if(DEBUG_LAUNCHOPT)
+							if(DEBUG_LAUNCHOPTOBS)
 								printf("   Stop at node %d (%f,%f) total distance = %f\n", next_action.mDetails, prev_x, prev_y, tour_dist);
 						}
 						else {
 							// Not visiting a node... tour must have ended
 							on_tour = false;
 
-							if(DEBUG_LAUNCHOPT)
+							if(DEBUG_LAUNCHOPTOBS)
 								printf("  Tour %d complete, dist = %f, first node: (%f,%f), last node: (%f,%f)\n", subtour_counter, tour_dist, strt_x, strt_y, prev_x, prev_y);
 
 							// Record this sub-tour
@@ -144,21 +229,21 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 						on_tour = true;
 						strt_x = prev_x = next_action.fX;
 						strt_y = prev_y = next_action.fY;
-						if(DEBUG_LAUNCHOPT)
+						if(DEBUG_LAUNCHOPTOBS)
 							printf("   First node %d (%f,%f)\n", next_action.mDetails, strt_x, strt_y);
 					}
 					// Is this a launch command?
 					else if(next_action.mActionType == E_DroneActionTypes::e_LaunchFromUGV) {
 						SOCAction action(next_action.fCompletionTime, drone_id, E_SOCActionType::e_LaunchDrone, subtour_counter);
 						action_queue.push(action);
-						if(DEBUG_LAUNCHOPT)
+						if(DEBUG_LAUNCHOPTOBS)
 							printf("  Starting tour %d\n", subtour_counter);
 					}
 					// Is this a land command?
 					else if(next_action.mActionType == E_DroneActionTypes::e_LandOnUGV) {
 						SOCAction action(next_action.fCompletionTime, drone_id, E_SOCActionType::e_ReceiveDrone, subtour_counter);
 						action_queue.push(action);
-						if(DEBUG_LAUNCHOPT)
+						if(DEBUG_LAUNCHOPTOBS)
 							printf("  Finished tour %d\n", subtour_counter);
 						// We completed a subtour
 						subtour_counter++;
@@ -172,7 +257,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			}
 
 			// For my sanity
-			if(DEBUG_LAUNCHOPT) {
+			if(DEBUG_LAUNCHOPTOBS) {
 				printf("\n** Pre-Solve **\n");
 			}
 
@@ -198,7 +283,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				// Create an initial action time variable for this action
 				GRBVar t_i = model.addVar(CONST_RELAXATION(0.0), 0.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
 				action_time_vars.push_back(t_i);
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf(" a_%d [%d]%d - %f\n", action_cout, E_SOCActionType::e_BaseStation, -1, 0.0);
 
 				action_cout++;
@@ -223,7 +308,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				ordered_action_list.push_back(action);
 
 				// Debugging
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf(" a_%d [%d]%d - %f drone: %d\n", action_cout, action.action_type, action.subtour_index, action.time, action.ID);
 
 				// Create an x,y coordinate
@@ -237,6 +322,53 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				// Create an end-time variable for this action
 				GRBVar t_i = model.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
 
+
+				// * Add obstacle-related constraints for MoveToPosition actions
+				if (action.action_type == E_SOCActionType::e_MoveToPosition) {
+					int idx = action_cout;
+					GRBVar x = action_coord_vars[idx][0];
+					GRBVar y = action_coord_vars[idx][1];
+
+					std::vector<UGVAction> ugv_actions;
+					sol_final->GetUGVActionList(ugv_num, ugv_actions);
+
+					UGVAction* p1 = nullptr;
+					UGVAction* p2 = nullptr;
+					UGVAction* p3 = nullptr;
+
+					// Find the UGV action with the same completion time and type
+					for (size_t i = 0; i < ugv_actions.size(); i++) {
+						if (ugv_actions[i].mActionType == E_UGVActionTypes::e_MoveToPosition &&
+							ugv_actions[i].fCompletionTime == action.time &&
+							ugv_actions[i].mDetails == action.mDetails) {
+
+							if (i >= 1 && i + 1 < ugv_actions.size()) {
+								p1 = &ugv_actions[i - 1];
+								p2 = &ugv_actions[i];
+								p3 = &ugv_actions[i + 1];
+							}
+							break;
+						}
+					}
+
+					// Find the obstacle matching the action's mdetails field
+					const Obstacle* obs = nullptr;  // Use pointer, not a reference to NULL
+
+					for (const Obstacle& o : input->GetObstacles()) {
+						if (o.get_id() == action.mDetails) {  // Use '==' for comparison, not '='
+							obs = &o;  // Store the address
+							break;     // Found it, no need to continue
+						}
+					}
+
+					if (obs == nullptr) {
+						throw std::runtime_error("Obstacle with matching ID not found.");
+					}
+
+					addCorridorConstraints(model, x, y, *p1, *p2, *p3, *obs);
+
+				}
+
 				// Is this a launch/receive action?
 				if(action.action_type == E_SOCActionType::e_LaunchDrone) {
 					// Is this the second launch?
@@ -244,7 +376,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 						// Require that the start time comes after charging is completed
 						GRBVar t_j = action_time_vars.at(prev_action_id.at(action.ID));
 						model.addConstr(t_i >= t_j + input->GetTMax(DRONE_I), "t_"+itos(action_cout)+"_geq_t_"+itos(prev_action_id.at(action.ID)));
-						if(DEBUG_LAUNCHOPT)
+						if(DEBUG_LAUNCHOPTOBS)
 							printf("* t_%d >= t_%d + %f\n", action_cout, prev_action_id.at(action.ID), input->GetTMax(DRONE_I));
 					}
 					// Must be the first launch
@@ -284,7 +416,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			// Create an end-time variable for the final action (this is the objective)
 			GRBVar t_base = model.addVar(0.0, GRB_INFINITY, 1.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
 			action_time_vars.push_back(t_base);
-			if(DEBUG_LAUNCHOPT) {
+			if(DEBUG_LAUNCHOPTOBS) {
 				printf(" a_%d [%d]%d - %f\n", action_cout, E_SOCActionType::e_BaseStation, -1, 0.0);
 				printf("\nAll ordered actions:\n");
 				for(SOCAction a : ordered_action_list) {
@@ -323,7 +455,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				GRBVar x_j = coord_j.at(0);
 				GRBVar y_j = coord_j.at(1);
 				model.addQConstr(d_j*d_j >= (x_i-x_j)*(x_i-x_j) + (y_i-y_j)*(y_i-y_j), "set_d_"+itos(dist_cout)+"_"+itos(dist_cout+1));
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf("* d_%d*d_%d >= (x_%d-x_%d)*(x_%d-x_%d) + (y_%d-y_%d)*(y_%d-y_%d)\n", i, i, i, j, i, j, i, j, i, j);
 
 				// Create UGV travel time constraints
@@ -341,11 +473,14 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 					int droneID = ordered_action_list.at(j).ID;
 					action_time = input->getUAV(droneID).timeNeededToLand;
 				}
+				else if(ordered_action_list.at(j).action_type == E_SOCActionType::e_MoveToPosition) {
+    				action_time = 0.0; // No fixed delay — just movement time
+				}
 
 				//ugv_num
 				double ugv_v_charge = input->getUGV(ugv_num).ugv_v_crg;
 				model.addConstr(t_j >= t_i + d_j/ugv_v_charge + action_time, "t_"+itos(j)+"_geq_t_"+itos(i));
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf("* t_%d >= t_%d + d_%d/%f + %f\n", j, i, i, ugv_v_charge, action_time);
 
 
@@ -354,14 +489,14 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			}
 
 			// Create sub-tour start/end distance constraints
-			if(DEBUG_LAUNCHOPT) {
+			if(DEBUG_LAUNCHOPTOBS) {
 				printf("|sub_tours| = %ld, |sub_tour_dist_vars| = %ld, |action_coord_vars| = %ld, |action_time_vars| = %ld\n", sub_tours.size(), sub_tour_dist_vars.size(), action_coord_vars.size(), action_time_vars.size());
 				printf("Sub-Tours:\n");
 			}
 			for(int tour = 0; tour < boost::numeric_cast<int>(sub_tours.size()); tour++) {
 				int i = sub_tours.at(tour).launch_ID;
 				int j = sub_tours.at(tour).land_ID;
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf(" %d: [%d]:(%f,%f)- %f ->(%f,%f):[%d]\n", tour, i, sub_tours.at(tour).start_x, sub_tours.at(tour).start_y, sub_tours.at(tour).tour_dist, sub_tours.at(tour).end_x, sub_tours.at(tour).end_y, j);
 
 				// Add constraint on sub-tour end time
@@ -374,7 +509,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				UAV uav = input->getUAV(droneID);
 				model.addConstr(t_j == t_i + d_s/input->GetDroneVMax(DRONE_I) + sub_tours.at(tour).tour_dist/input->GetDroneVMax(DRONE_I) + d_e/input->GetDroneVMax(DRONE_I) + uav.timeNeededToLand, "t_"+itos(sub_tours.at(tour).launch_ID)+"_geq_t_"+itos(sub_tours.at(tour).land_ID)+"_+_td");
 
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf("* t_%d == t_%d + d_s%d/%f + %f + d_e%d/%f + %f\n", j, i, tour, input->GetDroneVMax(DRONE_I), sub_tours.at(tour).tour_dist/input->GetDroneVMax(DRONE_I), tour, input->GetDroneVMax(DRONE_I), uav.timeNeededToLand);
 
 
@@ -385,7 +520,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				GRBVar start_x = sub_tour_pos_vars.at(tour).at(0);
 				GRBVar start_y = sub_tour_pos_vars.at(tour).at(1);
 				model.addQConstr(d_s*d_s >= (x_i-start_x)*(x_i-start_x) + (y_i-start_y)*(y_i-start_y), "d_s"+itos(sub_tours.at(tour).ID)+"_geq_xi_x1");
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf("* d_s%d*d_s%d >= (x_%d - start_x_%d)*(x_%d - start_x_%d) + (y_%d - start_y_%d)*(y_%d - start_y_%d)\n", tour, tour, i, tour, i, tour, i, tour, i, tour);
 				auto coord_j = action_coord_vars.at(sub_tours.at(tour).land_ID);
 				GRBVar x_j = coord_j.at(0);
@@ -393,26 +528,30 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				GRBVar end_x = sub_tour_pos_vars.at(tour).at(2);
 				GRBVar end_y = sub_tour_pos_vars.at(tour).at(3);
 				model.addQConstr(d_e*d_e >= (x_j-end_x)*(x_j-end_x) + (y_j-end_y)*(y_j-end_y), "d_e"+itos(sub_tours.at(tour).ID)+"_geq_xm_xj");
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf("* d_e%d*d_e%d >= (x_%d - end_x%d)*(x_%d - end_x%d) + (y_%d - end_y%d)*(y_%d - end_y%d)\n",  tour, tour, j, tour, j, tour, j, tour, j, tour);
 
 				// Constrain total drone sub-tour distance
 				model.addConstr(input->GetDroneMaxDist(DRONE_I) >= d_s + sub_tours.at(tour).tour_dist + d_e, "d_s"+itos(sub_tours.at(tour).launch_ID)+"_+_d_e"+itos(sub_tours.at(tour).land_ID)+"_leq_d_max");
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPTOBS)
 					printf("* %f >= d_s%d + %f + d_e%d\n",  input->GetDroneMaxDist(DRONE_I), tour, sub_tours.at(tour).tour_dist, tour);
 			}
 
 			// Set objective
 			GRBLinExpr obj = t_base;
 			model.setObjective(obj, GRB_MINIMIZE);
+			
+			//*TODO Remove when done testing
+			model.write("model.lp");
+	
 
-			if(DEBUG_LAUNCHOPT)
+			if(DEBUG_LAUNCHOPTOBS)
 				printf("Run Gurobi\n");
 
 			// Optimize model
 			model.optimize();
 
-			if(DEBUG_LAUNCHOPT) {
+			if(DEBUG_LAUNCHOPTOBS) {
 				printf("minimized %s = %f\n", t_base.get(GRB_StringAttr_VarName).c_str(), t_base.get(GRB_DoubleAttr_X));
 
 				// Record this so we can watch how well the optimizer is improving things
@@ -470,9 +609,27 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			for(int a_i = 0; a_i < boost::numeric_cast<int>(ordered_action_list.size()); a_i++) {
 				SOCAction action_i = ordered_action_list.at(a_i);
 
+				std::cout << action_i.action_type << std::endl;
+
 				// What type of action is this?
 				if(action_i.action_type == E_SOCActionType::e_BaseStation) {
 					// Do nothing... We handle this outside of this loop (before and after)
+				}
+				else if(action_i.action_type == E_SOCActionType::e_MoveToPosition) {
+					double x_j = action_coord_vars[a_i][0].get(GRB_DoubleAttr_X);
+					double y_j = action_coord_vars[a_i][1].get(GRB_DoubleAttr_X);
+					double t_j = action_time_vars[a_i].get(GRB_DoubleAttr_X);
+					int obstacle_id = action_i.mDetails;
+
+					UGVAction moveToPos(E_UGVActionTypes::e_MoveToPosition, x_j, y_j, t_j, obstacle_id);
+					ugv_final_actions.push_back(moveToPos);
+
+					ugv_x_i = x_j;
+					ugv_y_i = y_j;
+					ugv_t_i = t_j;
+
+					if (DEBUG_LAUNCHOPTOBS)
+						printf("Added MoveToPosition at (%.2f, %.2f) @ %.2f\n", x_j, y_j, t_j);
 				}
 				else if(action_i.action_type == E_SOCActionType::e_LaunchDrone) {
 					// Where?
@@ -585,6 +742,8 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 				}
 			}
 
+
+
 			// Move back to the base
 			{
 				double x_b, y_b;
@@ -629,7 +788,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			}
 		}
 
-		if(DEBUG_LAUNCHOPT) {
+		if(DEBUG_LAUNCHOPTOBS) {
 			if(process_next_team_tour) {
 				printf("More team-tours to optimize!\n");
 			}
@@ -672,5 +831,4 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 		DroneAction endAction(E_DroneActionTypes::e_KernelEnd, last_action.fX, last_action.fY, last_action.fCompletionTime);
 		sol_final->PushDroneAction(drone_id, endAction);
 	}
-
 }

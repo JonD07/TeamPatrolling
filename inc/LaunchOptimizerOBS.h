@@ -17,19 +17,29 @@
 #include "Utilities.h"
 #include "Solution.h"
 #include "gurobi_c++.h"
+#include "SOCTypes.h"
 
-#define DEBUG_LAUNCHOPT	DEBUG || 0
+#define DEBUG_LAUNCHOPTOBS	DEBUG || 0
 
 #define CONST_RELAXATION(X)		X,X+0.1
 
 
 
-class LaunchOptimizer {
+
+
+
+
+class LaunchOptimizerOBS {
 public:
-	LaunchOptimizer();
-	~LaunchOptimizer();
+	LaunchOptimizerOBS();
+	~LaunchOptimizerOBS();
 
 	void OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final);
 
+    void static addCorridorConstraints(GRBModel& model, GRBVar x, GRBVar y,
+                                const UGVAction& p1, const UGVAction& p2, const UGVAction& p3,
+                                const Obstacle& obstacle);
 protected:
+private:
+
 };
