@@ -96,7 +96,11 @@ std::vector<std::pair<double, double>> OMPL_RRTSTAR::findPathBetweenActions(
     const UGVAction& action1, 
     const UGVAction& action2,
     const std::vector<Obstacle>& obstacles) {
-
+    if (DEBUG_OMPL) {
+        ompl::msg::setLogLevel(ompl::msg::LOG_INFO);  // or LOG_DEBUG if you want even more
+    } else {
+        ompl::msg::setLogLevel(ompl::msg::LOG_ERROR); // only show critical issues
+    }
     setBounds(action1, action2); 
     return findPathXY(action1, action2, get_subproblem_obstacles(obstacles));
 }
@@ -159,7 +163,6 @@ std::vector<std::pair<double, double>> OMPL_RRTSTAR::findPathXY(
     ss.setStartAndGoalStates(start, goal);
 
     auto planner = std::make_shared<og::RRTstar>(ss.getSpaceInformation());
-    planner->setRange(50.0);
     ss.setPlanner(planner);
 
     if (DEBUG_OMPL) {

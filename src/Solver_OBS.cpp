@@ -82,14 +82,11 @@ bool Solver_OBS::isActionInsideObstacle(const UGVAction& action, const Obstacle&
 
  
 bool Solver_OBS::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* sol_current) {
-	
-	std::vector<UGVAction> curr_UGV_actions;
-	sol_current->GetUGVActionList(ugv_num, curr_UGV_actions);
 	bool moved_around_obstacle = false; 
 
-	// * Loop through each UGV actions to check for obstacles, find a path around a obstalce if it exists
+	// * Loop through each UGV actions to check for obstacles, find a path around a obstacle if it exists
 	std::vector<UGVAction> new_UGV_action_list; 
-    std::vector<UGVAction> ugv_action_list;\
+    std::vector<UGVAction> ugv_action_list;
 	sol_current->GetUGVActionList(ugv_num, ugv_action_list);
     std::vector<Obstacle> input_obstacles = input->GetObstacles(); 
     OMPL_RRTSTAR pathSolver; 
@@ -99,8 +96,8 @@ bool Solver_OBS::moveAroundObstacles(int ugv_num, PatrollingInput* input, Soluti
             // TODO something needs to be done if a obstacle is directly over a obstacle 
             for (Obstacle obstacle : input_obstacles) {
                 if (isActionInsideObstacle(ugv_action_list[UGV_action_index], obstacle)) {
-                        std::cerr << "Action is directly on top of obstacle this case can't be handled right now\n"; 
-                        std::exit(1);
+                        throw std::runtime_error("Action is directly on top of obstacle — can't be handled right now");
+
                 }
             }
 
@@ -109,8 +106,8 @@ bool Solver_OBS::moveAroundObstacles(int ugv_num, PatrollingInput* input, Soluti
                 case E_UGVActionTypes::e_MoveToDepot: 
 				case E_UGVActionTypes::e_MoveToWaypoint:
                     if ( UGV_action_index  == 0) {
-                        std::cerr << "Action before a move is invalid; Action list is likely malformed\n"; 
-                        std::exit(1);
+                        throw std::runtime_error("Action #1 is a move action, something is malformed with the action list");
+
                     }
 
                     for (Obstacle obstacle : input_obstacles) {
@@ -135,14 +132,14 @@ bool Solver_OBS::moveAroundObstacles(int ugv_num, PatrollingInput* input, Soluti
                                 // * Path found successfully!
 
 								if (path.size() < 3) {
-									throw std::runtime_error("Path around a obstalce should contain at least points");
+									throw std::runtime_error("Path around a obstacle should contain at least 3 points");
 								}
 
 								// * Add all middle items in the path to be MoveToPosition Actions
 								for (int i = 1; i < path.size() - 1; i++) {
-									// * The details holds the ID of the obstacle that this action is moving around, this is important later in the omptimizer 
-									int obstalce_id = obstacle.get_id();
-									new_UGV_action_list.emplace_back(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, action2.fCompletionTime, obstalce_id);
+									// * The details holds the ID of the obstacle that this action is moving around, this is important later in the optimizer
+									int obstacle_id = obstacle.get_id();
+									new_UGV_action_list.emplace_back(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, action2.fCompletionTime, obstacle_id);
                                 }
                             }
                         } 
