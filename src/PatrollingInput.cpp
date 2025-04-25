@@ -276,8 +276,11 @@ void PatrollingInput::parseObstacles(const YAML::Node& obs) {
 		new_obs.location.x = nodeNode["location"]["x"].as<double>();
 		new_obs.location.y = nodeNode["location"]["y"].as<double>();
 		new_obs.radius = nodeNode["radius"].as<double>(); 
-
-		new_obs.printInfo(); 
+		
+		if (DEBUG_PATROLINPUT) {
+			new_obs.printInfo(); 
+		}
+		
 		obstacles.push_back(new_obs); 
 	}
 }

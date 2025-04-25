@@ -609,7 +609,6 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			for(int a_i = 0; a_i < boost::numeric_cast<int>(ordered_action_list.size()); a_i++) {
 				SOCAction action_i = ordered_action_list.at(a_i);
 
-				std::cout << action_i.action_type << std::endl;
 
 				// What type of action is this?
 				if(action_i.action_type == E_SOCActionType::e_BaseStation) {

@@ -200,9 +200,6 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 	}
 	*/
 	
-	std::cout << "---------------------------" << std::endl;
-	printf("after moving around #1\n");
-	sol_final->PrintSolution();
 
 
 	
@@ -247,25 +244,21 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 			if(DEBUG_OBS) {
 				printf(" Optimizing step\n");
 			}
-			std::cout << "---------------------------" << std::endl;
-			printf("before moving around\n");
-			sol_new.PrintSolution();
+
 			
 			obstacle_moved_around = moveAroundObstacles(ugv_num, input, &sol_new);
 			
-			std::cout << "---------------------------" << std::endl;
-			printf("after moving around\n");
-			sol_new.PrintSolution();
-			
-			std::cout << "---------------------------" << std::endl;
+			if (DEBUG_OBS) {
+				std::cout << "---------------------------" << std::endl;
+				printf("Solution after attemping to move around obstacles\n");
+				sol_new.PrintSolution();
+				std::cout << "---------------------------" << std::endl;
+			}
 			optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_new);
 
 		}
 
 		/// Did we improve the solution?
-		printf("after opt around\n");
-		sol_new.PrintSolution();
-
 		if(sol_new.CalculatePar() < sol_final->CalculatePar()) {
 			if(DEBUG_OBS) {
 				printf(" Found better solution!\n");
@@ -278,16 +271,14 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 			if (DEBUG_OBS) {
 				printf("A obstacle in the current solution is being routing around\n");
 				printf("This means that the solution must be swapped even though it could be worse\n");
-
-				/// Update the final solution
-				*sol_final = Solution(sol_new);
-				/// Run again
-				opt_flag = true;
-
-				// * Reset the bool
-				obstacle_moved_around = false; 
-
 			}
+			/// Update the final solution
+			*sol_final = Solution(sol_new);
+			/// Run again
+			opt_flag = true;
+
+			// * Reset the bool
+			obstacle_moved_around = false; 
 		}
 		
 
@@ -297,11 +288,10 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 	/// While we made an improvement
 	} while(opt_flag);
     
+	printf("\nFinal Solution:\n");
+	sol_final->PrintSolution();
+	printf("\n");
 	if(DEBUG_OBS) {
-		sol_final->PrintSolution();
-		printf("\nFinal Solution:\n");
-		sol_final->PrintSolution();
-		printf("\n");
 		// Record this so we can watch how well the optimizer is improving things
 		FILE * pOutputFile;
 		pOutputFile = fopen("ilo_improvement.dat", "a");
