@@ -19,7 +19,6 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 	// Read status
 	bool read_success = true;
 
-
 	try {
 		// Load the YAML file
 		YAML::Node config = YAML::LoadFile(scenario_input);
@@ -35,7 +34,6 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
             std::cout << "Time: " << time << std::endl;
             std::cout << "Description: " << description << std::endl;
         }
-
         // Parse and print agents. Create UAV and UGV objects and place into mRa and mRg
         const YAML::Node& agents = config["agents"];
         parseAgents(agents);
@@ -159,6 +157,7 @@ void PatrollingInput::parseUGVs(const YAML::Node& UGVList) {
 
 // Parse each agent (both UAV and UGV)
 void PatrollingInput::parseAgents(const YAML::Node& agentNodes) {
+	printf("agents\n");
 	for (const auto& agentNode : agentNodes) {
         Agent agent;
 		agent.type = agentNode["type"].as<std::string>();
@@ -229,6 +228,7 @@ void PatrollingInput::parseAgents(const YAML::Node& agentNodes) {
 
 // Parse the scenario
 void PatrollingInput::parseScenario(const YAML::Node& scenario) {
+	printf("scenario\n");
     std::string description = scenario["description"].as<std::string>();
     std::string type = scenario["type"].as<std::string>();
     std::string subtype = scenario["subtype"].as<std::string>();

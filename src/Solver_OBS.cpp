@@ -162,6 +162,26 @@ bool Solver_OBS::moveAroundObstacles(int ugv_num, PatrollingInput* input, Soluti
 }
 
 
+void Solver_OBS::optimizeWithObstacles(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_current) {
+	
+	//* Run the optimizer once to shake things up 
+	optimizer.OptLaunching(ugv_num, drones_on_UGV, input, sol_current);
+	
+	 // * while we are finding collisions with obstacles 
+	while(moveAroundObstacles(ugv_num, input, sol_current)) {
+		if (DEBUG_OBS) {
+			std::cout << "---------------------------" << std::endl;
+			printf("Solution after attemping to move around obstacles\n");
+			sol_current->PrintSolution();
+			std::cout << "---------------------------" << std::endl;
+		}
+		optimizer.OptLaunching(ugv_num, drones_on_UGV, input, sol_current);
+	} 
+
+}
+
+
+
 
 
 void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
@@ -209,10 +229,9 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 	}
 
 	bool opt_flag = true;
-	bool obstacle_moved_around = false; 
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
 		// Need to break things up a little before continuing...
-		optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+		optimizeWithObstacles(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
 	}
 
 	/// Do..
@@ -237,21 +256,14 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 				updateSubtours(drone_j, &sol_new);
 			}
 
+
 			/// optimize-launch-land()
 			if(DEBUG_OBS) {
 				printf(" Optimizing step\n");
 			}
+			optimizeWithObstacles(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final); 
 
-			
-			obstacle_moved_around = moveAroundObstacles(ugv_num, input, &sol_new);
-			
-			if (DEBUG_OBS) {
-				std::cout << "---------------------------" << std::endl;
-				printf("Solution after attemping to move around obstacles\n");
-				sol_new.PrintSolution();
-				std::cout << "---------------------------" << std::endl;
-			}
-			optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_new);
+
 
 		}
 
@@ -264,21 +276,8 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 			*sol_final = Solution(sol_new);
 			/// Run again
 			opt_flag = true;
-		} else if (obstacle_moved_around) {
-			if (DEBUG_OBS) {
-				printf("A obstacle in the current solution is being routing around\n");
-				printf("This means that the solution must be swapped even though it could be worse\n");
-			}
-			/// Update the final solution
-			*sol_final = Solution(sol_new);
-			/// Run again
-			opt_flag = true;
-
-			// * Reset the bool
-			obstacle_moved_around = false; 
-		}
+		} 
 		
-
 		if(DEBUG_OBS) {
 			printf("New Solution, PAR = %f\n", sol_final->CalculatePar());
 		}

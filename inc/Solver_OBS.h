@@ -22,7 +22,7 @@
 #include <cstddef>
 
 
-#define DEBUG_OBS DEBUG || 0
+#define DEBUG_OBS DEBUG || 1
 
 
 
@@ -38,5 +38,6 @@ private:
 	bool updateSubtours(int drone_id, Solution* sol_final);
     bool moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* sol_current);
     bool isActionInsideObstacle(const UGVAction& action, const Obstacle& obstacle); 
+    void optimizeWithObstacles(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_current);
 
 };
