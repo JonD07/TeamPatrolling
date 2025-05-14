@@ -137,6 +137,8 @@ int main(int argc, char *argv[]) {
 	}
 	break; 
 
+	// TODO make a iterative and non iterative version 
+
 	case e_Algo_COMP:
 	default:
 		// No valid algorithm given

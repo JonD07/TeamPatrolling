@@ -41,6 +41,8 @@
 // TODO figure out if I need to implement a buffer dist 
 #define OMPL_OBST_BUFFER_DIST 5
 
+#define OVERLAPPING_STEP_SIZE 1
+
 #define OBSTALCE_GURI_CORRIDOR_SIZE 8
 
 enum {

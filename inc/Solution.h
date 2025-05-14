@@ -43,6 +43,30 @@ enum class E_UGVActionTypes {
 	e_MoveToPosition 	// 7 
 };
 
+inline std::string ugvActionTypeToString(E_UGVActionTypes type) {
+	switch (type) {
+		case E_UGVActionTypes::e_AtDepot:         return "AtDepot";
+		case E_UGVActionTypes::e_MoveToWaypoint:  return "MoveToWaypoint";
+		case E_UGVActionTypes::e_LaunchDrone:     return "LaunchDrone";
+		case E_UGVActionTypes::e_ReceiveDrone:    return "ReceiveDrone";
+		case E_UGVActionTypes::e_KernelEnd:       return "KernelEnd";
+		case E_UGVActionTypes::e_MoveToPosition:  return "MoveToPosition";
+		default:                                  return "Unknown";
+	}
+}
+
+inline std::string uavActionTypeToString(E_DroneActionTypes type) {
+	switch (type) {
+		case E_DroneActionTypes::e_LaunchFromUGV: return "LaunchFromUGV";
+		case E_DroneActionTypes::e_LandOnUGV:     return "LandOnUGV";
+		case E_DroneActionTypes::e_MoveToNode:    return "MoveToNode";
+		case E_DroneActionTypes::e_MoveToUGV:     return "MoveToUGV";
+		case E_DroneActionTypes::e_AtUGV:         return "AtUGV";
+		case E_DroneActionTypes::e_KernelEnd:     return "KernelEnd";
+		default:                                  return "Unknown";
+	}
+}
+
 struct DroneAction {
 	int mActionID;
 	E_DroneActionTypes mActionType;
@@ -71,19 +95,17 @@ struct DroneAction {
 		fCompletionTime = other.fCompletionTime;
 		mDetails = other.mDetails;
 	}
+
+	void print() const {
+		std::cout << "UAVAction #" << mActionID << "\n";
+		std::cout << "  Type: " << uavActionTypeToString(mActionType) << "\n";
+		std::cout << "  Location: (" << fX << ", " << fY << ")\n";
+		std::cout << "  Completion Time: " << fCompletionTime << "\n";
+		std::cout << "  Details: " << mDetails << "\n";
+	}
 };
 
-inline std::string ugvActionTypeToString(E_UGVActionTypes type) {
-	switch (type) {
-		case E_UGVActionTypes::e_AtDepot:         return "AtDepot";
-		case E_UGVActionTypes::e_MoveToWaypoint:  return "MoveToWaypoint";
-		case E_UGVActionTypes::e_LaunchDrone:     return "LaunchDrone";
-		case E_UGVActionTypes::e_ReceiveDrone:    return "ReceiveDrone";
-		case E_UGVActionTypes::e_KernelEnd:       return "KernelEnd";
-		case E_UGVActionTypes::e_MoveToPosition:  return "MoveToPosition";
-		default:                                  return "Unknown";
-	}
-}
+
 
 struct UGVAction {
 	int mActionID;
@@ -115,11 +137,11 @@ struct UGVAction {
 	}
 
 	void print() const {
-	std::cout << "UGVAction #" << mActionID << "\n";
-	std::cout << "  Type: " << ugvActionTypeToString(mActionType) << "\n";
-	std::cout << "  Location: (" << fX << ", " << fY << ")\n";
-	std::cout << "  Completion Time: " << fCompletionTime << "\n";
-	std::cout << "  Details: " << mDetails << "\n";
+		std::cout << "UGVAction #" << mActionID << "\n";
+		std::cout << "  Type: " << ugvActionTypeToString(mActionType) << "\n";
+		std::cout << "  Location: (" << fX << ", " << fY << ")\n";
+		std::cout << "  Completion Time: " << fCompletionTime << "\n";
+		std::cout << "  Details: " << mDetails << "\n";
 	}
 };
 
@@ -189,7 +211,7 @@ public:
 	void swapUGVActionList(int UGVId, std::vector<UGVAction>& newActionList);
 	// Function to swap an Entire Drone Action List out
 	void swapDroneActionLists(int DroneId, const std::vector<DroneAction>& newActionList); 
-	// Function two actions in a particular UGVAction List
+	// Function to swap two actions in a particular UGVAction List
 	void swapUGVActions(int ugv_num, int index1, int index2); 
 
 private:
