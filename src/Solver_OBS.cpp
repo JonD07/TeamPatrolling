@@ -363,7 +363,7 @@ void Solver_OBS::checkForRedundantMoves(int ugv_num, Solution* sol_current, cons
 			}
 
 			if (!collision) {
-				if (DEBUG_SOL) {
+				if (DEBUG_OBS) {
 					printf("Redundant MoveToPosition removed:\n");
 					curr.print();
 				}
@@ -386,47 +386,68 @@ bool Solver_OBS::moveAroundObstacles(int ugv_num, PatrollingInput* input, Soluti
 	
 	// * Loop through each UGV actions to check for obstacles, find a path around a obstacle if it exists
 	bool moved_around_obstacle = false; 
-	std::vector<UGVAction> new_UGV_action_list; 
-    std::vector<UGVAction> ugv_action_list;
-	sol_current->GetUGVActionList(ugv_num, ugv_action_list);
-    std::vector<Obstacle> input_obstacles = input->GetObstacles(); 
+    
+	std::vector<Obstacle> input_obstacles = input->GetObstacles(); 
     OMPL_RRTSTAR pathSolver; 
+	
+	bool path_created = true; 
 
-	for(size_t UGV_action_index = 0; UGV_action_index < ugv_action_list.size(); UGV_action_index++) {
-            UGVAction curr_action = ugv_action_list[UGV_action_index];
+	// * It is important that we are using the most updated action list when considering pathing 
+	// * This loop ensures that each time we change our action list we restart the loop and get the action list again 
+	// * The new action list will have the new move actions that we just created 
+	while(path_created) {
+		path_created = false;
+		std::vector<UGVAction> new_UGV_action_list; 
+		std::vector<UGVAction> ugv_action_list;
+		sol_current->GetUGVActionList(ugv_num, ugv_action_list);
 
-            
-            switch(curr_action.mActionType) {
-                case E_UGVActionTypes::e_MoveToDepot: 
+		/*
+		printf("fresh action list\n");
+		for (UGVAction action : ugv_action_list) {
+			action.print(); 
+		}
+		*/
+		
+		for(size_t UGV_action_index = 0; UGV_action_index < ugv_action_list.size(); UGV_action_index++) {
+			UGVAction curr_action = ugv_action_list[UGV_action_index];
+
+			switch(curr_action.mActionType) {
+				case E_UGVActionTypes::e_MoveToDepot: 
 				case E_UGVActionTypes::e_MoveToWaypoint:
-                    if ( UGV_action_index  == 0) {
-                        throw std::runtime_error("Action #1 is a move action, something is malformed with the action list");
-                    }
+					if ( UGV_action_index  == 0) {
+						throw std::runtime_error("Action #1 is a move action, something is malformed with the action list");
+					}
 
-                    for (Obstacle obstacle : input_obstacles) {
-                        UGVAction action1 = ugv_action_list[UGV_action_index - 1];
-                        UGVAction action2 = curr_action;
-                        bool obstacle_found = checkForObstacle(action1.fX, action1.fY, action2.fX, action2.fY, obstacle);
-                        if (obstacle_found) {
+					for (const Obstacle& obstacle : input_obstacles) {
+						UGVAction action1 = ugv_action_list[UGV_action_index - 1];
+						UGVAction action2 = curr_action;
+
+						bool obstacle_found = checkForObstacle(action1.fX, action1.fY, action2.fX, action2.fY, obstacle);
+						if (obstacle_found) {
 							// * Set the return variable to true if we have to move around even 1 obstacle 
 							moved_around_obstacle = true; 
-                            if(DEBUG_OBS) {
-                                printf("This obstacle:\n");
-                                obstacle.printInfo();
-                                printf("Was found between:\n"); 
-                                action1.print(); 
-                                action2.print(); 
+							if(DEBUG_OBS) {
+								printf("This obstacle:\n");
+								obstacle.printInfo();
+								printf("Was found between:\n"); 
+								action1.print(); 
+								action2.print(); 
 								printf("\n");
-                            }
-                            // * Find a path around the obstacle
-                            std::vector<std::pair<double, double>> path = 
-                                pathSolver.findPathBetweenActions(action1, action2, input_obstacles);
-                            
-                            if (!path.empty()) {
-                                // * Path found successfully!
+							}
+							// * Find a path around the obstacle
+							std::vector<std::pair<double, double>> path = 
+								pathSolver.findPathBetweenActions(action1, action2, input_obstacles);
+							
+							if (!path.empty()) {
+								// * Path found successfully!
 
 								if (path.size() < 3) {
 									throw std::runtime_error("Path around a obstacle should contain at least 3 points");
+								}
+
+								// * Add in all the items before 
+								for (int j = 0; j < UGV_action_index; j++) {
+									new_UGV_action_list.emplace_back(ugv_action_list[j]);
 								}
 
 								// * Add all middle items in the path to be MoveToPosition Actions
@@ -434,23 +455,41 @@ bool Solver_OBS::moveAroundObstacles(int ugv_num, PatrollingInput* input, Soluti
 									// * The details holds the ID of the obstacle that this action is moving around, this is important later in the optimizer
 									int obstacle_id = obstacle.get_id();
 									new_UGV_action_list.emplace_back(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, 1111.0, obstacle_id);
-                                }
-                            }
-                        } 
+								}
 
-						
-                    }
+								// * Add the current action 
+								new_UGV_action_list.emplace_back(curr_action);
 
-                    break; 
-                default:
+								// * Append remaining unchanged actions from current list
+								for (size_t k = UGV_action_index + 1; k < ugv_action_list.size(); ++k) {
+									new_UGV_action_list.emplace_back(ugv_action_list[k]);
+								}
+
+								// * Swap and restart loop
+								sol_current->swapUGVActionList(ugv_num, new_UGV_action_list);
+								new_UGV_action_list.clear();
+								path_created = true;
+
+								if (DEBUG_OBS) {
+									printf("\n");
+									printf("Our new solution after adding that last path: \n");
+									sol_current->PrintSolution();
+								}
+								break;  // break obstacle loop
+							} 
+						} 
+					}
+					break; 
+				default:
 					// * Do nothing
 					break; 
-            }
-			// * Make sure to add the action to the action list 
-			new_UGV_action_list.emplace_back(curr_action.mActionType, curr_action.fX, curr_action.fY, curr_action.fCompletionTime, curr_action.mDetails);
+			}
+			if (path_created) {
+				break; // * We have made a path change, thus we need to restart at the while loop 
+			}
+		} 
+	}
 
-        } 
-	sol_current->swapUGVActionList(ugv_num, new_UGV_action_list); 
 	return moved_around_obstacle; 
 }
 
