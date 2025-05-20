@@ -25,6 +25,8 @@
 #include "KMeansSolver.h"
 #include "VRPSolver.h"
 #include <boost/numeric/conversion/cast.hpp>
+#include "LaunchOptimizerOBS.h"
+#include "OMPL_RRTSTAR.h"
 
 
 #define DEBUG_SOLVER	DEBUG || 0
@@ -69,6 +71,20 @@ protected:
 	 * vertices in lst to be connected in the TSP solution).
 	 */
 	void solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& result, double multiplier);
+    // * Right under optimizeWithObstacles; this is where the actual obstacle avoidance logic is held
+    bool moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
+    // * Calls moveAroundobstacles and the optimizer in a loop until there are no more conflicts; highest level
+    void optimizeWithObstacles(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
+    // * Helper function to see if after optmizations any of the move actions are no longer needed
+    void checkForRedundantMoves(PatrollingInput* input, int ugv_num, Solution* sol_current, const std::vector<Obstacle>& obstacles);
+    // * Helper function to determine if a action is inside a obstacle
+    bool isActionInsideObstacle(const UGVAction& action, const Obstacle& obstacle);
+    // * Pushing a aciton outside of a obstacle and changes the action lists after the move based on the action type (above fixOverlappingActionOBS)
+    void pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
+    // * This is the function that does the moving of the action (low level) this performs that actual geometry; This is basically a helper function
+    UGVAction fixOverlappingActionOBS(const UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles);
+
+    LaunchOptimizerOBS optimizer;
 private:
 	double calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UGV UGV_current_object); 
 	double calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar,std::queue<DroneAction>& drone_action_queue, UAV UAV_current_object, double UAV_VMax); 

@@ -23,10 +23,7 @@
 #include "UAV.h"
 #include "Agent.h"
 
-
 #define DEBUG_PATROLINPUT	DEBUG || 0
-
-
 
 
 struct Node {
@@ -37,18 +34,19 @@ struct Node {
 };
 
 
-struct Obstacle : public Node {
-    double radius;
+class Obstacle : public Node {
+public:
+	double radius;
 
-    Obstacle() {radius = 0.0;}
+	Obstacle() {radius = 0.0;}
 
-    Obstacle(const std::string& id, const std::string& type, const Location& loc, double r)
-        : radius(r) {
-        this->ID = id;
-        this->type = type;
-        this->location = loc;
-        this->time_last_service = 0.0; 
-    }
+	Obstacle(const std::string& id, const std::string& type, const Location& loc, double r)
+		: radius(r) {
+		this->ID = id;
+		this->type = type;
+		this->location = loc;
+		this->time_last_service = 0.0;
+	}
 
 	bool containsPoint(double px, double py) const {
 		double dx = px - location.x;
@@ -74,6 +72,64 @@ struct Obstacle : public Node {
 		} catch (const std::exception& e) {
 			throw std::invalid_argument("Failed to convert obstacle ID '" + ID + "' to integer.");
 		}
+	}
+
+	bool static checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle) {
+	    /*
+	    * Determines whether the line segment between two points intersects a circular obstacle.
+	    *
+	    * The function computes:
+	    *  - The vector from (x1, y1) to (x2, y2) (the segment being evaluated)
+	    *  - The projection of the obstacle's center onto that segment
+	    *  - The closest point on the line to the obstacle
+	    *
+	    * It returns true if:
+	    *  - Either endpoint is inside the obstacle, OR
+	    *  - The closest point lies within the segment and is within the obstacle's radius
+	    *
+	    * Special handling is included for degenerate cases where the segment length is effectively zero.
+	    */
+	    double lineVecX = x2 - x1;
+	    double lineVecY = y2 - y1;
+	    double dx = obstacle.location.x - x1;
+	    double dy = obstacle.location.y - y1;
+	    double lineLength = std::sqrt(lineVecX * lineVecX + lineVecY * lineVecY);
+
+	    if (lineLength < std::numeric_limits<double>::epsilon()) {
+	        // If line length is essentially zero, check direct distance to obstacle
+	        double directDistance = std::sqrt(dx * dx + dy * dy);
+	        return directDistance <= obstacle.radius;
+	    }
+
+	    double unitLineVecX = lineVecX / lineLength;
+	    double unitLineVecY = lineVecY / lineLength;
+
+	    double projectionLength = dx * unitLineVecX + dy * unitLineVecY;
+
+	    double closestX = x1 + projectionLength * unitLineVecX;
+	    double closestY = y1 + projectionLength * unitLineVecY;
+
+	    double distanceToCenter = std::sqrt(
+	        (closestX - obstacle.location.x) * (closestX - obstacle.location.x) +
+	        (closestY - obstacle.location.y) * (closestY - obstacle.location.y)
+	    );
+
+	    bool isClosestPointOnSegment =
+	        projectionLength >= 0 &&
+	        projectionLength <= lineLength;
+
+	    bool isEndpoint1InCircle = std::sqrt(
+	        (x1 - obstacle.location.x) * (x1 - obstacle.location.x) +
+	        (y1 - obstacle.location.y) * (y1 - obstacle.location.y)
+	    ) <= obstacle.radius;
+
+	    bool isEndpoint2InCircle = std::sqrt(
+	        (x2 - obstacle.location.x) * (x2 - obstacle.location.x) +
+	        (y2 - obstacle.location.y) * (y2 - obstacle.location.y)
+	    ) <= obstacle.radius;
+
+	    return isEndpoint1InCircle || isEndpoint2InCircle ||
+	           ((distanceToCenter <= obstacle.radius) && isClosestPointOnSegment);
 	}
 
 };
@@ -132,6 +188,8 @@ public:
 	double GetDroneVMax(int drone_j);
 	// Assign UAVs to UGVs
 	void AssignDronesToUGV(std::vector<std::vector<int>>& drones_to_UGV);
+//    // * Helper function that sees if a obstacle is between two points
+//    bool checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle);
 
 	
 

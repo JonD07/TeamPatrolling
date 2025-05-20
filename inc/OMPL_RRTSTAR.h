@@ -11,7 +11,9 @@
 
 #include "PatrollingInput.h"
 #include "Solution.h"
-#include "Solver_OBS.h"
+//#include "Solver_OBS.h"
+#include "Solver.h"
+#include "PatrollingInput.h"
 #include "defines.h"
 
 #include <ompl/base/spaces/SE2StateSpace.h>
@@ -44,24 +46,28 @@ public:
 
 class OMPL_RRTSTAR {
 private:
-    ompl::base::RealVectorBounds bounds;
-    std::vector<Obstacle> subproblem_obstacles;
-    double planning_time; 
-    static bool isStateValid(const ompl::base::State *state, const std::vector<Obstacle> &obstacles);
+	ompl::base::RealVectorBounds bounds;
+	std::vector<Obstacle> subproblem_obstacles;
+	double planning_time;
+	static bool isStateValid(const ompl::base::State *state, const std::vector<Obstacle> &obstacles);
 
 public:
-    OMPL_RRTSTAR();
-    void setBounds(const UGVAction &action1,const UGVAction &action2);
-    std::vector<std::pair<double, double>> findPathBetweenActions(
-        const UGVAction& action1, 
-        const UGVAction& action2,
-        const std::vector<Obstacle>& obstacles
-    );
-    std::vector<std::pair<double, double>> findPathXY( 
-    const UGVAction& action_start, 
-    const UGVAction& action_goal, 
-    const std::vector<Obstacle>& obstacles);
-    std::vector<Obstacle> get_subproblem_obstacles(const std::vector<Obstacle>& all_obstacles); 
+	OMPL_RRTSTAR();
+	void setBounds(const UGVAction &action1,const UGVAction &action2);
+	bool findPathBetweenActions(
+			PatrollingInput* input,
+			const UGVAction& action1,
+			const UGVAction& action2,
+			const std::vector<Obstacle>& obstacles,
+			std::vector<std::pair<double, double>>* path
+	);
+	bool findPathXY(
+			PatrollingInput* input,
+			const UGVAction& action_start, const UGVAction& action_goal,
+			const std::vector<Obstacle>& subproblem_obstacles,
+			std::vector<std::pair<double, double>>* path
+	);
+	std::vector<Obstacle> get_subproblem_obstacles(const std::vector<Obstacle>& all_obstacles);
 
 
 };

@@ -324,6 +324,7 @@ void PatrollingInput::AssignDronesToUGV(std::vector<std::vector<int>>& drones_to
 }
 
 
+
 // Get the location of the depot for UGV j
 void PatrollingInput::GetDepot(int j, double* x, double* y) {
 	// Bounds checking on j

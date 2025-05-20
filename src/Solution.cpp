@@ -903,7 +903,8 @@ void Solution::swapUGVActions(int ugv_num, int index1, int index2) {
 	std::vector<UGVAction>& actionList = m_Ag.at(ugv_num);
 
 	// Bounds checking to prevent out-of-range errors
-	if(index1 < 0 || index1 >= actionList.size() || index2 < 0 || index2 >= actionList.size()) {
+	if(index1 < 0 || index1 >= boost::numeric_cast<int>(actionList.size()) ||
+			index2 < 0 || index2 >= boost::numeric_cast<int>(actionList.size())) {
 		throw std::out_of_range("Index out of range in swapUGVActions");
 	}
 

@@ -92,112 +92,113 @@ bool OMPL_RRTSTAR::isStateValid(const ob::State *state, const std::vector<Obstac
     return true;
 }
 
-std::vector<std::pair<double, double>> OMPL_RRTSTAR::findPathBetweenActions(
-    const UGVAction& action1, 
-    const UGVAction& action2,
-    const std::vector<Obstacle>& obstacles) {
-    if (DEBUG_OMPL) {
-        ompl::msg::setLogLevel(ompl::msg::LOG_INFO);  // or LOG_DEBUG if you want even more
-    } else {
-        ompl::msg::setLogLevel(ompl::msg::LOG_ERROR); // only show critical issues
-    }
-    setBounds(action1, action2); 
-    return findPathXY(action1, action2, get_subproblem_obstacles(obstacles));
+bool OMPL_RRTSTAR::findPathBetweenActions(
+		PatrollingInput* input,
+		const UGVAction& action1,
+		const UGVAction& action2,
+		const std::vector<Obstacle>& obstacles,
+		std::vector<std::pair<double, double>>* path) {
+	if (DEBUG_OMPL) {
+		ompl::msg::setLogLevel(ompl::msg::LOG_INFO);  // or LOG_DEBUG if you want even more
+	} else {
+		ompl::msg::setLogLevel(ompl::msg::LOG_ERROR); // only show critical issues
+	}
+	setBounds(action1, action2);
+	return findPathXY(input, action1, action2, get_subproblem_obstacles(obstacles), path);
 }
 
+bool OMPL_RRTSTAR::findPathXY(
+		PatrollingInput* input,
+	    const UGVAction& action_start, const UGVAction& action_goal,
+	    const std::vector<Obstacle>& subproblem_obstacles,
+		std::vector<std::pair<double, double>>* resultPath) {
+	auto space = std::make_shared<ob::SE2StateSpace>();
+	space->setBounds(bounds);
 
-std::vector<std::pair<double, double>> OMPL_RRTSTAR::findPathXY(
-    const UGVAction& action_start, const UGVAction& action_goal, 
-    const std::vector<Obstacle>& subproblem_obstacles) {
-    
-    std::vector<std::pair<double, double>> resultPath;    
-    auto space = std::make_shared<ob::SE2StateSpace>();
-    space->setBounds(bounds);
-    
-    auto si = std::make_shared<ob::SpaceInformation>(space);
-    
-    // State validity checker
-    si->setStateValidityChecker([&subproblem_obstacles](const ob::State* state) {
-        return isStateValid(state, subproblem_obstacles);
-    });
-    
-    // Inline MotionValidator subclass
-    class LocalMotionValidator : public ob::MotionValidator {
-    public:
-        LocalMotionValidator(const ob::SpaceInformationPtr& si, 
-                           const std::vector<Obstacle>& obstacles)
-            : ob::MotionValidator(si), obstacles_(obstacles) {}
+	auto si = std::make_shared<ob::SpaceInformation>(space);
 
-        bool checkMotion(const ob::State* s1, const ob::State* s2) const override {
-            const auto* se2s1 = s1->as<ob::SE2StateSpace::StateType>();
-            const auto* se2s2 = s2->as<ob::SE2StateSpace::StateType>();
-            double x1 = se2s1->getX(), y1 = se2s1->getY();
-            double x2 = se2s2->getX(), y2 = se2s2->getY();
-            
-            for (const auto& obstacle : obstacles_) {
-                if (Solver_OBS::checkForObstacle(x1, y1, x2, y2, obstacle)) {
-                    return false;
-                }
-            }
-            return true;
-        }
+	// State validity checker
+	si->setStateValidityChecker([&subproblem_obstacles](const ob::State* state) {
+		return isStateValid(state, subproblem_obstacles);
+	});
 
-        // Required second overload (even if unused by RRT*)
-        bool checkMotion(const ob::State* s1, const ob::State* s2, 
-                        std::pair<ob::State*, double>& lastValid) const override {
-            return checkMotion(s1, s2); // Simple fallback, no lastValid support
-        }
+	// Inline MotionValidator subclass
+	class LocalMotionValidator : public ob::MotionValidator {
+	public:
+		LocalMotionValidator(const ob::SpaceInformationPtr& si,
+						   const std::vector<Obstacle>& obstacles)
+			: ob::MotionValidator(si), obstacles_(obstacles) {}
 
-    private:
-        const std::vector<Obstacle>& obstacles_;
-    };
+		bool checkMotion(const ob::State* s1, const ob::State* s2) const override {
+			const auto* se2s1 = s1->as<ob::SE2StateSpace::StateType>();
+			const auto* se2s2 = s2->as<ob::SE2StateSpace::StateType>();
+			double x1 = se2s1->getX(), y1 = se2s1->getY();
+			double x2 = se2s2->getX(), y2 = se2s2->getY();
 
-    si->setMotionValidator(std::make_shared<LocalMotionValidator>(si, subproblem_obstacles));
+			for (const auto& obstacle : obstacles_) {
+				if (Obstacle::checkForObstacle(x1, y1, x2, y2, obstacle)) {
+					return false;
+				}
+			}
+			return true;
+		}
 
-    og::SimpleSetup ss(si);
-    
-    ob::ScopedState<> start(space);
-    start->as<ob::SE2StateSpace::StateType>()->setXY(action_start.fX, action_start.fY);
-    ob::ScopedState<> goal(space);
-    goal->as<ob::SE2StateSpace::StateType>()->setXY(action_goal.fX, action_goal.fY);
-    ss.setStartAndGoalStates(start, goal);
+		// Required second overload (even if unused by RRT*)
+		bool checkMotion(const ob::State* s1, const ob::State* s2,
+						std::pair<ob::State*, double>& lastValid) const override {
+			return checkMotion(s1, s2); // Simple fallback, no lastValid support
+		}
 
-    auto planner = std::make_shared<og::RRTstar>(ss.getSpaceInformation());
-    ss.setPlanner(planner);
+	private:
+		const std::vector<Obstacle>& obstacles_;
+	};
 
-    if (DEBUG_OMPL) {
-        printf("Attempting to find path from (%.3f, %.3f) to (%.3f, %.3f) with %zu obstacles.\n",
-            action_start.fX, action_start.fY,
-            action_goal.fX, action_goal.fY,
-            subproblem_obstacles.size());
-    }
+	si->setMotionValidator(std::make_shared<LocalMotionValidator>(si, subproblem_obstacles));
 
-    ob::PlannerStatus solved = ss.solve(OMPL_PLANING_TIME);
+	og::SimpleSetup ss(si);
 
-    if (solved) {
-        if (DEBUG_OMPL) printf("Found a path\n");
-        
-        ss.simplifySolution();
-        const og::PathGeometric& path = ss.getSolutionPath();
-        
-        for (size_t i = 0; i < path.getStateCount(); ++i) {
-            const auto* state = path.getState(i)->as<ob::SE2StateSpace::StateType>();
-            resultPath.push_back(std::make_pair(state->getX(), state->getY()));
-        }
-        
-        if (DEBUG_OMPL) {
-            printf("The path has %zu points\n", resultPath.size()); 
-            printf("The points are as follows: \n");
-            for (size_t i = 0; i < resultPath.size(); ++i) {
-                printf("  Point %zu: (x = %.3f, y = %.3f)\n", i, resultPath[i].first, resultPath[i].second);
-            }
-        }
-    } else if (DEBUG_OMPL) {
-        printf("No path found :/ \n");
-        std::cerr << "Obstacle is not able to be passed around\n"; 
-        exit(1);
-    }
-    
-    return resultPath;
+	ob::ScopedState<> start(space);
+	start->as<ob::SE2StateSpace::StateType>()->setXY(action_start.fX, action_start.fY);
+	ob::ScopedState<> goal(space);
+	goal->as<ob::SE2StateSpace::StateType>()->setXY(action_goal.fX, action_goal.fY);
+	ss.setStartAndGoalStates(start, goal);
+
+	auto planner = std::make_shared<og::RRTstar>(ss.getSpaceInformation());
+	ss.setPlanner(planner);
+
+	if (DEBUG_OMPL) {
+		printf("Attempting to find path from (%.3f, %.3f) to (%.3f, %.3f) with %zu obstacles.\n",
+			action_start.fX, action_start.fY,
+			action_goal.fX, action_goal.fY,
+			subproblem_obstacles.size());
+	}
+
+	ob::PlannerStatus solved = ss.solve(OMPL_PLANING_TIME);
+
+	if (solved) {
+		if (DEBUG_OMPL) printf("Found a path\n");
+
+		ss.simplifySolution();
+		const og::PathGeometric& path = ss.getSolutionPath();
+
+		for (size_t i = 0; i < path.getStateCount(); ++i) {
+			const auto* state = path.getState(i)->as<ob::SE2StateSpace::StateType>();
+			resultPath->push_back(std::make_pair(state->getX(), state->getY()));
+		}
+
+		if (DEBUG_OMPL) {
+			printf("The path has %zu points\n", resultPath->size());
+			printf("The points are as follows: \n");
+			for (size_t i = 0; i < resultPath->size(); ++i) {
+				printf("  Point %zu: (x = %.3f, y = %.3f)\n", i, resultPath->at(i).first, resultPath->at(i).second);
+			}
+		}
+	} else if (DEBUG_OMPL) {
+		printf("No path found :/ \n");
+		std::cerr << "Obstacle is not able to be passed around\n";
+		exit(1);
+	}
+
+	return !resultPath->empty();
 }
 
