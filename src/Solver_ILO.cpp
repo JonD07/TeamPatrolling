@@ -144,35 +144,7 @@ void Solver_ILO::Solve(PatrollingInput* input, Solution* sol_final) {
 	/// While we made an improvement
 	} while(opt_flag);
 
-//	/// For each UGV...
-//	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-//		if(DEBUG_ILO) {
-//			printf("**** ILO for UGV %d ****\nCurrent par = %f\n", ugv_num, sol_final->CalculatePar());
-//		}
-//
-//		/// opt-flag := True
-//		bool opt_flag = true;
-//		/// while opt-flag
-//		while(opt_flag) {
-//			opt_flag = false;
-//
-//			/// optimize-launch-land()
-//			if(DEBUG_ILO) {
-//				printf(" Optimizing step\n");
-//			}
-//			optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
-//
-//			/// For each drone...
-//			for(int drone_j : drones_to_UGV.at(ugv_num)) {
-//				/// opt-flag |= Update-Subtours()
-//				opt_flag |= updateSubtours(drone_j, sol_final);
-//			}
-//		}
-//
-//	}
-
 	if(DEBUG_ILO) {
-		sol_final->PrintSolution();
 		printf("\nFinal Solution:\n");
 		sol_final->PrintSolution();
 		printf("\n");

@@ -24,7 +24,7 @@
 #include "LaunchOptimizer.h"
 #include "gurobi_c++.h"
 
-#define DEBUG_LLS	DEBUG || 1
+#define DEBUG_LLS	DEBUG || 0
 
 
 class Solver_LLS : public Solver {

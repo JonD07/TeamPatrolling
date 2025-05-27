@@ -46,7 +46,12 @@ void runOptimization() {
     std::string id = "1"; 
     GRBVar x = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "x_" + id);
     GRBVar y = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "y_" + id);
-    LaunchOptimizerOBS::addCorridorConstraints(model, x, y, action1, action2, action3, o1); 
+    std::vector<GRBVar> coord;
+    coord.push_back(x);
+    coord.push_back(y);
+    std::vector<std::vector<GRBVar>> act_pos_var;
+    act_pos_var.push_back(coord);
+    LaunchOptimizerOBS::addCorridorConstraints(&model, &act_pos_var, action1, action2, action3, o1);
 
 
     model.setObjective(x + y, GRB_MAXIMIZE);

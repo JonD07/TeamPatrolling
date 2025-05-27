@@ -461,7 +461,7 @@ void Solution::GenerateYAML(const std::string& filename) {
 		}
 
 		for(const auto& action : m_Ag.at(a_j)) {
-			if(action.mActionType == E_UGVActionTypes::e_MoveToWaypoint || action.mActionType == E_UGVActionTypes::e_MoveToDepot) {
+			if(action.mActionType == E_UGVActionTypes::e_MoveToWaypoint || action.mActionType == E_UGVActionTypes::e_MoveToDepot || action.mActionType == E_UGVActionTypes::e_MoveToPosition) {
 				if(CREATE_SPLINES) {
 					// We need to break this up into smaller legs
 					double crnt_x = prev_x;
@@ -884,18 +884,19 @@ std::string Solution::floatingPointToString(double val) {
 
 // Function to swap an Entire UGV Action List out
 void Solution::swapUGVActionList(int UGVId, std::vector<UGVAction>& newActionList) {
-	this->ClearUGVSolution(UGVId);
+	ClearUGVSolution(UGVId);
 
-	for (UGVAction actionToPush : newActionList) {
-		this->PushUGVAction(UGVId, actionToPush); 
+	for(size_t i = 0; i < newActionList.size(); i++) {
+		m_Ag.at(UGVId).push_back(newActionList.at(i));
 	}
 }
+
 // Function to swap an Entire Drone Action List out
 void Solution::swapDroneActionLists(int DroneId, const std::vector<DroneAction>& newActionList) {
-	this->ClearDroneSolution(DroneId);
+	ClearDroneSolution(DroneId);
 
-	for (DroneAction actionToPush : newActionList) {
-		this->PushDroneAction(DroneId, actionToPush); 
+	for(size_t i = 0; i < newActionList.size(); i++) {
+		m_Aa.at(DroneId).push_back(newActionList.at(i));
 	}
 }
 

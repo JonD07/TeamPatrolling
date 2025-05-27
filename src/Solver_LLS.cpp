@@ -245,7 +245,6 @@ void Solver_LLS::Solve(PatrollingInput* input, Solution* sol_final) {
 	} while(opt_flag);
     
 	if(DEBUG_LLS) {
-		sol_final->PrintSolution();
 		printf("\nFinal Solution:\n");
 		sol_final->PrintSolution();
 		printf("\n");

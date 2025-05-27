@@ -7,9 +7,6 @@
 #include <vector>
 #include <optional>
 
-// TODO Remove when done testing
-void runOptimization(); 
-
 Solver_OBS::Solver_OBS() {
     if(SANITY_PRINT)
 		printf("Hello from Obstacle Solver!\n");
@@ -19,9 +16,9 @@ Solver_OBS::~Solver_OBS() {}
 
 
 void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
-    // Get the POI Nodes from the input
-	std::vector<Node> vctrPOINodes = input->GetNodes();
-
+//    // Get the POI Nodes from the input
+//	std::vector<Node> vctrPOINodes = input->GetNodes();
+//
 	// Assign drones to UGVs
 	std::vector<std::vector<int>> drones_to_UGV;
 	input->AssignDronesToUGV(drones_to_UGV);
@@ -40,17 +37,19 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 
 	// Run the baseline solver to get an initial solution
 	RunBaseline(input, sol_final, drones_to_UGV);
-	printf("solution after baseline \n");
-	sol_final->PrintSolution(); 
-	printf("\n"); 
 
+	if(DEBUG_OBS) {
+		printf("solution after baseline \n");
+		sol_final->PrintSolution();
+		printf("\n");
+	}
 	
 	if(DEBUG_OBS) {
-	// Record this so we can watch how well the optimizer is improving things
-	FILE * pOutputFile;
-	pOutputFile = fopen("ilo_improvement.dat", "a");
-	fprintf(pOutputFile, "%d %f ", input->GetN(), sol_final->GetTotalTourTime(0));
-	fclose(pOutputFile);
+		// Record this so we can watch how well the optimizer is improving things
+		FILE * pOutputFile;
+		pOutputFile = fopen("ilo_improvement.dat", "a");
+		fprintf(pOutputFile, "%d %f ", input->GetN(), sol_final->GetTotalTourTime(0));
+		fclose(pOutputFile);
 	}
 
 
@@ -109,11 +108,11 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 	/// While we made an improvement
 	} while(opt_flag);
 
-	// * Sometimes the finished product has "redudant" move to position actions where the obstacle is already being avoided
-	// * No need to include these in the final solution 
-	for (int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-		checkForRedundantMoves(input, ugv_num, sol_final, input->GetObstacles());
-	}
+//	// * Sometimes the finished product has "redudant" move to position actions where the obstacle is already being avoided
+//	// * No need to include these in the final solution
+//	for (int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
+//		checkForRedundantMoves(input, ugv_num, sol_final, input->GetObstacles());
+//	}
 
     
 	printf("\nFinal Solution:\n");

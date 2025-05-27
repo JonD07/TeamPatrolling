@@ -27,7 +27,7 @@
 #include <memory>
 #include <utility>
 
-#define DEBUG_OMPL	DEBUG || 1
+#define DEBUG_OMPL	DEBUG || 0
 
 
 class Circle {
