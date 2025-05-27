@@ -83,6 +83,8 @@ protected:
     void pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
     // * This is the function that does the moving of the action (low level) this performs that actual geometry; This is basically a helper function
     UGVAction fixOverlappingActionOBS(const UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles);
+    // Attempts to update all sub-tours belong to drone drone_id. Returns true if one of the updates improved solution quality (that is, we changed the ordering of a sub-tour).
+    bool updateSubtours(int drone_id, Solution* sol_final);
 
     LaunchOptimizerOBS optimizer;
 private:

@@ -35,11 +35,10 @@ public:
 	void Solve(PatrollingInput* input, Solution* sol_final);
 
 protected:
-private:
 	LaunchOptimizer optimizer;
 	void LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_to_UGV, PatrollingInput* input, Solution* sol_current);
 	bool areActionsOverlapping(const UGVAction& action1, const UGVAction& action2); 
 	bool isMoveADummy(const UGVAction& action, const UGVAction& prev_action); 
 	bool isOverlappingLaunchOrReceive(const UGVAction& action1, const UGVAction& action2);
-	bool updateSubtours(int drone_id, Solution* sol_final);
+private:
 };

@@ -35,6 +35,4 @@ public:
 protected:
 private:
 	LaunchOptimizer optimizer;
-
-	bool updateSubtours(int drone_id, Solution* sol_final);
 };

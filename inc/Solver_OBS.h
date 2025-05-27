@@ -31,5 +31,4 @@ public:
 
     void Solve(PatrollingInput* input, Solution* sol_final) override;
 private:
-	bool updateSubtours(int drone_id, Solution* sol_final);
 };
