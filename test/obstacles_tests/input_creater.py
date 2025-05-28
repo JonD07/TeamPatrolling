@@ -6,7 +6,7 @@ import re
 # Settings
 FILE_PATH = os.getcwd() + "/"  
 NUM_NODES = 10
-NUM_OBSTACLES = 30
+NUM_OBSTACLES = 100
 NUM_UAV = 2
 NUM_UGV = 1
 PAD_FLAG = True  # Whether to assign 2 pads per UGV or just 1 per UAV (True for 2 pads)
@@ -15,7 +15,7 @@ PAD_FLAG = True  # Whether to assign 2 pads per UGV or just 1 per UAV (True for 
 MAX_X = 10000
 MAX_Y = 10000
 OBSTACLE_SIZE_LOWER_BOUND = 12
-OBSTACLE_SIZE_UPPER_BOUND = 30
+OBSTACLE_SIZE_UPPER_BOUND = 300
 
 # Find the next file number
 def get_next_file_number():

@@ -1,9 +1,10 @@
 import yaml
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 
 
-def plot_paths_from_yaml(yaml_file):
+def plot_paths_from_yaml(yaml_file, obstacle_file=None):
     # Load the YAML file
     with open(yaml_file, 'r') as file:
         data = yaml.safe_load(file)
@@ -21,22 +22,10 @@ def plot_paths_from_yaml(yaml_file):
     for i, plan in enumerate(data['individual_plans']):
         agent_id = plan['agent_ID']
         actions = plan['actions']
-        # path_x = []
-        # path_y = []
 
         # Collect all locations
         for action in actions:
             action_type = action.get('type', {})
-            # if action_type == 'takeoff_from_UGV' or action_type == 'move_to_location':
-            #     task_params = action.get('task_parameters', {})
-            #     if 'location' in task_params:
-            #         loc = task_params['location']
-            #         path_x.append(loc['x'])
-            #         path_y.append(loc['y'])
-            #     elif 'destination' in task_params:
-            #         loc = task_params['destination']
-            #         path_x.append(loc['x'])
-            #         path_y.append(loc['y'])
 
             if action_type == 'move_to_location':
                 path_x = []
@@ -64,13 +53,25 @@ def plot_paths_from_yaml(yaml_file):
                 # noxe_y = append(local['y'])
                 # plt.plot([local['x']], [local['y']], 'ro', label=task_params['node_ID'], color='black')
                 plt.annotate(text="depot", xy=(local['x'], local['y']), textcoords="offset points", xytext=(0, 10), ha='center', label="")
-                
-        # # Plot the path
-        # plt.plot(path_x, path_y, marker='o', label=agent_id, color=colors(i))
 
-        # # Annotate each action
-        # for j, (x, y) in enumerate(zip(path_x, path_y)):
-        #     plt.annotate(f'{j}', (x, y), textcoords="offset points", xytext=(0, 10), ha='center')
+    # Optional: Plot obstacles if a file is provided
+    if obstacle_file:
+        with open(obstacle_file, 'r') as file:
+            obstacle_data = yaml.safe_load(file)
+
+        obstacles = obstacle_data.get('scenario', {}).get('obstacles', [])
+        for obs in obstacles:
+            if obs.get('type') == 'circle':
+                loc = obs['location']
+                radius = obs['radius']
+                circle = patches.Circle((loc['x'], loc['y']), radius, color='red', alpha=0.3, label=None)
+                plt.gca().add_patch(circle)
+
+        # # Avoid repeated legend entries
+        # handles, labels = plt.gca().get_legend_handles_labels()
+        # by_label = dict(zip(labels, handles))
+        # plt.legend(by_label.values(), by_label.keys())
+
 
     # Show legend
     plt.legend()
@@ -79,4 +80,4 @@ def plot_paths_from_yaml(yaml_file):
 
 
 # Example usage
-plot_paths_from_yaml('run/output_plan.yaml')
+plot_paths_from_yaml('obstacles_tests/output_plan.yaml', 'obstacles_tests/plot_1_2_10_100_4.yaml')
