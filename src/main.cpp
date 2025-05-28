@@ -14,6 +14,8 @@
 #include "Solver_Depleted.h"
 #include "Solver_LLS.h"
 #include "Solver_OBS.h"
+// TODO: absolute path needed for eclipse indexer.. for some reason...
+#include "../inc/Solver_LLS_OBS.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -107,27 +109,27 @@ int main(int argc, char *argv[]) {
 	// Capture start time
 	auto start = std::chrono::high_resolution_clock::now();
 	switch(algorithm) {
-	case e_Algo_GREEDY: {		// algo: 1
+	case e_Algo_GREEDY: {			// algo: 1
 		solver = new BaselineSolver();
 	}
 	break;
 
-	case e_Algo_OPTLAUNCH: {	// algo: 2
+	case e_Algo_OPTLAUNCH: {		// algo: 2
 		solver = new OptLaunchSolver();
 	}
 	break;
 
-	case e_Algo_ILO: { 			// algo: 3
+	case e_Algo_ILO: {				// algo: 3
 		solver = new Solver_ILO();
 	}
 	break;
 
-	case e_Algo_DEPLETED: { 			// algo: 4
+	case e_Algo_DEPLETED: {			// algo: 4
 		solver = new Solver_Depleted();
 	}
 	break;
 
-	case e_Algo_LLS: { 				// algo: 5 
+	case e_Algo_LLS: {				// algo: 5
 		solver = new Solver_LLS(); 
 	}
 	break;
@@ -137,7 +139,10 @@ int main(int argc, char *argv[]) {
 	}
 	break; 
 
-	// TODO make a iterative and non iterative version 
+	case e_Algo_LLS_OBS: {			// algo: 7
+		solver = new Solver_LLS_OBS();
+	}
+	break;
 
 	case e_Algo_COMP:
 	default:

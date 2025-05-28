@@ -53,5 +53,6 @@ enum {
 	e_Algo_DEPLETED = 4, 
 	e_Algo_LLS = 5, 
 	e_Algo_OBS = 6, 
+	e_Algo_LLS_OBS = 7,
 };
 

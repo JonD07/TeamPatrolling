@@ -943,8 +943,6 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 			// * Regardless of the action type always add it to actions and action times thus far 
 			UGVActionsSoFar.push_back(action);
 			UGVActionsSoFarTimes.push_back(actionTimeDifference);
-
-	
 		}
 
 

@@ -71,7 +71,7 @@ void Solver_LLS::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_
 	if(SANITY_PRINT) {
 		printf("Attempting to perform relaxing swaps!\n");
 	}
-//	optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_current);
+	optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_current);
 	double prev_best_par = sol_current->CalculatePar();
 
 	while(true) {  // * Loop forever until all swaps are exhausted
