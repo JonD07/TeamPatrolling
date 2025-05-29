@@ -180,6 +180,11 @@ bool OMPL_RRTSTAR::findPathXY(
 	if (solved) {
 		if (DEBUG_OMPL) printf("Found a path\n");
 
+        // Check if solution is exact
+        if (!ss.getProblemDefinition()->hasSolution()) {
+            throw std::runtime_error("OMPL did not find an exact solution to the goalin tmie, its possible the subproblem is too small or the time is too short");
+        }
+
 		ss.simplifySolution();
 		const og::PathGeometric& path = ss.getSolutionPath();
 

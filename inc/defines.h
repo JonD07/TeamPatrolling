@@ -37,7 +37,7 @@
 
 // OMPL Constants 
 #define OMPL_PLANNING_TIME 0.1	// Adjust time (RRT* and its variants will run until the time-out)
-#define OMPL_SUBPROBLEM_PADDING 100.0 
+#define OMPL_SUBPROBLEM_PADDING 1000.0 
 // TODO figure out if I need to implement a buffer dist 
 #define OMPL_OBST_BUFFER_DIST 5
 
