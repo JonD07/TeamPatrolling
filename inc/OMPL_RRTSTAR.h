@@ -19,7 +19,11 @@
 #include <ompl/base/spaces/SE2StateSpace.h>
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/geometric/SimpleSetup.h>
-#include <ompl/geometric/planners/rrt/RRTstar.h>
+// Planner options..
+#include <ompl/geometric/planners/rrt/RRT.h> // Fast
+#include <ompl/geometric/planners/rrt/RRTConnect.h> // Wicked fast
+#include <ompl/geometric/planners/rrt/RRTstar.h> // Asymptotically optimal
+#include <ompl/geometric/planners/rrt/InformedRRTstar.h> // Same guarantees as RRT* but faster
 
 #include <vector>
 #include <iostream>
@@ -67,7 +71,7 @@ public:
 			const std::vector<Obstacle>& subproblem_obstacles,
 			std::vector<std::pair<double, double>>* path
 	);
-	std::vector<Obstacle> get_subproblem_obstacles(const std::vector<Obstacle>& all_obstacles);
+	void get_subproblem_obstacles(const std::vector<Obstacle>* all_obstacles, std::vector<Obstacle>* obstaclesInBounds);
 
 
 };

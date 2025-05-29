@@ -36,14 +36,14 @@
 #define LLS_TIME_TOLERANCE	1.0
 
 // OMPL Constants 
-#define OMPL_PLANING_TIME 3.0 
+#define OMPL_PLANNING_TIME 0.1	// Adjust time (RRT* and its variants will run until the time-out)
 #define OMPL_SUBPROBLEM_PADDING 100.0 
 // TODO figure out if I need to implement a buffer dist 
 #define OMPL_OBST_BUFFER_DIST 5
 
 #define OVERLAPPING_STEP_SIZE 1
 
-#define OBSTALCE_GURI_CORRIDOR_SIZE 8
+#define OBSTALCE_GURI_CORRIDOR_SIZE 20
 
 enum {
 	e_Algo_COMP = 0,

@@ -108,11 +108,11 @@ void Solver_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 	/// While we made an improvement
 	} while(opt_flag);
 
-//	// * Sometimes the finished product has "redudant" move to position actions where the obstacle is already being avoided
-//	// * No need to include these in the final solution
-//	for (int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-//		checkForRedundantMoves(input, ugv_num, sol_final, input->GetObstacles());
-//	}
+	// * Sometimes the finished product has "redudant" move to position actions where the obstacle is already being avoided
+	// * No need to include these in the final solution
+	for (int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
+		checkForRedundantMoves(input, ugv_num, sol_final, input->GetObstacles());
+	}
 
     
 	printf("\nFinal Solution:\n");

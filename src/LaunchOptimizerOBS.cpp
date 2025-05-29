@@ -27,59 +27,175 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
     GRBVar x = act_pos_var->back()[0];
     GRBVar y = act_pos_var->back()[1];
 
-//    // Create obstacle position variables..
-//	GRBVar o_x = model->addVar(CONST_RELAXATION(obstacle.location.x), 0.0, GRB_CONTINUOUS, "o_x_"+itos(p2.mDetails));
-//	GRBVar o_y = model->addVar(CONST_RELAXATION(obstacle.location.y), 0.0, GRB_CONTINUOUS, "o_y_"+itos(p2.mDetails));
-//	GRBVar o_r = model->addVar(CONST_RELAXATION(obstacle.radius), 0.0, GRB_CONTINUOUS, "o_r_"+itos(p2.mDetails));
-//    // Try just pushing ourselves out of the obstacle...
-//    model->addQConstr((o_x - x)*(o_x - x) + (o_y - y)*(o_y - y) >= o_r*o_r, "obs_" + obsID + "_act" + actID);
-//    return;
+	if(DEBUG_LAUNCHOPTOBS) {
+		printf("Constrain action into boundary: a(%0.2f, %0.2f), o(%0.2f, %0.2f)\n", p2.fX, p2.fY, obstacle.location.x, obstacle.location.y);
+	}
 
-    // ----- Segment p1 → p2 -----
-    if (p2.fX == p1.fX) {
-        if (p1.fX < obstacle.location.x) {
-            model->addConstr(x <= p1.fX, "obs_corr_" + obsID + "_act" + actID + "_seg12_left");
-            model->addConstr(x >= p1.fX - OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg12_left_buffer");
-        } else {
-            model->addConstr(x >= p1.fX, "obs_corr_" + obsID + "_act" + actID + "_seg12_right");
-            model->addConstr(x <= p1.fX + OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg12_right_buffer");
-        }
-    } else {
-        double slope = (p2.fY - p1.fY) / (p2.fX - p1.fX);
-        double intercept = p1.fY - slope * p1.fX;
-        double delta = OBSTALCE_GURI_CORRIDOR_SIZE / std::sqrt(1 + slope * slope);
-        double obs_y_line = slope * obstacle.location.x + intercept;
+    // Are we bounding the point into a square tangent to the obstacle..?
+    if(CONVEX_SQUARE) {
+    	// Define terms to help write out math
+    	double o_x = obstacle.location.x, o_y = obstacle.location.y, o_r = obstacle.radius;
+    	double a_x = p2.fX, a_y = p2.fY;
+    	double d = OBSTALCE_GURI_CORRIDOR_SIZE;
 
-        if (obstacle.location.y > obs_y_line) {
-            model->addConstr(y <= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg12_above");
-            model->addConstr(y >= slope * x + intercept - delta, "obs_corr_" + obsID + "_act" + actID + "_seg12_above_buffer");
-        } else {
-            model->addConstr(y >= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg12_below");
-            model->addConstr(y <= slope * x + intercept + delta, "obs_corr_" + obsID + "_act" + actID + "_seg12_below_buffer");
-        }
+    	// Determine the direction vector from center of obstacle to action location
+    	double v_x = a_x - o_x;
+    	double v_y = a_y - o_y;
+    	// Vector magnitude (we assume the magnitude is non-zero)
+    	double m = sqrt(v_x*v_x + v_y*v_y);
+    	// Normalize the vector
+    	double d_x = v_x/m;
+    	double d_y = v_y/m;
+    	// Perpendicular vector
+    	double p_x = -d_y;
+    	double p_y = d_x;
+    	// Find square center
+    	double h = d/2.0;
+    	double c_x = o_x + (o_r+h)*d_x;
+    	double c_y = o_y + (o_r+h)*d_y;
+
+    	// Points of the square
+    	double P_1x = c_x + h*p_x + h*d_x;
+    	double P_2x = c_x + h*p_x - h*d_x;
+    	double P_3x = c_x - h*p_x + h*d_x;
+    	double P_4x = c_x - h*p_x - h*d_x;
+    	double P_1y = c_y + h*p_y + h*d_y;
+    	double P_2y = c_y + h*p_y - h*d_y;
+    	double P_3y = c_y - h*p_y + h*d_y;
+    	double P_4y = c_y - h*p_y - h*d_y;
+
+    	// Line connecting points P1 and P2
+    	if(a_x < o_x) {
+    		// y >= P1<-->P2
+            model->addConstr(y >= (P_1y - P_2y)/(P_1x - P_2x)*(x - P_2x) + P_2y, "P1_P2_" + obsID + "_" + actID);
+    	}
+    	else if(a_x > o_x) {
+    		// y <= P1<-->P2
+            model->addConstr(y <= (P_1y - P_2y)/(P_1x - P_2x)*(x - P_2x) + P_2y, "P1_P2_" + obsID + "_" + actID);
+    	}
+    	else {
+    		// Line P1<-->P2 is vertical (weird edge case)
+    		if(a_y > o_y) {
+    			// x >= P2.x
+                model->addConstr(x >= P_2x, "P1_P2_" + obsID + "_" + actID);
+    		}
+    		else {
+    			// x <= P2.x
+                model->addConstr(x <= P_2x, "P1_P2_" + obsID + "_" + actID);
+    		}
+    	}
+
+    	// Line connecting points P3 and P4
+    	if(a_x < o_x) {
+    		// y <= P3<-->P4
+            model->addConstr(y <= (P_3y - P_4y)/(P_3x - P_4x)*(x - P_4x) + P_4y, "P3_P4_" + obsID + "_" + actID);
+    	}
+    	else if(a_x > o_x) {
+    		// y >= P3<-->P4
+            model->addConstr(y >= (P_3y - P_4y)/(P_3x - P_4x)*(x - P_4x) + P_4y, "P3_P4_" + obsID + "_" + actID);
+    	}
+    	else {
+    		// Line P3<-->P4 is vertical (weird edge case)
+    		if(a_y > o_y) {
+    			// x <= P4.x
+                model->addConstr(x <= P_4x, "P3_P4_" + obsID + "_" + actID);
+    		}
+    		else {
+    			// x >= P4.x
+                model->addConstr(x >= P_4x, "P3_P4_" + obsID + "_" + actID);
+    		}
+    	}
+
+    	// Line connecting points P2 and P4
+    	if(a_y < o_y) {
+    		// y <= P2<-->P4
+            model->addConstr(y <= (P_2y - P_4y)/(P_2x - P_4x)*(x - P_4x) + P_4y, "P2_P4_" + obsID + "_" + actID);
+    	}
+    	else if(a_y > o_y) {
+    		// y >= P2<-->P4
+            model->addConstr(y >= (P_2y - P_4y)/(P_2x - P_4x)*(x - P_4x) + P_4y, "P2_P4_" + obsID + "_" + actID);
+    	}
+    	else {
+    		// Line P2<-->P4 is horizontal (weird edge case)
+    		if(a_x < o_x) {
+    			// x <= P4.x
+                model->addConstr(x <= P_4x, "P2_P4_" + obsID + "_" + actID);
+    		}
+    		else {
+    			// x >= P4.x
+                model->addConstr(x >= P_4x, "P2_P4_" + obsID + "_" + actID);
+    		}
+    	}
+
+    	// Line connecting points P1 and P3
+    	if(a_y > o_y) {
+    		// y <= P1<-->P3
+            model->addConstr(y <= (P_1y - P_3y)/(P_1x - P_3x)*(x - P_3x) + P_3y, "P1_P3_" + obsID + "_" + actID);
+    	}
+    	else if(a_y < o_y) {
+    		// y >= P1<-->P3
+            model->addConstr(y >= (P_1y - P_3y)/(P_1x - P_3x)*(x - P_3x) + P_3y, "P1_P3_" + obsID + "_" + actID);
+    	}
+    	else {
+    		// Line P1<-->P2 is vertical (weird edge case)
+    		if(a_x < o_x) {
+    			// x >= P1.x
+                model->addConstr(x >= P_1x, "P1_P3_" + obsID + "_" + actID);
+    		}
+    		else {
+    			// x <= P2.x
+                model->addConstr(x <= P_1x, "P1_P3_" + obsID + "_" + actID);
+    		}
+    	}
     }
-
-    // ----- Segment p2 → p3 -----
-    if (p3.fX == p2.fX) {
-        if (p2.fX < obstacle.location.x) {
-            model->addConstr(x <= p2.fX, "obs_corr_" + obsID + "_act" + actID + "_seg23_left");
-            model->addConstr(x >= p2.fX - OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg23_left_buffer");
+    // No, bound point by a parallelogram
+    else {
+        // ----- Segment p1 → p2 -----
+        if (p2.fX == p1.fX) {
+            if (p1.fX < obstacle.location.x) {
+                model->addConstr(x <= p1.fX, "obs_corr_" + obsID + "_act" + actID + "_seg12_left");
+                model->addConstr(x >= p1.fX - OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg12_left_buffer");
+            } else {
+                model->addConstr(x >= p1.fX, "obs_corr_" + obsID + "_act" + actID + "_seg12_right");
+                model->addConstr(x <= p1.fX + OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg12_right_buffer");
+            }
         } else {
-            model->addConstr(x >= p2.fX, "obs_corr_" + obsID + "_act" + actID + "_seg23_right");
-            model->addConstr(x <= p2.fX + OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg23_right_buffer");
+            double slope = (p2.fY - p1.fY) / (p2.fX - p1.fX);
+            double intercept = p1.fY - slope * p1.fX;
+            double delta = OBSTALCE_GURI_CORRIDOR_SIZE / std::sqrt(1 + slope * slope);
+            double obs_y_line = slope * obstacle.location.x + intercept;
+
+            if (obstacle.location.y > obs_y_line) {
+                model->addConstr(y <= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg12_above");
+                model->addConstr(y >= slope * x + intercept - delta, "obs_corr_" + obsID + "_act" + actID + "_seg12_above_buffer");
+            } else {
+                model->addConstr(y >= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg12_below");
+                model->addConstr(y <= slope * x + intercept + delta, "obs_corr_" + obsID + "_act" + actID + "_seg12_below_buffer");
+            }
         }
-    } else {
-        double slope = (p3.fY - p2.fY) / (p3.fX - p2.fX);
-        double intercept = p2.fY - slope * p2.fX;
-        double delta = OBSTALCE_GURI_CORRIDOR_SIZE / std::sqrt(1 + slope * slope);
-        double obs_y_line = slope * obstacle.location.x + intercept;
 
-        if (obstacle.location.y > obs_y_line) {
-            model->addConstr(y <= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg23_above");
-            model->addConstr(y >= slope * x + intercept - delta, "obs_corr_" + obsID + "_act" + actID + "_seg23_above_buffer");
+        // ----- Segment p2 → p3 -----
+        if (p3.fX == p2.fX) {
+            if (p2.fX < obstacle.location.x) {
+                model->addConstr(x <= p2.fX, "obs_corr_" + obsID + "_act" + actID + "_seg23_left");
+                model->addConstr(x >= p2.fX - OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg23_left_buffer");
+            } else {
+                model->addConstr(x >= p2.fX, "obs_corr_" + obsID + "_act" + actID + "_seg23_right");
+                model->addConstr(x <= p2.fX + OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg23_right_buffer");
+            }
         } else {
-            model->addConstr(y >= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg23_below");
-            model->addConstr(y <= slope * x + intercept + delta, "obs_corr_" + obsID + "_act" + actID + "_seg23_below_buffer");
+            double slope = (p3.fY - p2.fY) / (p3.fX - p2.fX);
+            double intercept = p2.fY - slope * p2.fX;
+            double delta = OBSTALCE_GURI_CORRIDOR_SIZE / std::sqrt(1 + slope * slope);
+            double obs_y_line = slope * obstacle.location.x + intercept;
+
+            if (obstacle.location.y > obs_y_line) {
+                model->addConstr(y <= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg23_above");
+                model->addConstr(y >= slope * x + intercept - delta, "obs_corr_" + obsID + "_act" + actID + "_seg23_above_buffer");
+            } else {
+                model->addConstr(y >= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg23_below");
+                model->addConstr(y <= slope * x + intercept + delta, "obs_corr_" + obsID + "_act" + actID + "_seg23_below_buffer");
+            }
         }
     }
 }
@@ -91,8 +207,10 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 
 	// Get the POI Nodes from the input
 	std::vector<Node> vctrPOINodes = input->GetNodes();
-	printf("vctrPOINodes size: %lu\n", vctrPOINodes.size());
-	printf("ugv num: %d\n", ugv_num);
+	if(DEBUG_LAUNCHOPTOBS) {
+		printf("vctrPOINodes size: %lu\n", vctrPOINodes.size());
+		printf("ugv num: %d\n", ugv_num);
+	}
 	// We need the lists of actions that each drone is performing
 	std::vector<std::vector<DroneAction>> drone_action_lists;
 	std::vector<int> drone_action_lists_i;
@@ -107,7 +225,15 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 		drone_action_lists_i.push_back(1);
 	}
 
-	printf("Drone action lists size: %lu\n", drone_action_lists.size());
+	if(DEBUG_LAUNCHOPTOBS) {
+		printf("Drone action lists size: %lu\n", drone_action_lists.size());
+		for(std::vector<DroneAction> a_arr : drone_action_lists) {
+			printf(" drone action list:\n");
+			for(DroneAction a : a_arr) {
+				printf("  (%d) (%.2f,%.2f) @ %.2f\n", (int)a.mActionType, a.fX, a.fY, a.fCompletionTime);
+			}
+		}
+	}
 
 	// Create vectors of actions for each vehicle
 	std::vector<UGVAction> ugv_final_actions;
@@ -134,9 +260,9 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 	std::vector<UGVAction> ugv_action_list;
 	sol_final->GetUGVActionList(ugv_num, ugv_action_list);
 
-
-
 	bool process_next_team_tour = true;
+	double tour_start = 0.0;
+	double tour_end = 0.0;
 	do {
 		// Create a Gurobi environment
 		try {
@@ -145,7 +271,7 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 				printf("Starting up Gurobi\n");
 			}
 			else {
-//				env.set(GRB_INT_PAR_OUTPUTFLAG, "0");
+				env.set(GRB_INT_PAR_OUTPUTFLAG, "0");
 			}
 			GRBModel model = GRBModel(env);
 			std::vector<std::vector<GRBVar>> sub_tour_dist_vars;
@@ -154,24 +280,15 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			// Queue for actions
 			std::priority_queue<SOCAction, std::vector<SOCAction>, CompareSOCAction> action_queue;
 
-			for (const UGVAction& act : ugv_action_list) {
-				if (act.mActionType == E_UGVActionTypes::e_MoveToPosition) {
-					SOCAction soc(act.fCompletionTime, ugv_num, E_SOCActionType::e_MoveToPosition, -1, act.mDetails);
-					action_queue.push(soc);
-					if (DEBUG_LAUNCHOPTOBS) {
-						printf("Injected MoveToPosition SOCAction at time %.2f for obstacle ID %d\n", act.fCompletionTime, act.mDetails);
-					}
-				}
-			}
-
 			// Create array of drone sub-tours
 			std::vector<SubTour> sub_tours;
 			int subtour_counter = 0;
 			// For each drone assigned to the UGV
 			for(int drone_id : drones_on_UGV) {
-				printf("Drone %d\n", drone_id);
-				if(DEBUG_LAUNCHOPTOBS)
+				if(DEBUG_LAUNCHOPTOBS) {
+					printf("Drone %d\n", drone_id);
 					printf(" Get actions for drone %d\n", drone_id);
+				}
 				bool on_tour = false;
 				double tour_dist = 0.0;
 				double strt_x = 0.0, strt_y = 0.0;
@@ -190,7 +307,8 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 						// Are we still visiting nodes...?
 						if(next_action.mActionType == E_DroneActionTypes::e_MoveToNode) {
 							// Visited next node, record distance and update previous
-							printf("Visiting node %d (%f,%f)\n", next_action.mDetails, next_action.fX, next_action.fY);
+							if(DEBUG_LAUNCHOPTOBS)
+								printf("Visiting node %d (%f,%f)\n", next_action.mDetails, next_action.fX, next_action.fY);
 							tour_dist += distAtoB(prev_x, prev_y, next_action.fX, next_action.fY);
 							prev_x = next_action.fX;
 							prev_y = next_action.fY;
@@ -259,13 +377,27 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 					// Is the end of the team's tour?
 					else if(next_action.mActionType == E_DroneActionTypes::e_AtUGV) {
 						// Break out of this loop...
+						if(next_action.fCompletionTime > tour_end) {
+							tour_end = next_action.fCompletionTime;
+						}
 						break;
 					}
 				}
 			}
 
+			// Add in obstacle avoidance actions (only the ones during this tour's time window)
+			for(const UGVAction& act : ugv_action_list) {
+				if(act.mActionType == E_UGVActionTypes::e_MoveToPosition && act.fCompletionTime >= tour_start && act.fCompletionTime <= tour_end) {
+					SOCAction soc(act.fCompletionTime, ugv_num, E_SOCActionType::e_MoveToPosition, -1, act.mDetails);
+					action_queue.push(soc);
+					if (DEBUG_LAUNCHOPTOBS) {
+						printf("Injected MTP SOCAction: %.2f, %d (%.2f, %.2f)\n", act.fCompletionTime, act.mDetails, act.fX, act.fY);
+					}
+				}
+			}
+
 			// For my sanity
-			if(1) {
+			if(DEBUG_LAUNCHOPTOBS) {
 				printf("\n** Pre-Solve **\n");
 
 				printf("Actions queue:\n");
@@ -275,7 +407,11 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 					temp_Q.pop();
 					printf(" %0.2f (%d): ID = %d, st: %d, details: %d\n", next_action.time, next_action.action_type, next_action.ID, next_action.subtour_index, next_action.mDetails);
 				}
+				printf("Start time: %.2f, end time: %.2f\n", tour_start, tour_end);
 			}
+
+			// Update next tour's start time
+			tour_start = tour_end;
 
 			// Create x,y coordinate variables for each action in the list
 			std::vector<std::vector<GRBVar>> action_coord_vars;
@@ -338,7 +474,6 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 				// Create an end-time variable for this action
 				GRBVar t_i = model.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
 
-
 				// * Add obstacle-related constraints for MoveToPosition actions
 				if (action.action_type == E_SOCActionType::e_MoveToPosition) {
 					// Get UGV action list
@@ -353,7 +488,7 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 					// Find the UGV action with the same completion time and type
 					for (size_t i = 0; i < ugv_actions.size(); i++) {
 						if (ugv_actions[i].mActionType == E_UGVActionTypes::e_MoveToPosition &&
-							(ugv_actions[i].fCompletionTime - action.time) < 0.5 &&
+							isZero(ugv_actions[i].fCompletionTime - action.time) &&
 							ugv_actions[i].mDetails == action.mDetails) {
 
 							if (i >= 1 && i + 1 < ugv_actions.size()) {
@@ -557,7 +692,6 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			//*TODO Remove when done testing
 			model.write("model.lp");
 	
-
 			if(DEBUG_LAUNCHOPTOBS)
 				printf("Run Gurobi\n");
 
@@ -567,7 +701,7 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			// Did we find a solution..?
 			if(model.get(GRB_IntAttr_SolCount) >= 1) {
 				// Extract solution
-				if(1) {
+				if(DEBUG_LAUNCHOPTOBS) {
 					printf("minimized %s = %f\n", t_base.get(GRB_StringAttr_VarName).c_str(), t_base.get(GRB_DoubleAttr_X));
 
 					// Record this so we can watch how well the optimizer is improving things
@@ -643,7 +777,7 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 						ugv_y_i = y_j;
 						ugv_t_i = t_j;
 
-						if (DEBUG_LAUNCHOPTOBS)
+						if(DEBUG_LAUNCHOPTOBS)
 							printf("Added MoveToPosition at (%.2f, %.2f) @ %.2f\n", x_j, y_j, t_j);
 					}
 					else if(action_i.action_type == E_SOCActionType::e_LaunchDrone) {

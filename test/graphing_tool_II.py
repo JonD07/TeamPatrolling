@@ -67,17 +67,10 @@ def plot_paths_from_yaml(yaml_file, obstacle_file=None):
                 circle = patches.Circle((loc['x'], loc['y']), radius, color='red', alpha=0.3, label=None)
                 plt.gca().add_patch(circle)
 
-        # # Avoid repeated legend entries
-        # handles, labels = plt.gca().get_legend_handles_labels()
-        # by_label = dict(zip(labels, handles))
-        # plt.legend(by_label.values(), by_label.keys())
-
-
     # Show legend
     plt.legend()
     plt.grid(True)
     plt.show()
 
-
-# Example usage
+plot_paths_from_yaml('obstacles_tests/midsolve_plan.yaml', 'obstacles_tests/plot_1_2_10_100_4.yaml')
 plot_paths_from_yaml('obstacles_tests/output_plan.yaml', 'obstacles_tests/plot_1_2_10_100_4.yaml')

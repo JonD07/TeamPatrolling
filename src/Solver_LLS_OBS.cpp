@@ -104,7 +104,28 @@ void Solver_LLS_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 		}
 
 		/// Move around obstacles
-		moveAroundObstacles(ugv_num, input, sol_final, drones_to_UGV);
+		while(moveAroundObstacles(ugv_num, input, sol_final, drones_to_UGV)) {
+			sol_final->GenerateYAML("midsolve_plan.yaml");
+
+			/// Optimize
+			LaunchOptimizerOBS optimizerOBS;
+			optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+		}
+
+
+//		/// Move around obstacles
+//		while(moveAroundObstacles(ugv_num, input, sol_final, drones_to_UGV)) {
+//			sol_final->GenerateYAML("midsolve_plan.yaml");
+//
+//			/// Optimize
+//			LaunchOptimizerOBS optimizerOBS;
+//			optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+//
+//			/// Remove redundant actions
+//			checkForRedundantMoves(input, ugv_num, sol_final, input->GetObstacles());
+//			// Optimize again..
+//			optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+//		}
 	}
 
 

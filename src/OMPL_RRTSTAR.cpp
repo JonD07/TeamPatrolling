@@ -12,6 +12,7 @@ OMPL_RRTSTAR::OMPL_RRTSTAR() : bounds(2) {
     bounds.setHigh(0, 12.0);
     bounds.setLow(1, 0.0);
     bounds.setHigh(1, 12.0);
+    planning_time = OMPL_PLANNING_TIME;
 }
 
 /*
@@ -21,7 +22,6 @@ OMPL_RRTSTAR::OMPL_RRTSTAR() : bounds(2) {
 */
 void OMPL_RRTSTAR::setBounds(const UGVAction &action1,const UGVAction &action2) {
     // Get the x and y coordinates from both actions
-    planning_time = OMPL_PLANING_TIME; 
     double x1 = action1.fX;
     double y1 = action1.fY;
     double x2 = action2.fX;
@@ -47,15 +47,13 @@ void OMPL_RRTSTAR::setBounds(const UGVAction &action1,const UGVAction &action2) 
     bounds.setHigh(1, y_max);
 }
 
-std::vector<Obstacle> OMPL_RRTSTAR::get_subproblem_obstacles(const std::vector<Obstacle>& all_obstacles)  {
+void OMPL_RRTSTAR::get_subproblem_obstacles(const std::vector<Obstacle>* all_obstacles, std::vector<Obstacle>* obstaclesInBounds)  {
     double x_min = bounds.low[0];
     double x_max = bounds.high[0];
     double y_min = bounds.low[1];
     double y_max = bounds.high[1];
     
-    std::vector<Obstacle> obstaclesInBounds;
-    
-    for (const auto& obstacle : all_obstacles) {
+    for (const auto& obstacle : *all_obstacles) {
         // Find the closest point on the rectangle to the circle center
         double closestX = std::max(x_min, std::min(obstacle.location.x, x_max));
         double closestY = std::max(y_min, std::min(obstacle.location.y, y_max));
@@ -67,15 +65,13 @@ std::vector<Obstacle> OMPL_RRTSTAR::get_subproblem_obstacles(const std::vector<O
         
         // Check if any part of the circle intersects the rectangle
         if (distanceSquared <= obstacle.radius * obstacle.radius) {
-            obstaclesInBounds.push_back(obstacle);
+            obstaclesInBounds->push_back(obstacle);
             if (DEBUG_OMPL) {
                 printf("Found the following obstacles to be relevant to the subproblem: \n"); 
                 obstacle.printInfo();
             }
         }
     }
-    
-    return obstaclesInBounds;
 }
 
 
@@ -98,13 +94,19 @@ bool OMPL_RRTSTAR::findPathBetweenActions(
 		const UGVAction& action2,
 		const std::vector<Obstacle>& obstacles,
 		std::vector<std::pair<double, double>>* path) {
-	if (DEBUG_OMPL) {
+	if(DEBUG_OMPL) {
 		ompl::msg::setLogLevel(ompl::msg::LOG_INFO);  // or LOG_DEBUG if you want even more
-	} else {
+	}
+	else {
 		ompl::msg::setLogLevel(ompl::msg::LOG_ERROR); // only show critical issues
 	}
 	setBounds(action1, action2);
-	return findPathXY(input, action1, action2, get_subproblem_obstacles(obstacles), path);
+	// Reducing the number of obstacles doesn't seem to make a noticeable difference
+    std::vector<Obstacle> obstaclesInBounds;
+    get_subproblem_obstacles(&obstacles, &obstaclesInBounds);
+
+    // Do path planning!
+    return findPathXY(input, action1, action2, obstaclesInBounds, path);
 }
 
 bool OMPL_RRTSTAR::findPathXY(
@@ -163,7 +165,7 @@ bool OMPL_RRTSTAR::findPathXY(
 	goal->as<ob::SE2StateSpace::StateType>()->setXY(action_goal.fX, action_goal.fY);
 	ss.setStartAndGoalStates(start, goal);
 
-	auto planner = std::make_shared<og::RRTstar>(ss.getSpaceInformation());
+	auto planner = std::make_shared<og::InformedRRTstar>(ss.getSpaceInformation());
 	ss.setPlanner(planner);
 
 	if (DEBUG_OMPL) {
@@ -173,7 +175,7 @@ bool OMPL_RRTSTAR::findPathXY(
 			subproblem_obstacles.size());
 	}
 
-	ob::PlannerStatus solved = ss.solve(OMPL_PLANING_TIME);
+	ob::PlannerStatus solved = ss.solve(OMPL_PLANNING_TIME);
 
 	if (solved) {
 		if (DEBUG_OMPL) printf("Found a path\n");

@@ -85,8 +85,6 @@ protected:
     UGVAction fixOverlappingActionOBS(const UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles);
     // Attempts to update all sub-tours belong to drone drone_id. Returns true if one of the updates improved solution quality (that is, we changed the ordering of a sub-tour).
     bool updateSubtours(int drone_id, Solution* sol_final);
-
-    LaunchOptimizerOBS optimizer;
 private:
 	double calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UGV UGV_current_object); 
 	double calcDroneMovingEnergy(std::vector<DroneAction>& droneActionsSoFar,std::queue<DroneAction>& drone_action_queue, UAV UAV_current_object, double UAV_VMax); 

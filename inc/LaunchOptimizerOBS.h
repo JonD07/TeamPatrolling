@@ -19,13 +19,10 @@
 #include "gurobi_c++.h"
 #include "SOCTypes.h"
 
-#define DEBUG_LAUNCHOPTOBS	DEBUG || 0
-
+#define DEBUG_LAUNCHOPTOBS		DEBUG || 0
 #define CONST_RELAXATION(X)		X,X+0.1
 
-
-
-
+#define CONVEX_SQUARE			0
 
 
 
