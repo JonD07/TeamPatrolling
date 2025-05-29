@@ -84,8 +84,9 @@ add_executable(${CMAKE_PROJECT_NAME}
 	src/PatrollingInput.cpp
 	src/Roots.cpp
 	src/Solution.cpp
-	src/Solver.cpp
+	src/Solver.cpp 
 	src/Solver_Baseline.cpp
+	src/Solver_BaselineOBS.cpp
 	src/Solver_ILO.cpp
 	src/Solver_OptLaunch.cpp
 	src/Utilities.cpp

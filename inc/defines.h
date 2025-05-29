@@ -24,8 +24,8 @@
 // Number of simulation trials to run
 #define N_S	3
 
-#define DRONE_I			0
-#define UAV_V_MAX		12.0
+#define DRONE_I				0
+#define UAV_V_MAX			12.0
 #define UAV_V_MAX_AFIELD	5.0
 
 
@@ -33,17 +33,21 @@
 
 // This is tolerance used to consider if launch and land actions are considered on top of each other
 #define LLS_DISTANCE_TOLERANCE	1.0
-#define LLS_TIME_TOLERANCE	1.0
+#define LLS_TIME_TOLERANCE		1.0
 
 // OMPL Constants 
-#define OMPL_PLANNING_TIME 0.1	// Adjust time (RRT* and its variants will run until the time-out)
-#define OMPL_SUBPROBLEM_PADDING 1000.0 
+#define OMPL_PLANNING_TIME		0.1	// Adjust time (RRT* and its variants will run until the time-out)
+#define OMPL_SUBPROBLEM_PADDING	1000.0
 // TODO figure out if I need to implement a buffer dist 
-#define OMPL_OBST_BUFFER_DIST 5
+#define OMPL_OBST_BUFFER_DIST	5
 
-#define OVERLAPPING_STEP_SIZE 1
+#define OVERLAPPING_STEP_SIZE	1
 
 #define OBSTALCE_GURI_CORRIDOR_SIZE 20
+
+// Pushing action points out of obstacles
+#define OBS_MOVE_STEP_SIZE		10.0 // (meters)
+#define OBS_MOVE_ITERATIONS		100
 
 enum {
 	e_Algo_COMP = 0,
@@ -54,5 +58,6 @@ enum {
 	e_Algo_LLS = 5, 
 	e_Algo_OBS = 6, 
 	e_Algo_LLS_OBS = 7,
+	e_Algo_BASELINE_OBS = 8,
 };
 

@@ -14,8 +14,8 @@
 #include "Solver_Depleted.h"
 #include "Solver_LLS.h"
 #include "Solver_OBS.h"
-// TODO: absolute path needed for eclipse indexer.. for some reason...
-#include "../inc/Solver_LLS_OBS.h"
+#include "Solver_LLS_OBS.h"
+#include "Solver_BaselineOBS.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -141,6 +141,11 @@ int main(int argc, char *argv[]) {
 
 	case e_Algo_LLS_OBS: {			// algo: 7
 		solver = new Solver_LLS_OBS();
+	}
+	break;
+
+	case e_Algo_BASELINE_OBS: {		// algo: 8
+		solver = new Solver_Baseline_OBS();
 	}
 	break;
 

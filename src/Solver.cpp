@@ -7,7 +7,7 @@ Solver::~Solver() {}
 
 
 // Runs the baseline solver, setting an initial solution to build off of
-void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV) {
+void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV, bool obstacle_avoidance) {
 	// Get the POI Nodes from the input
 	std::vector<Node> vctrPOINodes = input->GetNodes();
 	// Used for clustering
@@ -35,12 +35,14 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 	/// 1. m' = m_g, k = 1
 	/// 2. k = max(k, m')
 	/// 3. Form k clusters
+	/// 3.5 (optional) push centroids out of obstacles
 	/// 4. Solve VRP on centroids of each cluster with depot and m' vehicles
 	/// 5. For each UGV j:
 	/// 6.   For each cluster assigned to j
 	/// 7.     Solve VRP on cluster with |D_j| vehicles
 	/// 8.     If there exists drone-tour A such that dist(A) > d^a_max, increase k and repeat steps 2-8
 	/// 9. Form action lists by determining launch/receive times, charge times for drones/UGV
+	/// 9.5 (optional) add obstacle avoidance to UGV tour
 	///10. If there exists UGV-tour A such that energy(A) > E^g_max, increase m' by m_g and repeat steps 2-10
 
 
@@ -119,7 +121,16 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				y += n.y;
 				count++;
 			}
-			VRPPoint depot(i, x/count, y/count);
+			double c_x = x/count;
+			double c_y = y/count;
+
+			// Are we avoiding obstacles?
+			if(obstacle_avoidance) {
+				/// 3.5 (optional) push centroids out of obstacles
+				findClosestOutsidePointIterative(&c_x, &c_y, input->GetObstacles());
+			}
+
+			VRPPoint depot(i, c_x, c_y);
 			depots.push_back(depot);
 		}
 
@@ -361,14 +372,11 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					double ugv_arrival_time = 0.0;
 					// Move to the depot
 					{
+						double t_duration = moveUGVtoPoint(input, sol_final, j_actual, depots.at(n).x, depots.at(n).y, n, E_UGVActionTypes::e_MoveToWaypoint, obstacle_avoidance);
+
 						// Determine how long it took to move to the next depot
-						UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
-						double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, depots.at(n).x, depots.at(n).y);
-						double t_duration = dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
-						ugv_arrival_time = ugv_last.fCompletionTime + t_duration;
-						// Create action for moving here
-						UGVAction moveToDepot(E_UGVActionTypes::e_MoveToWaypoint, depots.at(n).x, depots.at(n).y, ugv_arrival_time, n);
-						sol_final->PushUGVAction(j_actual, moveToDepot);
+						ugv_arrival_time = sol_final->GetLastUGVAction(j_actual).fCompletionTime+t_duration;
+
 						// Calculate how much energy we used
 						UGV ugv = input->getUGV(j_actual);
 						double drivingEnergy = ugv.getJoulesPerSecondDriving(ugv.maxDriveAndChargeSpeed); 
@@ -509,15 +517,9 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 				// Return UGV to base
 				{
-					// Get last action
-					UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
+					double t_duration = moveUGVtoPoint(input, sol_final, j_actual, depots.back().x, depots.back().y, -1, E_UGVActionTypes::e_MoveToDepot, obstacle_avoidance);
 					// Determine time required to move to base
-					double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, depots.back().x, depots.back().y);
-					double t_duration = dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
-					double arrive_time = ugv_last.fCompletionTime + t_duration;
-					// Create action for moving here
-					UGVAction moveToDepot(E_UGVActionTypes::e_MoveToDepot, depots.back().x, depots.back().y, arrive_time);
-					sol_final->PushUGVAction(j_actual, moveToDepot);
+					double arrive_time = sol_final->GetLastUGVAction(j_actual).fCompletionTime + t_duration;
 
 					// Calculate how much energy we used
 					UGV ugv = input->getUGV(j_actual);
@@ -1082,6 +1084,100 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 			}
 
 	}
+}
+
+// Adds (possibly multiple) actions to UGV action queue to move the vehicle to a new point
+double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, double j_actual, double p_x, double p_y, int subtour, E_UGVActionTypes move_type, bool obstacle_avoidance) {
+	// Determine how long it took to move to the next depot
+	UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
+	double t_duration = 0;
+
+	/// 9.5 (optional) add obstacle avoidance to UGV tour
+	if(obstacle_avoidance) {
+		// Is there an obstacle between the last stop and the next?
+		UGVAction ugv_nxt(move_type, p_x, p_y, 0.0, subtour);
+		bool detected_collision = false;
+		for(const Obstacle& obstacle : input->GetObstacles()) {
+			if(Obstacle::checkForObstacle(ugv_last.fX, ugv_last.fY, ugv_nxt.fX, ugv_nxt.fY, obstacle)) {
+				detected_collision = true;
+				break;
+			}
+		}
+
+		// Did we detect a collision?
+		if(detected_collision) {
+			// Move out of the obstacle
+			if(DEBUG_SOLVER)
+				printf("Found collision in baseline\n");
+			// * Find a path around the obstacle
+		    OMPL_RRTSTAR pathSolver;
+			std::vector<std::pair<double, double>> path;
+			pathSolver.findPathBetweenActions(input, ugv_last, ugv_nxt, input->GetObstacles(), &path);
+
+			if(DEBUG_SOLVER) {
+				printf("Found path between:\n");
+				ugv_last.print();
+				ugv_nxt.print();
+				printf(" Found path:\n  ");
+				for(std::pair<double,double> n : path) {
+					printf("->(%f,%f)", n.first, n.second);
+				}
+				puts("");
+			}
+
+			if(path.size() >= 3) {
+				// * Path found successfully!
+				double ugv_x = ugv_last.fX, ugv_y = ugv_last.fY;
+				// * Add all middle items in the path to be MoveToPosition Actions
+				for(int i = 1; i < boost::numeric_cast<int>(path.size()) - 1; i++) {
+					// Get next stop
+					double next_x = path[i].first, next_y = path[i].second;
+					// Dist/time to move to next stop
+					double dist_prev_next = distAtoB(ugv_x, ugv_y, next_x, next_y);
+					t_duration += dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+					// Create a new action
+					UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, next_x, next_y, ugv_last.fCompletionTime+t_duration);
+					// Add to solution
+					sol_final->PushUGVAction(j_actual, tmp);
+					// Update position
+					ugv_x = next_x, ugv_y = next_y;
+				}
+
+				// Add in next depot
+				double next_x = ugv_nxt.fX, next_y = ugv_nxt.fY;
+				// Dist/time to move to next stop
+				double dist_prev_next = distAtoB(ugv_x, ugv_y, next_x, next_y);
+				t_duration += dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+				// Correct arrival time
+				ugv_nxt.fCompletionTime = ugv_last.fCompletionTime+t_duration;
+				// Add to solution
+				sol_final->PushUGVAction(j_actual, ugv_nxt);
+			}
+			else {
+				fprintf(stderr,"[ERROR][Solver::RunBaseline] Path planning around obstacles failed\n");
+				exit(1);
+			}
+		}
+		else {
+			if(DEBUG_SOLVER)
+				printf("Path from (%f,%f) to (%f,%f) is clear\n", ugv_last.fX, ugv_last.fY, ugv_nxt.fX, ugv_nxt.fY);
+			// Add next action as we would normally
+			double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, p_x, p_y);
+			t_duration = dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+			// Create action for moving here
+			UGVAction moveToDepot(move_type, p_x, p_y, ugv_last.fCompletionTime+t_duration, subtour);
+			sol_final->PushUGVAction(j_actual, moveToDepot);
+		}
+	}
+	else {
+		double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, p_x, p_y);
+		t_duration = dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+		// Create action for moving here
+		UGVAction moveToDepot(move_type, p_x, p_y, ugv_last.fCompletionTime+t_duration, subtour);
+		sol_final->PushUGVAction(j_actual, moveToDepot);
+	}
+
+	return t_duration;
 }
 
 /*
@@ -1814,6 +1910,72 @@ void Solver::pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* s
 		sol_current->PrintSolution();
 		printf("\n");
 	}
+}
+
+// Cycles through the obstacles (circles) and determines if this point is in at least on obstacle
+bool Solver::pointInObstacle(double x, double y, const std::vector<Obstacle>& obstacles) {
+	for(const Obstacle& obs : obstacles) {
+		// Determine distance from a to the circle
+		double dist = std::sqrt((x - obs.location.x)*(x - obs.location.x) + (y - obs.location.y)*(y - obs.location.y));
+		if(dist <= obs.radius) {
+			// Inside of this obstacle!
+			return true;
+		}
+	}
+	return false;
+}
+
+// Iteratively moves point (x,y) out of obstacles by pushing away from center of all obstacles that the point falls into
+bool Solver::findClosestOutsidePointIterative(double* x, double* y, const std::vector<Obstacle>& obstacles) {
+	for(int iter = 0; iter < OBS_MOVE_ITERATIONS; ++iter) {
+		bool inside = false;
+		double dir_x = 0.0, dir_y = 0.0;
+
+		for(const Obstacle& obst : obstacles) {
+			double dx = *x - obst.location.x;
+			double dy = *y - obst.location.y;
+			double dist = std::sqrt(dx * dx + dy * dy);
+
+			if(dist < obst.radius) {
+				inside = true;
+				double delta = obst.radius - dist;
+
+				if (dist > 1e-12) {
+					dir_x += dx / dist * delta;
+					dir_y += dy / dist * delta;
+				} else {
+					// Arbitrary direction if we're exactly at the center
+					dir_x += delta;
+				}
+				if(DEBUG_SOLVER)
+					printf("Inside of an obstacle!\n");
+			}
+		}
+
+		if(!inside) {
+			if(DEBUG_SOLVER)
+				printf("Not inside any obstacle (%f,%f)\n", *x, *y);
+			return true;
+		}
+
+		double mag = std::sqrt(dir_x * dir_x + dir_y * dir_y);
+		if(mag < 1e-12) {
+			if(DEBUG_SOLVER)
+				printf(" degenerate case: push right\n");
+			// degenerate case: push right
+			dir_x = 1.0;
+			dir_y = 0.0;
+			mag = 1.0;
+		}
+
+		// Take a small step in the combined outward direction
+		*x += dir_x / mag * OBS_MOVE_STEP_SIZE;
+		*y += dir_y / mag * OBS_MOVE_STEP_SIZE;
+		if(DEBUG_SOLVER)
+			printf(" pushed point to: (%f, %f)\n", *x, *y);
+	}
+
+	return !pointInObstacle(*x, *y, obstacles);
 }
 
 void Solver::checkForRedundantMoves(PatrollingInput* input, int ugv_num, Solution* sol_current, const std::vector<Obstacle>& obstacles) {

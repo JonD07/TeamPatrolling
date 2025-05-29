@@ -62,9 +62,11 @@ public:
 
 	virtual void Solve(PatrollingInput* input, Solution* sol_final) = 0;
 	// Runs the baseline solver, setting an initial solution to build off of
-	void RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
+	void RunBaseline(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV, bool obstacle_avoidance = false);
 	void RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
 protected:
+	// Adds (possibly multiple) actions to UGV action queue to move the vehicle to a new point
+	double moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, double j_actual, double p_x, double p_y, int subtour, E_UGVActionTypes move_type, bool obstacle_avoidance);
 	/*
 	 * Solves TSP on on vertices held in lst and stores found ordering in result. The multiplier
 	 * variable can be set to force the solver to solver a fixed-HPP (forcing the first and last
@@ -79,6 +81,10 @@ protected:
     void checkForRedundantMoves(PatrollingInput* input, int ugv_num, Solution* sol_current, const std::vector<Obstacle>& obstacles);
     // * Helper function to determine if a action is inside a obstacle
     bool isActionInsideObstacle(const UGVAction& action, const Obstacle& obstacle);
+    // Cycles through the obstacles (circles) and determines if this point is in at least on obstacle
+    bool pointInObstacle(double x, double y, const std::vector<Obstacle>& obstacles);
+    // Iteratively moves action out of obstacles by pushing away from center of all obstacles that the action falls into
+    bool findClosestOutsidePointIterative(double* x, double* y, const std::vector<Obstacle>& obstacles);
     // * Pushing a aciton outside of a obstacle and changes the action lists after the move based on the action type (above fixOverlappingActionOBS)
     void pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
     // * This is the function that does the moving of the action (low level) this performs that actual geometry; This is basically a helper function

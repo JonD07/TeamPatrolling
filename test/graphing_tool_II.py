@@ -72,5 +72,5 @@ def plot_paths_from_yaml(yaml_file, obstacle_file=None):
     plt.grid(True)
     plt.show()
 
-plot_paths_from_yaml('obstacles_tests/midsolve_plan.yaml', 'obstacles_tests/plot_1_2_10_100_4.yaml')
+# plot_paths_from_yaml('obstacles_tests/midsolve_plan.yaml', 'obstacles_tests/plot_1_2_10_100_4.yaml')
 plot_paths_from_yaml('obstacles_tests/output_plan.yaml', 'obstacles_tests/plot_1_2_10_100_4.yaml')

@@ -69,7 +69,6 @@ void Solver_LLS_OBS::Solve(PatrollingInput* input, Solution* sol_final) {
 	}
 	/// Swap overlapping actions
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-//		this->LLSRelaxAll(ugv_num, drones_to_UGV, input, sol_final);
 		while(true) {
 			// Create interim solution
 			Solution sol_temp(*sol_final);
