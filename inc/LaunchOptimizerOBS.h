@@ -12,12 +12,20 @@
 
 #include <tuple>
 #include <queue>
+#include <cmath>
+#include <cstddef>
+#include <string>
 #include <boost/numeric/conversion/cast.hpp>
 
 #include "Utilities.h"
 #include "Solution.h"
 #include "gurobi_c++.h"
 #include "SOCTypes.h"
+#include "PatrollingInput.h"
+#include "UAV.h"
+#include "UGV.h"
+#include "defines.h"
+#include "gurobi_c++.h"
 
 #define DEBUG_LAUNCHOPTOBS		DEBUG || 0
 #define CONST_RELAXATION(X)		X,X+0.1

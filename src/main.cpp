@@ -190,7 +190,8 @@ int main(int argc, char *argv[]) {
 		//Solution runtime_solution(&input);
 		//runtime_solution.CreateRuntimeSolution(solution);
 		//runtime_solution.GenerateYAML("output_plan.yaml");
-		solution.PrintSolution(); 
+		if(SANITY_PRINT)
+			solution.PrintSolution();
 
 		solution.GenerateYAML("output_plan.yaml");
 	}

@@ -157,7 +157,6 @@ void PatrollingInput::parseUGVs(const YAML::Node& UGVList) {
 
 // Parse each agent (both UAV and UGV)
 void PatrollingInput::parseAgents(const YAML::Node& agentNodes) {
-	printf("agents\n");
 	for (const auto& agentNode : agentNodes) {
         Agent agent;
 		agent.type = agentNode["type"].as<std::string>();
@@ -228,7 +227,6 @@ void PatrollingInput::parseAgents(const YAML::Node& agentNodes) {
 
 // Parse the scenario
 void PatrollingInput::parseScenario(const YAML::Node& scenario) {
-	printf("scenario\n");
     std::string description = scenario["description"].as<std::string>();
     std::string type = scenario["type"].as<std::string>();
     std::string subtype = scenario["subtype"].as<std::string>();

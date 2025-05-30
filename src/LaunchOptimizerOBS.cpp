@@ -1,18 +1,4 @@
 #include "LaunchOptimizerOBS.h"
-#include "PatrollingInput.h"
-#include "UAV.h"
-#include "UGV.h"
-#include "defines.h"
-#include "gurobi_c++.h"
-#include <cmath>
-#include <cstddef>
-#include <string>
-
-//TODO remove
-#include <filesystem>
-#include <fstream>
-#include <iostream>
-
 
 
 LaunchOptimizerOBS::LaunchOptimizerOBS() { }
@@ -501,16 +487,15 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 					}
 
 					// Find the obstacle matching the action's mdetails field
-					// TODO: Don't we already have this information?
 					const Obstacle* obs = nullptr;  // Use pointer, not a reference to NULL
-					for (const Obstacle& o : input->GetObstacles()) {
-						if (o.get_id() == action.mDetails) {  // Use '==' for comparison, not '='
+					for(const Obstacle& o : input->GetObstacles()) {
+						if(o.get_id() == action.mDetails) {  // Use '==' for comparison, not '='
 							obs = &o;  // Store the address
 							break;     // Found it, no need to continue
 						}
 					}
 
-					if (obs == nullptr) {
+					if(obs == nullptr) {
 						throw std::runtime_error("Obstacle with matching ID not found.");
 					}
 
@@ -688,9 +673,6 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			// Set objective
 			GRBLinExpr obj = t_base;
 			model.setObjective(obj, GRB_MINIMIZE);
-			
-			//*TODO Remove when done testing
-			model.write("model.lp");
 	
 			if(DEBUG_LAUNCHOPTOBS)
 				printf("Run Gurobi\n");

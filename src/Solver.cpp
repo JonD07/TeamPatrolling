@@ -1130,17 +1130,25 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 				double ugv_x = ugv_last.fX, ugv_y = ugv_last.fY;
 				// * Add all middle items in the path to be MoveToPosition Actions
 				for(int i = 1; i < boost::numeric_cast<int>(path.size()) - 1; i++) {
-					// Get next stop
-					double next_x = path[i].first, next_y = path[i].second;
-					// Dist/time to move to next stop
-					double dist_prev_next = distAtoB(ugv_x, ugv_y, next_x, next_y);
-					t_duration += dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
-					// Create a new action
-					UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, next_x, next_y, ugv_last.fCompletionTime+t_duration);
-					// Add to solution
-					sol_final->PushUGVAction(j_actual, tmp);
-					// Update position
-					ugv_x = next_x, ugv_y = next_y;
+					// Determine which obstacle we are maneuvering around
+					int obstacle_id = determineAssociatedObstacle(path[i].first, path[i].second, input->GetObstacles());
+					// Is this point associated with an obstacle?
+					if(obstacle_id > -1) {
+						// Get next stop
+						double next_x = path[i].first, next_y = path[i].second;
+						// Dist/time to move to next stop
+						double dist_prev_next = distAtoB(ugv_x, ugv_y, next_x, next_y);
+						t_duration += dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+						// Create a new action
+						UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, next_x, next_y, ugv_last.fCompletionTime+t_duration, obstacle_id);
+						// Add to solution
+						sol_final->PushUGVAction(j_actual, tmp);
+						// Update position
+						ugv_x = next_x, ugv_y = next_y;
+					}
+					else {
+						fprintf(stderr, "[WARNING][Solver::moveAroundObstacles] No associated obstacle for waypoint\n");
+					}
 				}
 
 				// Add in next depot
@@ -1389,7 +1397,7 @@ bool Solver::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* 
 	// * Loop through each UGV actions to check for obstacles, find a path around a obstacle if it exists
 	bool moved_around_obstacle = false;
 
-	std::vector<Obstacle> input_obstacles = input->GetObstacles();
+	const std::vector<Obstacle> input_obstacles = input->GetObstacles();
     OMPL_RRTSTAR pathSolver;
 
 	bool path_created = true;
@@ -1450,12 +1458,16 @@ bool Solver::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* 
 
 								// * Add all middle items in the path to be MoveToPosition Actions
 								for(int i = 1; i < boost::numeric_cast<int>(path.size()) - 1; i++) {
-									// * The details holds the ID of the obstacle that this action is moving around, this is important later in the optimizer
-									// TODO: How do we now that this obstacle is what generated the waypoint in the path?
-									int obstacle_id = obstacle.get_id();
-									// Create a new action here
-									UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, action1.fCompletionTime+(i*0.1), obstacle_id);
-									new_UGV_action_list.push_back(tmp);
+									// Determine which obstacle we are maneuvering around
+									int obstacle_id = determineAssociatedObstacle(path[i].first, path[i].second, input_obstacles);
+									if(obstacle_id > -1) {
+										// Create a new action here
+										UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, action1.fCompletionTime+(i*0.1), obstacle_id);
+										new_UGV_action_list.push_back(tmp);
+									}
+									else {
+										fprintf(stderr, "[WARNING][Solver::moveAroundObstacles] No associated obstacle for waypoint\n");
+									}
 								}
 
 								// * Add the current action
@@ -1976,6 +1988,27 @@ bool Solver::findClosestOutsidePointIterative(double* x, double* y, const std::v
 	}
 
 	return !pointInObstacle(*x, *y, obstacles);
+}
+
+// Determine which obstacle's boarder this location is closest to (returns -1 if the locations isn't reasonably close to anything)
+int Solver::determineAssociatedObstacle(double p_x, double p_y, const std::vector<Obstacle>& obstacles) {
+	// Assume no obstacle and 50 meters distance to the closest
+	int closest_boarder = -1;
+	double closest_dist = 50.0;
+	// Cycle through all obstacles
+	for(const Obstacle& obs : obstacles) {
+		// Determine distance from p to center of the circle
+		double dist = std::sqrt((p_x - obs.location.x)*(p_x - obs.location.x) + (p_y - obs.location.y)*(p_y - obs.location.y));
+		// How close is p to the boarder?
+		double boarder_dist = abs(dist - obs.radius);
+		if(boarder_dist < closest_dist) {
+			// Found a new closest obstacle
+			closest_boarder = obs.get_id();
+			closest_dist = boarder_dist;
+		}
+	}
+
+	return closest_boarder;
 }
 
 void Solver::checkForRedundantMoves(PatrollingInput* input, int ugv_num, Solution* sol_current, const std::vector<Obstacle>& obstacles) {
