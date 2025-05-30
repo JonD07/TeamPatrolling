@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <stdio.h>
 #include <vector>
 #include <limits>
@@ -164,6 +165,15 @@ int main(int argc, char *argv[]) {
 	// Determine the time it took to solve this
 	long long int duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	double duration_s = (double)duration/1000.0; 
+
+	solution.PrintSolution();
+
+	if(!solution.is_valid(&input)) {
+		printf("solution was foind to be invalid quitting");
+		exit(1);
+	}
+
+	printf("valid\n");
 
 	double par = solution.CalculatePar();
 	if(SANITY_PRINT) {

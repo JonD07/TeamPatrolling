@@ -213,7 +213,10 @@ public:
 	void swapDroneActionLists(int DroneId, const std::vector<DroneAction>& newActionList); 
 	// Function to swap two actions in a particular UGVAction List
 	void swapUGVActions(int ugv_num, int index1, int index2); 
-
+	// Checks a solution for anything that would make it invalid, (can't quarentee its valid but can prove its invalid)
+	bool is_valid(PatrollingInput* input);
+	// Checks if a single action pair intercepts any two obstacles 
+	bool collisionsPresent(const UGVAction actionA,const UGVAction actionB, const std::vector<Obstacle>& obstacles);
 private:
 	PatrollingInput* m_input;
 
