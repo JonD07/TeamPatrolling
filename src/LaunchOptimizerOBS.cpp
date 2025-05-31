@@ -906,12 +906,12 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			}
 			// No!! break!
 			else {
-				fprintf(stderr,"[ERROR][LaunchOptimizerOBS::OptLaunching] : Gurobi did not find a solution!\n");
+				fprintf(stderr,"[%s][LaunchOptimizerOBS::OptLaunching] : Gurobi did not find a solution!\n", ERROR);
 				exit(1);
 			}
 		}
 		catch(GRBException& e) {
-			printf("[ERROR] %d: %s\n", e.getErrorCode(), e.getMessage().c_str());
+			printf("[%s][LaunchOptimizerOBS::OptLaunching] %d: %s\n", ERROR, e.getErrorCode(), e.getMessage().c_str());
 		}
 		catch(const std::exception& e) {
 			printf("Exception during optimization: %s\n", e.what());

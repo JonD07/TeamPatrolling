@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
 	case e_Algo_COMP:
 	default:
 		// No valid algorithm given
-		fprintf(stderr, "[ERROR][main] : \n\tInvalid algorithm identifier!\n");
+		fprintf(stderr, "[%s][main] : \n\tInvalid algorithm identifier!\n", ERROR);
 		exit(1);
 	}
 
@@ -200,9 +200,14 @@ int main(int argc, char *argv[]) {
 	double duration_s = (double)duration/1000.0; 
 
 	double par = solution.CalculatePar();
-	solution.PrintSolution(); 
 	bool valid = solution.is_valid(&input, algorithm);
+
+	if(!valid) {
+		printf("[%s][main] Solution was found to be invalid\n", ERROR);
+	}
+
 	if(SANITY_PRINT) {
+		solution.PrintSolution();
 		printf("PAR: %f, computation time = %f, valid = %s\n", par, duration_s, valid ? "true" : "false");
 	}
 

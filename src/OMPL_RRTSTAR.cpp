@@ -168,7 +168,7 @@ bool OMPL_RRTSTAR::findPathXY(
 	auto planner = std::make_shared<og::InformedRRTstar>(ss.getSpaceInformation());
 	ss.setPlanner(planner);
 
-	if (DEBUG_OMPL) {
+	if(DEBUG_OMPL) {
 		printf("Attempting to find path from (%.3f, %.3f) to (%.3f, %.3f) with %zu obstacles.\n",
 			action_start.fX, action_start.fY,
 			action_goal.fX, action_goal.fY,
@@ -182,7 +182,7 @@ bool OMPL_RRTSTAR::findPathXY(
 
         // Check if solution is exact
         if (!ss.getProblemDefinition()->hasExactSolution()) {
-            throw std::runtime_error("OMPL did not find an exact solution to the goalin tmie, its possible the subproblem is too small or the time is too short");
+    		fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find an exact solution in the alloted time\n", WARNING);
         }
 
 		ss.simplifySolution();
@@ -191,6 +191,11 @@ bool OMPL_RRTSTAR::findPathXY(
 		for (size_t i = 0; i < path.getStateCount(); ++i) {
 			const auto* state = path.getState(i)->as<ob::SE2StateSpace::StateType>();
 			resultPath->push_back(std::make_pair(state->getX(), state->getY()));
+		}
+
+		if(resultPath->size() <= 2) {
+			fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find a valid solution in the alloted time\n", ERROR);
+			exit(1);
 		}
 
 		if (DEBUG_OMPL) {

@@ -620,7 +620,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			}
 		}
 		catch(GRBException& e) {
-			printf("[ERROR] %d: %s\n", e.getErrorCode(), e.getMessage().c_str());
+			printf("[%s][LaunchOptimizer::OptLaunching] %d: %s\n", ERROR, e.getErrorCode(), e.getMessage().c_str());
 		}
 		catch(const std::exception& e) {
 			printf("Exception during optimization: %s\n", e.what());

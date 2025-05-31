@@ -12,7 +12,7 @@
 #pragma once
 
 #define DEBUG			0
-#define SANITY_PRINT	1
+#define SANITY_PRINT	0
 
 #define EPSILON			0.000001
 #define INF				1000000000000
@@ -36,8 +36,8 @@
 #define LLS_TIME_TOLERANCE		1.0
 
 // OMPL Constants 
-#define OMPL_PLANNING_TIME		0.1	// Adjust time (RRT* and its variants will run until the time-out)
-#define OMPL_SUBPROBLEM_PADDING	1000.0
+#define OMPL_PLANNING_TIME		0.5	// Adjust time (RRT* and its variants will run until the time-out)
+#define OMPL_SUBPROBLEM_PADDING	10000.0
 // TODO figure out if I need to implement a buffer dist 
 #define OMPL_OBST_BUFFER_DIST	5
 
@@ -48,6 +48,9 @@
 // Pushing action points out of obstacles
 #define OBS_MOVE_STEP_SIZE		10.0 // (meters)
 #define OBS_MOVE_ITERATIONS		100
+
+#define ERROR		"\x1B[31mERROR\x1B[0m"
+#define WARNING		"\x1B[33mWARNING\x1B[0m"
 
 enum {
 	e_Algo_COMP = 0,
