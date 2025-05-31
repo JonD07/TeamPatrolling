@@ -51,7 +51,7 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 		}
 
 	} catch (const std::exception &e) {
-		fprintf(stderr, "[ERROR]:PatrollingInput() %s\n", e.what());
+		fprintf(stderr, "[%s][PatrollingInput] %s\n", ERROR, e.what());
 		read_success = false;
 	}
 
@@ -70,7 +70,7 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 		parseUGVs(UGVs);
 	}
 	catch(const std::exception &e){
-		fprintf(stderr, "[ERROR]:VehicleInput() %s\n", e.what());
+		fprintf(stderr, "[%s][VehicleInput] %s\n", ERROR, e.what());
 		read_success = false;
 	}
 
@@ -411,7 +411,7 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 			}
 			else {
 				// Not expected to be here...
-				fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Roots of charge time are imaginary (subtype standard)!\n");
+				fprintf(stderr, "[%s][PatrollingInput::calcChargeTime] : Roots of charge time are imaginary (subtype standard)!\n", ERROR);
 				exit(0);
 			}
 		}
@@ -432,13 +432,13 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 		}
 		else {
 			// Not expected to be here...
-			fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Roots of charge time are imaginary (subtype a_field)!\n");
+			fprintf(stderr, "[%s][PatrollingInput::calcChargeTime] Roots of charge time are imaginary (subtype a_field)!\n", ERROR);
 			exit(0);
 		}
 	}
 	else {
 		// Not expected to be here...
-		fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Drone subtype not recognized!\n");
+		fprintf(stderr, "[%s][Solver::calcChargeTime] Drone subtype not recognized!\n", ERROR);
 		exit(0);
 	}
 
@@ -461,7 +461,7 @@ double PatrollingInput::GetDroneVMax(int drone_j) {
 	}
 	else {
 		// Not expected to be here...
-		fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Drone subtype not recognized!\n");
+		fprintf(stderr, "[%s][PatrollingInput::calcChargeTime] Drone subtype not recognized!\n", ERROR);
 		exit(0);
 	}
 }

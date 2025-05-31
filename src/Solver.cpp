@@ -1147,7 +1147,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 						ugv_x = next_x, ugv_y = next_y;
 					}
 					else {
-						fprintf(stderr, "[WARNING][Solver::moveAroundObstacles] No associated obstacle for waypoint\n");
+						fprintf(stderr, "[%s][Solver::moveUGVtoPoint] No associated obstacle for waypoint\n", WARNING);
 					}
 				}
 
@@ -1162,7 +1162,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 				sol_final->PushUGVAction(j_actual, ugv_nxt);
 			}
 			else {
-				fprintf(stderr,"[ERROR][Solver::RunBaseline] Path planning around obstacles failed\n");
+				fprintf(stderr,"[%s][Solver::RunBaseline] Path planning around obstacles failed\n", ERROR);
 				exit(1);
 			}
 		}
@@ -1356,7 +1356,7 @@ void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& 
 	// Verify that the list is correct
 	if((totalPath.front() != depot_index) || (totalPath.back() != terminal_index)) {
 		// Something went wrong...
-		fprintf(stderr, "[ERROR] : Solver::solverTSP_LKH() : totalPath order is not as expected\n");
+		fprintf(stderr, "[%s][Solver::solverTSP_LKH] totalPath order is not as expected\n", ERROR);
 		for(int n : totalPath) {
 			fprintf(stderr, " %d", n);
 		}
@@ -1466,7 +1466,7 @@ bool Solver::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* 
 										new_UGV_action_list.push_back(tmp);
 									}
 									else {
-										fprintf(stderr, "[WARNING][Solver::moveAroundObstacles] No associated obstacle for waypoint\n");
+										fprintf(stderr, "[%s][Solver::moveAroundObstacles] No associated obstacle for waypoint\n", WARNING);
 									}
 								}
 

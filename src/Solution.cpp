@@ -787,7 +787,7 @@ const DroneAction& Solution::GetLastDroneAction(int j) {
 		m_Aa.at(j).push_back(dummy);
 
 		// Print some nasty message
-		fprintf(stderr, "[ERROR]:Solution::GetLastDroneAction(): Drone action array %d is empty!\n", j);
+		fprintf(stderr, "[%s]:Solution::GetLastDroneAction(): Drone action array %d is empty!\n", ERROR, j);
 	}
 
 	return m_Aa.at(j).back();
@@ -801,7 +801,7 @@ const UGVAction& Solution::GetLastUGVAction(int j) {
 		m_Ag.at(j).push_back(dummy);
 
 		// Print some nasty message
-		fprintf(stderr, "[ERROR]:Solution::GetLastUGVAction(): UGV action array %d is empty!\n", j);
+		fprintf(stderr, "[%s]:Solution::GetLastUGVAction(): UGV action array %d is empty!\n", ERROR, j);
 	}
 
 	return m_Ag.at(j).back();
@@ -1035,7 +1035,7 @@ void Solution::chargeDrone(UAV& drone, double time_on_UGV) {
 		energy_gained = drone.fast_charge_a * t * t + drone.fast_charge_b * t;
 	}
 	else {
-		fprintf(stderr, "[ERROR] : calcChargeAmount() : Drone subtype '%s' not recognized!\n", drone.subtype.c_str());
+		fprintf(stderr, "[%s] : calcChargeAmount() : Drone subtype '%s' not recognized!\n", ERROR, drone.subtype.c_str());
 		exit(1);
 	}
 
@@ -1053,7 +1053,7 @@ bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& ac
     double energyPerSecond = droneA.getJoulesPerSecondFlying(droneA.maxSpeed);
 	const double DRONE_BATTERY_ZERO = -.005 * droneA.battery_state.max_battery_energy;
 
-    if (list_index == 0 || list_index >= action_list.size()) {
+    if (list_index == 0 || list_index >= boost::numeric_cast<int>(action_list.size())) {
         printf("Invalid starting index for drone trip validation\n");
         return false;
     }
@@ -1068,7 +1068,7 @@ bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& ac
     list_index++; // move past the launch
 
     while (true) {
-        if (list_index >= action_list.size()) {
+        if (list_index >= boost::numeric_cast<int>(action_list.size())) {
             printf("Drone %s never landed on UGV\n", droneA.ID.c_str());
             return false;
         }
@@ -1119,13 +1119,6 @@ bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& ac
 	}
     return true;
 }
-
-
-
-
-
-
-
 
 bool Solution::is_valid(PatrollingInput* input, int algorithm){
 	// * Just trust me on this one (sorry if you are looking at this decision)
@@ -1190,7 +1183,7 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 		* 2. Does timing match up, does it start at 0, do times increase as we go, do times increase when the should increase and stay the same when they should
 		* 3. Does the UGV correcrtly not use up all its energy
 		*/
-		for (int ugv_action_index = 1; ugv_action_index < UGVActions.size(); ugv_action_index++) {
+		for (size_t ugv_action_index = 1; ugv_action_index < UGVActions.size(); ugv_action_index++) {
 			UGVAction prev_action = UGVActions[ugv_action_index -1];
 			curr_action = UGVActions[ugv_action_index];
 
@@ -1355,7 +1348,7 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 						std::vector<DroneAction> AL_list; 
 						GetDroneActionList(drone_index, AL_list);
 
-						if (meta.action_list_index >= AL_list.size()) {
+						if (meta.action_list_index >= boost::numeric_cast<int>(AL_list.size())) {
 							printf("Drone %d's action index is out of bounds\n", drone_index);
 							return false;
 						}
