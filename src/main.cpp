@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
 
 	double par = solution.CalculatePar();
 	solution.PrintSolution(); 
-	bool valid = solution.is_valid(&input);
+	bool valid = solution.is_valid(&input, algorithm);
 	if(SANITY_PRINT) {
 		printf("PAR: %f, computation time = %f, valid = %s\n", par, duration_s, valid ? "true" : "false");
 	}
