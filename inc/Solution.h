@@ -214,11 +214,19 @@ public:
 	// Function to swap two actions in a particular UGVAction List
 	void swapUGVActions(int ugv_num, int index1, int index2); 
 	// Checks a solution for anything that would make it invalid, (can't quarentee its valid but can prove its invalid)
-	bool is_valid(PatrollingInput* input);
+	bool is_valid(PatrollingInput* input, int algorithm);
 	// Checks if a single action pair intercepts any two obstacles 
 	bool collisionsPresent(const UGVAction actionA,const UGVAction actionB, const std::vector<Obstacle>& obstacles);
 private:
+	// Checks to see if UGV - Drone corresponding action is at the same time and at the same place
+	bool syncUGVDroneAction(UGVAction& UGV_action, DroneAction& drone_action);
+	// Charges drone A for some time
+	void chargeDrone(UAV& drone, double time_on_UGV);
+	// Starts from a drone being launched, checks to make sure it has enough battery
+	bool validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& action_list, int& list_index);
+	// Finds the moving energy from 2 UGV actions
 	double calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current,UGV& UGV_current_object); 
+	// For a UGV does the time and distance of its move make sense
 	bool validateMovementAndTiming(const UGVAction& prev, const UGVAction& next, const UGV& ugv, double overhead_time);
 	PatrollingInput* m_input;
 
