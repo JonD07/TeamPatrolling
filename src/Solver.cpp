@@ -583,7 +583,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 }
 
 
-double Solver::calcUGVMovingEnergy(UGVAction UGV_last, UGVAction UGV_current, UGV UGV_current_object) {
+double Solver::calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current, UGV& UGV_current_object) {
 	double dist_prev_next = distAtoB(UGV_last.fX, UGV_last.fY, UGV_current.fX, UGV_current.fY);
 	double t_duration = dist_prev_next/UGV_current_object.ugv_v_crg; 
 	double drivingEnergy = UGV_current_object.getJoulesPerSecondDriving(UGV_current_object.maxDriveAndChargeSpeed);
