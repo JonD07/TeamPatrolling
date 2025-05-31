@@ -1051,6 +1051,7 @@ void Solution::chargeDrone(UAV& drone, double time_on_UGV) {
 
 bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& action_list, int& list_index) {
     double energyPerSecond = droneA.getJoulesPerSecondFlying(droneA.maxSpeed);
+	const double DRONE_BATTERY_ZERO = -.005 * droneA.battery_state.max_battery_energy;
 
     if (list_index == 0 || list_index >= action_list.size()) {
         printf("Invalid starting index for drone trip validation\n");
@@ -1059,7 +1060,7 @@ bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& ac
 
     // Step 1: Subtract energy to take off
     droneA.battery_state.current_battery_energy -= droneA.energyToTakeOff;
-    if (droneA.battery_state.current_battery_energy < 0) {
+    if (droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
         printf("Drone %s ran out of battery at takeoff\n", droneA.ID.c_str());
         return false;
     }
@@ -1077,7 +1078,7 @@ bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& ac
         if (curr_action.mActionType == E_DroneActionTypes::e_LandOnUGV) {
 			// Step 3: Subtract energy to land
             droneA.battery_state.current_battery_energy -= droneA.energyToLand;
-            if (droneA.battery_state.current_battery_energy < 0) {
+            if (droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
                 printf("Drone %s ran out of battery during landing\n", droneA.ID.c_str());
 				printf("Drone battery was this much over: %f: \n", droneA.battery_state.current_battery_energy);
 				printf("This drone action caused it: \n");
@@ -1097,7 +1098,7 @@ bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& ac
 
                 // Step 2: Subtract energy for this movement
                 droneA.battery_state.current_battery_energy -= move_energy;
-                if (droneA.battery_state.current_battery_energy < 0) {
+                if (droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
                     printf("Drone %s ran out of battery during movement\n", droneA.ID.c_str());
                     return false;
                 }
@@ -1111,6 +1112,11 @@ bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& ac
 
         list_index++;
     }
+
+	// * If we go negative make sure to reset to prevent cascading issues
+	if (droneA.battery_state.current_battery_energy < 0) {
+		droneA.battery_state.current_battery_energy = 0; 
+	}
     return true;
 }
 
