@@ -199,18 +199,10 @@ int main(int argc, char *argv[]) {
 	long long int duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	double duration_s = (double)duration/1000.0; 
 
-	solution.PrintSolution();
-
-	if(!solution.is_valid(&input)) {
-		printf("solution was foind to be invalid quitting");
-		exit(1);
-	}
-
-	printf("valid\n");
-
 	double par = solution.CalculatePar();
+	bool valid = solution.is_valid(&input);
 	if(SANITY_PRINT) {
-		printf("PAR: %f, computation time = %f\n", par, duration_s);
+		printf("PAR: %f, computation time = %f, valid = %d\n", par, duration_s, valid);
 	}
 
 	// Print results to file
@@ -225,14 +217,11 @@ int main(int argc, char *argv[]) {
 		// File format: n m runmun computed_Z estimated_Z comp-time
 		fprintf(pOutputFile, "%d %d %d %d ", input.GetN(), input.GetMa(), input.GetMg(), runnum);
 		fprintf(pOutputFile, "%f %f", par, duration_s);
-		fprintf(pOutputFile, " %d\n", solution.ValidSolution());
+		fprintf(pOutputFile, " %d\n", valid);
 		fclose(pOutputFile);
 	}
 
 	if(print_actions) {
-		//Solution runtime_solution(&input);
-		//runtime_solution.CreateRuntimeSolution(solution);
-		//runtime_solution.GenerateYAML("output_plan.yaml");
 		if(SANITY_PRINT)
 			solution.PrintSolution();
 
