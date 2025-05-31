@@ -20,7 +20,7 @@
 #include <cstddef>
 
 
-#define DEBUG_OBS DEBUG || 0
+#define DEBUG_OBS DEBUG || 1
 
 
 

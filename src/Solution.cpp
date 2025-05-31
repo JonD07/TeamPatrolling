@@ -1,4 +1,8 @@
 #include "Solution.h"
+#include "PatrollingInput.h"
+#include "Utilities.h"
+#include <cstdio>
+#include <vector>
 
 Solution::Solution(PatrollingInput* input) {
 	// Initialize the size information
@@ -939,6 +943,110 @@ void Solution::swapUGVActions(int ugv_num, int index1, int index2) {
 		}
 	}
 }
+
+
+bool Solution::collisionsPresent(const UGVAction actionA, const UGVAction actionB, const std::vector<Obstacle>& obstacles) {
+	for (Obstacle o : obstacles) {
+		if (Obstacle::checkForObstacle(actionA.fX, actionA.fY, actionB.fX, actionB.fY, o)) {
+			printf("Obstacle found between two actions:\n");
+			o.printInfo();
+			actionA.print();
+			actionB.print();
+		}
+	}
+	return false;
+}
+
+
+
+
+bool Solution::is_valid(PatrollingInput* input){
+	// * Look through the actions of each UGV	
+	for (int ugv_index = 0; ugv_index < input->GetMg(); ugv_index++){
+		std::vector<UGVAction> UGVActions; 
+		GetUGVActionList(ugv_index, UGVActions);
+		//double prev_ugv_time = 0;
+		//double ugv_starting_energy = input->GetUGVBatCap(ugv_index); 
+		UGVAction curr_action = UGVActions[0];
+		
+
+
+		// * Going to handle the first action hard code style
+		// * Check to make sure there are no obstacles in this point 
+		for (const auto &obstacle : input->GetObstacles()) {
+			if (obstacle.containsPoint(curr_action.fX, curr_action.fY)) {
+				printf("This action: \n");
+				curr_action.print();
+				printf("Was found inside this obstacle: \n");
+				obstacle.printInfo();
+				return false;
+			}
+		}
+
+		// * Lastly, check that its a at depot, and time is 0
+		if (curr_action.mActionType == E_UGVActionTypes::e_AtDepot && floatEquality(curr_action.fCompletionTime, 0)) {
+			continue;
+		}
+		else {
+			printf("First action is malformed");
+			curr_action.print();
+			return false; 
+		}
+
+		/* 
+		* 3 things that we are focusing on checking for UGVs
+		* 1. are action inside obstacles and do movement not cross through obstacles
+		* 2. Does timing match up, does it start at 0, do times increase as we go, do times increase when the should increase and stay the same when they should
+		* 3. Does the UGV correcrtly not use up all its energy
+		*/
+		for (int ugv_action_index = 1; ugv_action_index < UGVActions.size(); ugv_action_index++) {
+			UGVAction prev_action = UGVActions[ugv_action_index -1];
+			curr_action = UGVActions[ugv_action_index];
+
+
+			// * Do obstacle checking for both containment and interseciton 
+			// TODO this could be expensive 
+			if (collisionsPresent(prev_action, curr_action, input->GetObstacles())) {
+				return false; 
+			}
+
+
+
+			// * Now Logic is specific to action type
+			switch (curr_action.mActionType) {
+				case E_UGVActionTypes::e_MoveToWaypoint:
+					// * Check to make sure this move wasn't through any obstacles
+					break;
+
+				case E_UGVActionTypes::e_MoveToDepot:
+					break;
+
+				case E_UGVActionTypes::e_LaunchDrone:
+					break;
+
+				case E_UGVActionTypes::e_ReceiveDrone:
+					break;
+
+				case E_UGVActionTypes::e_MoveToNode:			
+					break;
+
+				case E_UGVActionTypes::e_AtDepot:
+					break;
+
+				case E_UGVActionTypes::e_KernelEnd:
+					break;
+
+				default:
+					break;
+			}
+
+		}
+	}
+
+	return true;
+}
+
+
 
 
 
