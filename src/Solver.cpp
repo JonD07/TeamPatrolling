@@ -370,12 +370,12 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 					}
 
 					double ugv_arrival_time = 0.0;
-					// Move to the depot
+					// Move to the centroid
 					{
 						double t_duration = moveUGVtoPoint(input, sol_final, j_actual, depots.at(n).x, depots.at(n).y, n, E_UGVActionTypes::e_MoveToWaypoint, obstacle_avoidance);
 
 						// Determine how long it took to move to the next depot
-						ugv_arrival_time = sol_final->GetLastUGVAction(j_actual).fCompletionTime+t_duration;
+						ugv_arrival_time = sol_final->GetLastUGVAction(j_actual).fCompletionTime;
 
 						// Calculate how much energy we used
 						UGV ugv = input->getUGV(j_actual);
@@ -518,8 +518,8 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 				// Return UGV to base
 				{
 					double t_duration = moveUGVtoPoint(input, sol_final, j_actual, depots.back().x, depots.back().y, -1, E_UGVActionTypes::e_MoveToDepot, obstacle_avoidance);
-					// Determine time required to move to base
-					double arrive_time = sol_final->GetLastUGVAction(j_actual).fCompletionTime + t_duration;
+					// The last action should have been "return to base"
+					double arrive_time = sol_final->GetLastUGVAction(j_actual).fCompletionTime;
 
 					// Calculate how much energy we used
 					UGV ugv = input->getUGV(j_actual);
@@ -529,6 +529,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 					// Swap UGV battery
 					double team_tour_complete_time = arrive_time+ugv.batterySwapTime;
+					printf("**** Last move: %0.1f, Arrival time: %0.1f, Battery Swap: %0.1f, Kernal end: %0.1f****", t_duration, arrive_time, ugv.batterySwapTime, team_tour_complete_time);
 					UGVAction ugvChargeAction(E_UGVActionTypes::e_AtDepot, depots.back().x, depots.back().y, team_tour_complete_time);
 					sol_final->PushUGVAction(j_actual, ugvChargeAction);
 

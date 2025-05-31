@@ -1392,7 +1392,3 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 }
 
 
-
-
-
-
