@@ -48,7 +48,7 @@ struct CompareArrival {
 	}
 };
 
-struct TSPVertex {
+struct GeneralVertex {
 	int nID;
 	double x;
 	double y;
@@ -72,7 +72,7 @@ protected:
 	 * variable can be set to force the solver to solver a fixed-HPP (forcing the first and last
 	 * vertices in lst to be connected in the TSP solution).
 	 */
-	void solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& result, double multiplier);
+	void solverTSP_LKH(std::vector<GeneralVertex>& lst, std::vector<GeneralVertex>& result, double multiplier);
 	// * Right under optimizeWithObstacles; this is where the actual obstacle avoidance logic is held
 	bool moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
 	// * Calls moveAroundobstacles and the optimizer in a loop until there are no more conflicts; highest level
@@ -85,8 +85,12 @@ protected:
 	bool pointInObstacle(double x, double y, const std::vector<Obstacle>& obstacles);
 	// Iteratively moves action out of obstacles by pushing away from center of all obstacles that the action falls into
 	bool findClosestOutsidePointIterative(double* x, double* y, const std::vector<Obstacle>& obstacles);
-	// Determine which obstacle's boarder this location is closest to (returns -1 if the locations isn't reasonably close to anything)
-	int determineAssociatedObstacle(double p_x, double p_y, const std::vector<Obstacle>& obstacles);
+	/*
+	 * Determine which obstacle's boarder location B is closest to. If no obstacle is within some reasonable distance,
+	 * attempt to remove the point and verify that moving from A to C does not lead to a collision. Returns -1 if B
+	 * isn't reasonably close to anything and removing it does not lead to a collision.
+	 */
+	int determineAssociatedObstacle(GeneralVertex A, GeneralVertex B, GeneralVertex C, const std::vector<Obstacle>& obstacles);
 	// * Pushing a aciton outside of a obstacle and changes the action lists after the move based on the action type (above fixOverlappingActionOBS)
 	void pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
 	// * This is the function that does the moving of the action (low level) this performs that actual geometry; This is basically a helper function

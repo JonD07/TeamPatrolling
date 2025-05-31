@@ -529,7 +529,6 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 					// Swap UGV battery
 					double team_tour_complete_time = arrive_time+ugv.batterySwapTime;
-					printf("**** Last move: %0.1f, Arrival time: %0.1f, Battery Swap: %0.1f, Kernal end: %0.1f****", t_duration, arrive_time, ugv.batterySwapTime, team_tour_complete_time);
 					UGVAction ugvChargeAction(E_UGVActionTypes::e_AtDepot, depots.back().x, depots.back().y, team_tour_complete_time);
 					sol_final->PushUGVAction(j_actual, ugvChargeAction);
 
@@ -1132,9 +1131,10 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 				// * Add all middle items in the path to be MoveToPosition Actions
 				for(int i = 1; i < boost::numeric_cast<int>(path.size()) - 1; i++) {
 					// Determine which obstacle we are maneuvering around
-					int obstacle_id = determineAssociatedObstacle(path[i].first, path[i].second, input->GetObstacles());
+					int obstacle_id = determineAssociatedObstacle({-1, path[i-1].first, path[i-1].second}, {-1, path[i].first, path[i].second}, {-1, path[i+1].first, path[i+1].second}, input->GetObstacles());
 					// Is this point associated with an obstacle?
-					if(obstacle_id > -1) {
+					if(obstacle_id > -1)
+					{
 						// Get next stop
 						double next_x = path[i].first, next_y = path[i].second;
 						// Dist/time to move to next stop
@@ -1194,7 +1194,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
  * variable can be set to force the solver to solver a fixed-HPP (forcing the first and last
  * vertices in lst to be connected in the TSP solution).
  */
-void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& result, double multiplier) {
+void Solver::solverTSP_LKH(std::vector<GeneralVertex>& lst, std::vector<GeneralVertex>& result, double multiplier) {
 	if(DEBUG_SOLVER)
 		printf("Creating LKH Data Files\n");
 
@@ -1247,8 +1247,8 @@ void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& 
 	if(DEBUG_SOLVER)
 		printf("  Adding NxN weights matrix\n");
 	fprintf(pDataFile, "EDGE_WEIGHT_SECTION\n");
-	for(TSPVertex v : lst) {
-		for(TSPVertex u : lst) {
+	for(GeneralVertex v : lst) {
+		for(GeneralVertex u : lst) {
 			if((v.nID == depot_id && u.nID == terminal_id) || (v.nID == terminal_id && u.nID == depot_id)) {
 				fprintf(pDataFile, "%f\t", 0.0);
 			}
@@ -1382,7 +1382,7 @@ void Solver::solverTSP_LKH(std::vector<TSPVertex>& lst, std::vector<TSPVertex>& 
 	// Sanity print
 	if(DEBUG_SOLVER) {
 		printf("Returning result:\n");
-		for(TSPVertex v : result) {
+		for(GeneralVertex v : result) {
 			printf(" %d", v.nID);
 		}
 		printf("\n\n");
@@ -1460,7 +1460,7 @@ bool Solver::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* 
 								// * Add all middle items in the path to be MoveToPosition Actions
 								for(int i = 1; i < boost::numeric_cast<int>(path.size()) - 1; i++) {
 									// Determine which obstacle we are maneuvering around
-									int obstacle_id = determineAssociatedObstacle(path[i].first, path[i].second, input_obstacles);
+									int obstacle_id = determineAssociatedObstacle({-1, path[i-1].first, path[i-1].second}, {-1, path[i].first, path[i].second}, {-1, path[i+1].first, path[i+1].second}, input_obstacles);
 									if(obstacle_id > -1) {
 										// Create a new action here
 										UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, action1.fCompletionTime+(i*0.1), obstacle_id);
@@ -1603,7 +1603,7 @@ bool Solver::updateSubtours(int drone_id, Solution* sol_final) {
 	std::vector<DroneAction> sub_tour_action_list;
 
 	// Create a sub-tour vector
-	std::vector<TSPVertex> lst;
+	std::vector<GeneralVertex> lst;
 	double old_subtour_dist = 0.0;
 	double prev_x=0.0, prev_y=0.0;
 	DroneAction sub_tour_start(E_DroneActionTypes::e_LaunchFromUGV, prev_x, prev_y, 0.0);
@@ -1625,7 +1625,7 @@ bool Solver::updateSubtours(int drone_id, Solution* sol_final) {
 			old_subtour_dist = 0.0;
 
 			// Create a TSP vertex
-			TSPVertex depot;
+			GeneralVertex depot;
 			depot.nID = -1;
 			depot.x = a.fX;
 			depot.y = a.fY;
@@ -1644,7 +1644,7 @@ bool Solver::updateSubtours(int drone_id, Solution* sol_final) {
 		// Did we move to a node?
 		else if(a.mActionType == E_DroneActionTypes::e_MoveToNode) {
 			// Add node to current sub-tour
-			TSPVertex node;
+			GeneralVertex node;
 			node.nID = a.mDetails;
 			node.x = a.fX;
 			node.y = a.fY;
@@ -1659,7 +1659,7 @@ bool Solver::updateSubtours(int drone_id, Solution* sol_final) {
 		// Is this the end of the tour?
 		else if(a.mActionType == E_DroneActionTypes::e_MoveToUGV) {
 			// Add terminal to current sub-tour
-			TSPVertex terminal;
+			GeneralVertex terminal;
 			terminal.nID = -2;
 			terminal.x = a.fX;
 			terminal.y = a.fY;
@@ -1669,13 +1669,13 @@ bool Solver::updateSubtours(int drone_id, Solution* sol_final) {
 			old_subtour_dist += distAtoB(prev_x, prev_y, a.fX, a.fY);
 
 			// Run TSP solver....
-			std::vector<TSPVertex> result;
+			std::vector<GeneralVertex> result;
 			solverTSP_LKH(lst, result, 1000);
 
 			// Determine the distance of this new tour
 			double new_subtour_dist = 0;
-			std::vector<TSPVertex>::iterator nxt = result.begin()++;
-			std::vector<TSPVertex>::iterator prev = result.begin();
+			std::vector<GeneralVertex>::iterator nxt = result.begin()++;
+			std::vector<GeneralVertex>::iterator prev = result.begin();
 			while(nxt != result.end()) {
 				// Get distance to next stop
 				new_subtour_dist += distAtoB(prev->x, prev->y, nxt->x, nxt->y);
@@ -1693,7 +1693,7 @@ bool Solver::updateSubtours(int drone_id, Solution* sol_final) {
 				// Found better tour
 				opt_flag = true;
 				// Add in new sub-tour
-				for(TSPVertex v : result) {
+				for(GeneralVertex v : result) {
 					if(v.nID >= 0) {
 						// Push action for this stop onto the drone
 						DroneAction nodeStop(E_DroneActionTypes::e_MoveToNode, v.x, v.y, 0.0, v.nID);
@@ -1991,21 +1991,40 @@ bool Solver::findClosestOutsidePointIterative(double* x, double* y, const std::v
 	return !pointInObstacle(*x, *y, obstacles);
 }
 
-// Determine which obstacle's boarder this location is closest to (returns -1 if the locations isn't reasonably close to anything)
-int Solver::determineAssociatedObstacle(double p_x, double p_y, const std::vector<Obstacle>& obstacles) {
+/*
+ * Determine which obstacle's boarder location B is closest to. If no obstacle is within some reasonable distance,
+ * attempt to remove the point and verify that moving from A to C does not lead to a collision. Returns -1 if B
+ * isn't reasonably close to anything and removing it does not lead to a collision.
+ */
+int Solver::determineAssociatedObstacle(GeneralVertex A, GeneralVertex B, GeneralVertex C, const std::vector<Obstacle>& obstacles) {
+	/// Fist attempt to find closes obstacle
 	// Assume no obstacle and 50 meters distance to the closest
 	int closest_boarder = -1;
 	double closest_dist = 50.0;
 	// Cycle through all obstacles
 	for(const Obstacle& obs : obstacles) {
 		// Determine distance from p to center of the circle
-		double dist = std::sqrt((p_x - obs.location.x)*(p_x - obs.location.x) + (p_y - obs.location.y)*(p_y - obs.location.y));
+		double dist = std::sqrt((B.x - obs.location.x)*(B.x - obs.location.x) + (B.y - obs.location.y)*(B.y - obs.location.y));
 		// How close is p to the boarder?
 		double boarder_dist = abs(dist - obs.radius);
 		if(boarder_dist < closest_dist) {
 			// Found a new closest obstacle
 			closest_boarder = obs.get_id();
 			closest_dist = boarder_dist;
+		}
+	}
+
+	/// If the above didn't work...
+	if(closest_boarder == -1) {
+		// Try removing B
+		for(const Obstacle& obstacle : obstacles) {
+			// Would we hit this obstacle..?
+			if(Obstacle::checkForObstacle(A.x, A.y, C.x, C.y, obstacle)) {
+				// Yes, associate the waypoint with this obstacle
+				closest_boarder = obstacle.get_id();
+				// Stop checking obstacles
+				break;
+			}
 		}
 	}
 
