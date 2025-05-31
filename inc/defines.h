@@ -57,7 +57,14 @@ enum {
 	e_Algo_DEPLETED = 4, 
 	e_Algo_LLS = 5, 
 	e_Algo_OBS = 6, 
-	e_Algo_LLS_OBS = 7,
-	e_Algo_BASELINE_OBS = 8,
+	// Evaluated algorithms (all incorporate obstacle avoidance)
+	e_Algo_BASELINE_OBS = 10,	// Baseline algorithm
+	e_Algo_LO = 11,				// Launch-Optimizer
+	e_Algo_LOS = 12,			// Launch-Optimizer with Swapping
+	e_Algo_LOR = 13,			// Launch-Optimizer with Replanning
+	e_Algo_LORS = 14,			// Launch-Optimizer with Replanning + Swapping
+	e_Algo_LOIR = 15,			// Launch-Optimizer with Iterative Replanning
+	e_Algo_LOIS = 16,			// Launch-Optimizer with Iterative Swapping (just LOS...)
+	e_Algo_LOISR = 17,			// Launch-Optimizer with Iterative Swapping + Replanning
 };
 

@@ -78,28 +78,29 @@ set(sources src/main.cpp)
 
 add_executable(${CMAKE_PROJECT_NAME}
 	${sources}
+	src/ActionSwapper.cpp
+	src/ClusteringAlgorithm.cpp 
 	src/Input.cpp
 	src/KMeansSolver.cpp
 	src/LaunchOptimizer.cpp
+	src/LaunchOptimizerOBS.cpp
+	src/LKH_TSP_Solver.cpp 
+	src/OMPL_RRTSTAR.cpp
 	src/PatrollingInput.cpp
 	src/Roots.cpp
 	src/Solution.cpp
 	src/Solver.cpp 
 	src/Solver_Baseline.cpp
 	src/Solver_BaselineOBS.cpp
+	src/Solver_Depleted.cpp
 	src/Solver_ILO.cpp
+	src/Solver_LLS.cpp
+	src/Solver_LOIRS.cpp
+	src/Solver_LORS.cpp
+	src/Solver_OBS.cpp 
 	src/Solver_OptLaunch.cpp
 	src/Utilities.cpp
 	src/VRPSolver.cpp
-	src/ClusteringAlgorithm.cpp 
-	src/LKH_TSP_Solver.cpp 
-	src/Solver_Depleted.cpp
-	src/Solver_LLS.cpp
-	src/Solver_LLS_OBS.cpp
-	src/Solver_OBS.cpp 
-	src/gurobi_test.cpp
-	src/OMPL_RRTSTAR.cpp
-	src/LaunchOptimizerOBS.cpp
 )
 
 if(CXX)

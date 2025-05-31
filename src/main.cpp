@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream> 
 
+#include "../inc/Solver_LOIRS.h"
 #include "defines.h"
 #include "PatrollingInput.h"
 #include "Solution.h"
@@ -14,8 +15,8 @@
 #include "Solver_Depleted.h"
 #include "Solver_LLS.h"
 #include "Solver_OBS.h"
-#include "Solver_LLS_OBS.h"
 #include "Solver_BaselineOBS.h"
+#include "Solver_LORS.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -139,13 +140,45 @@ int main(int argc, char *argv[]) {
 	}
 	break; 
 
-	case e_Algo_LLS_OBS: {			// algo: 7
-		solver = new Solver_LLS_OBS();
+	// Evaluated algorithms (all incorporate obstacle avoidance)
+
+	case e_Algo_BASELINE_OBS: {	// alg. 10 Baseline algorithm
+		solver = new Solver_Baseline_OBS();
 	}
 	break;
 
-	case e_Algo_BASELINE_OBS: {		// algo: 8
-		solver = new Solver_Baseline_OBS();
+	case e_Algo_LO: {			// alg. 11 Launch-Optimizer
+		solver = new Solver_LORS(false, false);
+	}
+	break;
+
+	case e_Algo_LOS: {			// alg. 12 Launch-Optimizer with Swapping
+		solver = new Solver_LORS(true, false);
+	}
+	break;
+
+	case e_Algo_LOR: {			// alg. 13 Launch-Optimizer with Replanning
+		solver = new Solver_LORS(false, true);
+	}
+	break;
+
+	case e_Algo_LORS: {			// alg. 14 Launch-Optimizer with Replanning + Swapping
+		solver = new Solver_LORS(true, true);
+	}
+	break;
+
+	case e_Algo_LOIR: {		// alg. 15 Launch-Optimizer with Iterative Replanning
+		solver = new Solver_LOIRS(false, true);
+	}
+	break;
+
+	case e_Algo_LOIS: {		// alg. 16 Launch-Optimizer with Iterative Swapping (just LOS...)
+		solver = new Solver_LOIRS(true, false);
+	}
+	break;
+
+	case e_Algo_LOISR: {		// alg. 17 Launch-Optimizer with Iterative Swapping + Replanning
+		solver = new Solver_LOIRS(true, true);
 	}
 	break;
 
