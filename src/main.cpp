@@ -200,9 +200,10 @@ int main(int argc, char *argv[]) {
 	double duration_s = (double)duration/1000.0; 
 
 	double par = solution.CalculatePar();
+	solution.PrintSolution(); 
 	bool valid = solution.is_valid(&input);
 	if(SANITY_PRINT) {
-		printf("PAR: %f, computation time = %f, valid = %d\n", par, duration_s, valid);
+		printf("PAR: %f, computation time = %f, valid = %s\n", par, duration_s, valid ? "true" : "false");
 	}
 
 	// Print results to file

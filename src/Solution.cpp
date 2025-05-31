@@ -957,6 +957,35 @@ bool Solution::collisionsPresent(const UGVAction actionA, const UGVAction action
 	return false;
 }
 
+double Solution::calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current,UGV& UGV_current_object) {
+	double dist_prev_next = distAtoB(UGV_last.fX, UGV_last.fY, UGV_current.fX, UGV_current.fY);
+	double t_duration = dist_prev_next/UGV_current_object.ugv_v_crg; 
+	double drivingEnergy = UGV_current_object.getJoulesPerSecondDriving(UGV_current_object.maxDriveAndChargeSpeed);
+	double move_energy = drivingEnergy*t_duration; 
+	if (DEBUG_SOL) {
+		printf("The Energy calcuated from the move: [%f]\n", move_energy);
+	}
+	return move_energy; 
+}
+
+bool Solution::validateMovementAndTiming(const UGVAction& prev, const UGVAction& next, const UGV& ugv, double overhead_time = 0.0) {
+    double dist = distAtoB(prev.fX, prev.fY, next.fX, next.fY);
+    double expected_time = (dist / ugv.ugv_v_crg) + overhead_time;
+    double actual_time = next.fCompletionTime - prev.fCompletionTime;
+
+    // Return true if the actual time is enough to cover the distance including the overhead
+    bool result = floatEquality(actual_time, expected_time);
+	if (!result) {
+		printf("Movement/Timing was invalid between these actions: \n");
+		prev.print();
+		next.print();
+		printf("Actual time: %f vs Expected time: %f\n", actual_time, expected_time);
+	}
+	return result; 
+}
+
+
+
 
 
 
@@ -965,10 +994,14 @@ bool Solution::is_valid(PatrollingInput* input){
 	for (int ugv_index = 0; ugv_index < input->GetMg(); ugv_index++){
 		std::vector<UGVAction> UGVActions; 
 		GetUGVActionList(ugv_index, UGVActions);
-		//double prev_ugv_time = 0;
-		//double ugv_starting_energy = input->GetUGVBatCap(ugv_index); 
+		double ugv_energy = input->GetUGVBatCap(ugv_index); 
 		UGVAction curr_action = UGVActions[0];
 		
+		// * Variables to keep track of the corresponding Drones
+		//int ugv_drone_A_index = 1;
+		//int ugv_drone_B_index = 1;
+		int drone_id; 
+		UAV drone_OBJ; 
 
 
 		// * Going to handle the first action hard code style
@@ -1010,34 +1043,82 @@ bool Solution::is_valid(PatrollingInput* input){
 				return false; 
 			}
 
+			UGV ugv_obj = input->getUGV(ugv_index);
+		
 
 
 			// * Now Logic is specific to action type
 			switch (curr_action.mActionType) {
 				case E_UGVActionTypes::e_MoveToWaypoint:
-					// * Check to make sure this move wasn't through any obstacles
+				case E_UGVActionTypes::e_MoveToPosition:
+				case E_UGVActionTypes::e_MoveToDepot:
+					// * Calc energy of the move and remove from energy we have
+					ugv_energy -= calcUGVMovingEnergy(prev_action, curr_action, ugv_obj);
+					// * Validate distance, moving, and timing
+					if (!validateMovementAndTiming(prev_action, curr_action, ugv_obj)) {
+						return false; 
+					}
 					break;
 
-				case E_UGVActionTypes::e_MoveToDepot:
+
 					break;
 
 				case E_UGVActionTypes::e_LaunchDrone:
-					break;
-
+					drone_id = curr_action.mDetails; 
+					drone_OBJ = input->getUAV(drone_id);
+					if (!validateMovementAndTiming(prev_action, curr_action, ugv_obj, drone_OBJ.timeNeededToLaunch)) {
+						return false; 
+					}
+					
+					// TODO We will perform some sort of drone check here times of launches between drone and UGV should match
+					break; 
 				case E_UGVActionTypes::e_ReceiveDrone:
-					break;
-
-				case E_UGVActionTypes::e_MoveToNode:			
+					drone_id = curr_action.mDetails; 
+					drone_OBJ = input->getUAV(drone_id);
+					if (!validateMovementAndTiming(prev_action, curr_action, ugv_obj, drone_OBJ.timeNeededToLaunch)) {
+						return false; 
+					}
+					
+					// TODO We will perform some sort of drone check here
 					break;
 
 				case E_UGVActionTypes::e_AtDepot:
+					// * Should be no movement and just the battery swap time 
+					if (!validateMovementAndTiming(prev_action, curr_action, ugv_obj, ugv_obj.batterySwapTime)) {
+							return false; 
+					}
+
+					// * Make sure its not out of energy
+					if (floatEquality(ugv_energy, 0.0)) {
+						printf("This action caused the UGV to run out energy: \n");
+						curr_action.print();
+						printf("The UGV energy level: \n");
+						std::cout << ugv_energy << std::endl; 
+						return false; 
+					}
+
+					// * Reset the energy
+					ugv_energy = input->GetUGVBatCap(ugv_index);
 					break;
 
 				case E_UGVActionTypes::e_KernelEnd:
+					// * Should be no movement and no time changing
+					if (!validateMovementAndTiming(prev_action, curr_action, ugv_obj, ugv_obj.batterySwapTime)) {
+						return false; 
+					}
 					break;
 
 				default:
 					break;
+			}
+
+			// * Final energy check 
+			if (floatEquality(ugv_energy, 0.0)) {
+				printf("This action caused the UGV to run out energy: \n");
+				curr_action.print();
+				printf("The UGV energy level: \n");
+				std::cout << ugv_energy << std::endl; 
+				return false; 
 			}
 
 		}

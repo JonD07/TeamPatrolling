@@ -218,6 +218,8 @@ public:
 	// Checks if a single action pair intercepts any two obstacles 
 	bool collisionsPresent(const UGVAction actionA,const UGVAction actionB, const std::vector<Obstacle>& obstacles);
 private:
+	double calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current,UGV& UGV_current_object); 
+	bool validateMovementAndTiming(const UGVAction& prev, const UGVAction& next, const UGV& ugv, double overhead_time);
 	PatrollingInput* m_input;
 
 	// Lists of actions for each robot
