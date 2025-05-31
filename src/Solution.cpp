@@ -1001,50 +1001,81 @@ bool Solution::syncUGVDroneAction(UGVAction& UGV_action, DroneAction& drone_acti
 	return condition; 
 }
 
-void Solution::chargeDrone(UAV& drone, double time_on_UGV) {
-	double t_available = time_on_UGV - drone.charge_startup_t;
-
-	if (t_available <= 0.0) {
-		// Not enough time to begin charging
-		return;
-	}
-
-	double energy_gained = 0.0;
-
-	if (drone.subtype == "standard") {
-		if (t_available <= (drone.t_max - drone.t_star)) {
-			// Fast charge phase only
-			double t = t_available;
-			energy_gained = drone.fast_charge_a * t * t + drone.fast_charge_b * t;
-		} else {
-			// Fast charge + slow charge
-			double fast_time = drone.t_max - drone.t_star;
-			double fast_energy = drone.fast_charge_a * fast_time * fast_time + drone.fast_charge_b * fast_time;
-
-			double t_slow = t_available - fast_time;
-			double t_final = drone.t_star - t_slow;
-
-			double slow_energy = drone.e_star -
-			                     (drone.p_star / ALPHA) * (exp(ALPHA * (drone.t_star - t_final)) - 1);
-
-			energy_gained = fast_energy + (drone.e_star - slow_energy);
-		}
-	}
-	else if (drone.subtype == "a_field") {
-		double t = t_available;
-		energy_gained = drone.fast_charge_a * t * t + drone.fast_charge_b * t;
-	}
-	else {
-		fprintf(stderr, "[ERROR] : calcChargeAmount() : Drone subtype '%s' not recognized!\n", drone.subtype.c_str());
-		exit(1);
-	}
-
-	// Safely add energy, but cap at max capacity
-	drone.battery_state.current_battery_energy = std::min(
-		drone.battery_state.current_battery_energy + energy_gained,
-		drone.battery_state.max_battery_energy
-	);
+double Solution::calcEnergyFromTime(UAV drone, double t) {
+    
+    if (drone.subtype == "standard") {
+        if (t <= 0.0) {
+            return 0.0;
+        } else if (t < drone.t_star) {
+            // Fast charging regime: E(t) = a*t² + b*t
+            return drone.fast_charge_a * t * t + drone.fast_charge_b * t;
+        } else if (t <= drone.t_max) {
+            // Slow charging regime: E(t) = E* + (P*/α) * (1 - e^(-α*(t-t*)))
+            double time_in_slow = t - drone.t_star;
+            return drone.e_star + (drone.p_star / ALPHA) * (1.0 - exp(-ALPHA * time_in_slow));
+        } else {
+            // Past maximum time, return maximum energy
+            return drone.battery_state.max_battery_energy;
+        }
+    } else if (drone.subtype == "a_field") {
+        // A-field variant uses only fast charging
+        if (t <= 0.0) {
+            return 0.0;
+        } else {
+            return drone.fast_charge_a * t * t + drone.fast_charge_b * t;
+        }
+    } else {
+        fprintf(stderr, "[ERROR] : calcEnergyFromTime() : Drone subtype '%s' not recognized!\n", 
+                drone.subtype.c_str());
+        exit(1);
+    }
 }
+
+double Solution::calcChargedEnergy(UAV drone, int drone_id, double charge_duration, PatrollingInput* input) {
+    double initial_energy = drone.battery_state.current_battery_energy; 
+
+	if (charge_duration <= 0.0) {
+        return initial_energy;
+    }
+    
+    // Step 1: Find current time position on charge curve - t(E_0)
+	double current_time = input->calcChargeTime(drone_id, initial_energy);
+    
+    // Step 2: Add charging duration - t(E_0) + Δt
+    double final_time = current_time + charge_duration;
+    
+    // Step 3: Cap at maximum charge time
+    if (drone.subtype == "standard") {
+        final_time = std::min(final_time, drone.t_max);
+    } else if (drone.subtype == "a_field") {
+        // For a_field, cap at reasonable time or when we hit max energy
+        final_time = std::min(final_time, 1000.0); // Reasonable cap
+    }
+    
+    // Step 4: Convert final time back to energy - E(t(E_0) + Δt)
+    double final_energy = calcEnergyFromTime(drone, final_time);
+    
+    // Step 5: Cap at maximum battery capacity
+    final_energy = std::min(final_energy, drone.battery_state.max_battery_energy);
+    
+    return final_energy;
+}
+
+
+void Solution::chargeDrone(UAV& drone, int drone_ID, double time_on_UGV, PatrollingInput* input) {
+    double t_available = time_on_UGV - drone.charge_startup_t;
+    if (t_available <= 0.0) {
+        // Not enough time to begin charging
+        return;
+    }
+    
+    // Use Equation 10: E_charged = E(t(E_0) + Δt)
+    double charged_energy = calcChargedEnergy(drone, drone_ID, t_available, input);
+    
+    // Apply the charged energy
+    drone.battery_state.current_battery_energy = charged_energy;
+}
+
 
 
 
@@ -1265,7 +1296,7 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 
 					// * Charge the drone if its been sitting on the UGV (charging) for more than 0 seconds 
 					double charge_time = curr_action.fCompletionTime - meta.time_landed;
-					chargeDrone(drone_OBJ, charge_time);
+					chargeDrone(drone_OBJ, drone_ID, charge_time, input);
 					
 
 					// * Validate the drone trip

@@ -221,7 +221,11 @@ private:
 	// Checks to see if UGV - Drone corresponding action is at the same time and at the same place
 	bool syncUGVDroneAction(UGVAction& UGV_action, DroneAction& drone_action);
 	// Charges drone A for some time
-	void chargeDrone(UAV& drone, double time_on_UGV);
+	void chargeDrone(UAV& drone, int drone_ID, double time_on_UGV, PatrollingInput* input);
+	// Equation 8 
+	double calcEnergyFromTime(UAV drone, double t);
+	// Equation 10
+	double calcChargedEnergy(UAV drone, int drone_id, double charge_duration, PatrollingInput* input);
 	// Starts from a drone being launched, checks to make sure it has enough battery
 	bool validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& action_list, int& list_index);
 	// Finds the moving energy from 2 UGV actions
