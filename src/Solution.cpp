@@ -1131,8 +1131,8 @@ bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& ac
 
                 // Step 2: Subtract energy for this movement
                 droneA.battery_state.current_battery_energy -= move_energy;
-                if (droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
-                    printf("Drone %s ran out of battery during movement\n", droneA.ID.c_str());
+                if(droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
+                    printf("Drone %s ran out of battery during movement %d (has %0.1f J)\n", droneA.ID.c_str(), (int)curr_action.mActionType, droneA.battery_state.current_battery_energy);
                     return false;
                 }
                 break;

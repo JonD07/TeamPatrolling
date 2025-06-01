@@ -371,8 +371,11 @@ double PatrollingInput::GetDroneMaxDist(int j) {
 	UAV uav = mRa.at(j);
 	double efficiency_v_opt = 396.743 - 1.695*uav.maxSpeed;
 
+	// How much energy does this drone have, minus energy to launch and land again?
+	double usable_jules = GetDroneBatCap(j) - (uav.energyToTakeOff + uav.energyToLand);
+
 	// Determine max operation time (bat-capacity / efficiency) (based on full battery)
-	double max_t = GetDroneBatCap(j)/efficiency_v_opt;
+	double max_t = usable_jules/efficiency_v_opt;
 	// Max-dist = v_opt * max-t
 	return uav.maxSpeed * max_t;
 }
