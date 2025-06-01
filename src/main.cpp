@@ -190,7 +190,9 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	double par = INF;
 	bool valid = true;
+
 	try {
 		// Run the solver
 		solver->Solve(&input, &solution);
@@ -206,15 +208,16 @@ int main(int argc, char *argv[]) {
 	long long int duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	double duration_s = (double)duration/1000.0; 
 
-	// Calculate par
-	double par = solution.CalculatePar();
-
 	// If we haven't already flagged this solution...
 	if(valid)
 		valid = solution.is_valid(&input, algorithm);
 
 	if(!valid) {
 		printf("[%s][main] Solution was found to be invalid\n", ERROR);
+	}
+	else {
+		// Actually calculate PAR
+		par = solution.CalculatePar();
 	}
 
 	if(SANITY_PRINT) {
