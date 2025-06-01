@@ -78,7 +78,7 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 	if(!read_success) {
 		// Input file not formatted correctly, hard fail!
 		fprintf(stderr, "[MASPInput::MASPInput] : Input file format off\n");
-		exit(1);
+		throw std::runtime_error("Input file format off\n");
 	}
 	else if(SANITY_PRINT) {
 		printf("Successfully read input!\n");

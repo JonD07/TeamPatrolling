@@ -30,7 +30,7 @@
 #define DEBUG_LAUNCHOPTOBS		DEBUG || 0
 #define CONST_RELAXATION(X)		X,X+0.1
 
-#define CONVEX_SQUARE			1
+#define CONVEX_SQUARE			0
 
 
 

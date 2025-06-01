@@ -115,7 +115,6 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 
     // Are we bounding the point into a square tangent to the obstacle..?
 	if(CONVEX_SQUARE) {
-
 		// We want to figure out how large we step out to create out points 
 		// CS_P_#{x,y} -> Convex Square Point 
 		double CS_P_1x, CS_P_2x, CS_P_3x, CS_P_4x, CS_P_1y, CS_P_2y, CS_P_3y, CS_P_4y;
@@ -151,9 +150,8 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 			while (true) {
 				printf("Step size: %f\n", step_size);
 				if (step_size < 1) {
-					printf("Constraint cannot be place\n");
-					exit(1);
-
+					printf("Constraint cannot be placed\n");
+					throw std::runtime_error("Constraint cannot be placed.\n");
 				}
 
 				step_size = step_size / 2;  
@@ -210,10 +208,11 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 		}
 
 
-		if (checkObstaclesInSquare(obs_to_ignore, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
-			printf("Bad");
-			exit(1);
+		if(checkObstaclesInSquare(obs_to_ignore, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
+			fprintf(stderr,"[%s][LaunchOptimizerOBS::addCorridorConstraints] Bad boundary!\n", ERROR);
+			throw std::runtime_error("Bad boundary\n");
 		}
+
     	// Line connecting points P1 and P2
     	if(a_x < o_x) {
     		// y >= P1<-->P2
@@ -1113,14 +1112,12 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			// No!! break!
 			else {
 				fprintf(stderr,"[%s][LaunchOptimizerOBS::OptLaunching] : Gurobi did not find a solution!\n", ERROR);
-				exit(1);
+				throw std::runtime_error("Gurobi did not find a solution\n");
 			}
 		}
 		catch(GRBException& e) {
 			printf("[%s][LaunchOptimizerOBS::OptLaunching] %d: %s\n", ERROR, e.getErrorCode(), e.getMessage().c_str());
-		}
-		catch(const std::exception& e) {
-			printf("Exception during optimization: %s\n", e.what());
+			throw std::runtime_error("Gurobi error\n");
 		}
 
 		// Determine if there is another team-tour to process

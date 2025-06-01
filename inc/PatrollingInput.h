@@ -121,12 +121,12 @@ public:
 	    bool isEndpoint1InCircle = std::sqrt(
 	        (x1 - obstacle.location.x) * (x1 - obstacle.location.x) +
 	        (y1 - obstacle.location.y) * (y1 - obstacle.location.y)
-	    ) <= obstacle.radius;
+	    ) <= (obstacle.radius*0.99);
 
 	    bool isEndpoint2InCircle = std::sqrt(
 	        (x2 - obstacle.location.x) * (x2 - obstacle.location.x) +
 	        (y2 - obstacle.location.y) * (y2 - obstacle.location.y)
-	    ) <= obstacle.radius;
+	    ) <= (obstacle.radius*0.99);
 
 	    return isEndpoint1InCircle || isEndpoint2InCircle ||
 	           ((distanceToCenter <= obstacle.radius) && isClosestPointOnSegment);

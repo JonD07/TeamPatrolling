@@ -1028,7 +1028,7 @@ double Solution::calcEnergyFromTime(UAV drone, double t) {
     } else {
         fprintf(stderr, "[ERROR] : calcEnergyFromTime() : Drone subtype '%s' not recognized!\n", 
                 drone.subtype.c_str());
-        exit(1);
+		throw std::runtime_error("Bad drone ID\n");
     }
 }
 

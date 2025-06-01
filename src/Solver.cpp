@@ -76,8 +76,8 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 		// Did we go over...?
 		if(K > boost::numeric_cast<int>(vctrPOINodes.size())) {
 			// We did.. just exit!
-			fprintf(stderr, "[ERROR:Solver:RunBaseline] K = %d > N = %d\n", K, input->GetN());
-			exit(1);
+			fprintf(stderr, "[%s][Solver:RunBaseline] K = %d > N = %d\n", ERROR, K, input->GetN());
+			throw std::runtime_error("RunBaseline Error\n");
 		}
 
 		// Set empty set of sub-tours for each cluster
@@ -1164,7 +1164,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 			}
 			else {
 				fprintf(stderr,"[%s][Solver::RunBaseline] Path planning around obstacles failed\n", ERROR);
-				exit(1);
+				throw std::runtime_error("RunBaseline Error\n");
 			}
 		}
 		else {
@@ -1362,7 +1362,7 @@ void Solver::solverTSP_LKH(std::vector<GeneralVertex>& lst, std::vector<GeneralV
 			fprintf(stderr, " %d", n);
 		}
 		fprintf(stderr, "\n");
-		exit(1);
+		throw std::runtime_error("LKH: bad path\n");
 	}
 
 	// Sanity print
@@ -1524,11 +1524,10 @@ bool Solver::isActionInsideObstacle(const UGVAction& action, const Obstacle& obs
 
 UGVAction Solver::fixOverlappingActionOBS(const UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles) {
 	// * We step from the issueAction action to the stepTowardsAction until we are not in any obstacles
-
 	double dx = stepTowardsAction.fX - issueAction.fX;
 	double dy = stepTowardsAction.fY - issueAction.fY;
 	double distance = std::sqrt(dx * dx + dy * dy);
-	if (distance == 0.0) {
+	if(distance == 0.0) {
 		throw std::runtime_error("Cannot fix overlapping action — direction vector has zero length");
 	}
 
@@ -1539,12 +1538,25 @@ UGVAction Solver::fixOverlappingActionOBS(const UGVAction& issueAction, const Dr
 	double ux = dx / distance;
 	double uy = dy / distance;
 
-	// * Stop when rounded coordinates match — "close enough" to consider on top of target
-	while (std::round(fixedX) != std::round(stepTowardsAction.fX) || std::round(fixedY) != std::round(stepTowardsAction.fY)) {
-		fixedX += OVERLAPPING_STEP_SIZE * ux;
-		fixedY += OVERLAPPING_STEP_SIZE * uy;
+	if(0) {
+		// * Stop when rounded coordinates match — "close enough" to consider on top of target
+		while (std::round(fixedX) != std::round(stepTowardsAction.fX) || std::round(fixedY) != std::round(stepTowardsAction.fY)) {
+			fixedX += OVERLAPPING_STEP_SIZE * ux;
+			fixedY += OVERLAPPING_STEP_SIZE * uy;
 
-		// * Test to see if our new action is inside any obstacles
+			// * Test to see if our new action is inside any obstacles
+			UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
+			bool isClear = true;
+			for (const Obstacle& obstacle : input_obstacles) {
+				if (isActionInsideObstacle(tempAction, obstacle)) {
+					isClear = false; // * We need to keep stepping
+					break;
+				}
+			}
+			if (isClear) return tempAction; // * We have stepped out of all obstacles
+		}
+
+		// * Test one last time
 		UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
 		bool isClear = true;
 		for (const Obstacle& obstacle : input_obstacles) {
@@ -1553,25 +1565,43 @@ UGVAction Solver::fixOverlappingActionOBS(const UGVAction& issueAction, const Dr
 				break;
 			}
 		}
-		if (isClear) return tempAction; // * We have stepped out of all obstacles
-	}
 
-	// * Test one last time
-	UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
-	bool isClear = true;
-	for (const Obstacle& obstacle : input_obstacles) {
-		if (isActionInsideObstacle(tempAction, obstacle)) {
-			isClear = false; // * We need to keep stepping
-			break;
+		if (isClear) {
+			return tempAction;
+		} else {
+			std::cerr << "Could not step action out of obstacle -- solution is currently unsolveable" << std::endl;
+			std::cerr.flush();
+			throw std::runtime_error("Obstacle overlap");
 		}
 	}
+	else {
+		// Try to step out of obstacles
+		bool isClear = true;
+		for(int i = 0; i < OBS_MOVE_ITERATIONS; i++) {
+			fixedX += OBS_MOVE_STEP_SIZE * ux;
+			fixedY += OBS_MOVE_STEP_SIZE * uy;
 
-	if (isClear) {
-		return tempAction;
-	} else {
-		std::cerr << "Could not step action out of obstacle -- solution is currently unsolveable" << std::endl;
-		std::cerr.flush();
-		throw std::runtime_error("Obstacle overlap");
+			// Create a new action at this point...
+			UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
+			// Determine if we moved out of all obstacles
+			isClear = true;
+			for(const Obstacle& obstacle : input_obstacles) {
+				// Still in an obstacle... move and try again
+				if(isActionInsideObstacle(tempAction, obstacle)) {
+					isClear = false;
+					break;
+				}
+			}
+
+			// Did we clear all obstacles?
+			if(isClear) {
+				return tempAction;
+			}
+		}
+
+		// If we made it this far... we never moved out of the obstacles...
+		fprintf(stderr,"[%s][Solver::fixOverlappingActionOBS] Could not walk action out of obstacles\n", ERROR);
+		throw std::runtime_error("Stuck in obstacle\n");
 	}
 }
 

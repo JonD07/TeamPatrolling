@@ -23,8 +23,8 @@ Roots::Roots(const Roots& rt) {
 void Roots::FindRoots(double a, double b, double c) {
 	double discriminant, realPart, imaginaryPart, x1, x2;
 	if(isZero(a)) {
-		printf("Requested to find root of non-quadratic\n");
-		exit(1);
+		fprintf(stderr, "[%s][Roots::FindRoots] Requested to find root of non-quadratic\n", ERROR);
+		throw std::runtime_error("Requested to find root of non-quadratic\n");
 	}
 	else {
 		discriminant = b*b - 4*a*c;

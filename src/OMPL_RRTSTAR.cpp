@@ -195,7 +195,7 @@ bool OMPL_RRTSTAR::findPathXY(
 
 		if(resultPath->size() <= 2) {
 			fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find a valid solution in the alloted time\n", ERROR);
-			exit(1);
+			throw std::runtime_error("OMPL: Failed to find valid solution\n");
 		}
 
 		if (DEBUG_OMPL) {
@@ -208,7 +208,7 @@ bool OMPL_RRTSTAR::findPathXY(
 	} else if (DEBUG_OMPL) {
 		printf("No path found :/ \n");
 		std::cerr << "Obstacle is not able to be passed around\n";
-		exit(1);
+		throw std::runtime_error("OMPL: Not able to pass obstacle\n");
 	}
 
 	return !resultPath->empty();

@@ -190,8 +190,15 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	// Run the solver
-	solver->Solve(&input, &solution);
+	bool valid = true;
+	try {
+		// Run the solver
+		solver->Solve(&input, &solution);
+	}
+	catch(const std::exception& e) {
+		printf("[%s][main] Exception during optimization: %s\n", ERROR, e.what());
+		valid = false;
+	}
 
 	// Capture end time
 	auto stop = std::chrono::high_resolution_clock::now();
@@ -199,8 +206,12 @@ int main(int argc, char *argv[]) {
 	long long int duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	double duration_s = (double)duration/1000.0; 
 
+	// Calculate par
 	double par = solution.CalculatePar();
-	bool valid = solution.is_valid(&input, algorithm);
+
+	// If we haven't already flagged this solution...
+	if(valid)
+		valid = solution.is_valid(&input, algorithm);
 
 	if(!valid) {
 		printf("[%s][main] Solution was found to be invalid\n", ERROR);
