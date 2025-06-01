@@ -34,7 +34,6 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
             std::cout << "Time: " << time << std::endl;
             std::cout << "Description: " << description << std::endl;
         }
-
         // Parse and print agents. Create UAV and UGV objects and place into mRa and mRg
         const YAML::Node& agents = config["agents"];
         parseAgents(agents);
@@ -43,8 +42,16 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
         const YAML::Node& scenario = config["scenario"];
         parseScenario(scenario);
 
+		// Parse the obstacle information if it exists 
+		if (scenario["obstacles"]) {
+			parseObstacles(scenario["obstacles"]);
+		}
+		else {
+			std::cout << "error finding the obs" << std::endl; 
+		}
+
 	} catch (const std::exception &e) {
-		fprintf(stderr, "[ERROR]:PatrollingInput() %s\n", e.what());
+		fprintf(stderr, "[%s][PatrollingInput] %s\n", ERROR, e.what());
 		read_success = false;
 	}
 
@@ -63,7 +70,7 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 		parseUGVs(UGVs);
 	}
 	catch(const std::exception &e){
-		fprintf(stderr, "[ERROR]:VehicleInput() %s\n", e.what());
+		fprintf(stderr, "[%s][VehicleInput] %s\n", ERROR, e.what());
 		read_success = false;
 	}
 
@@ -71,7 +78,7 @@ PatrollingInput::PatrollingInput(std::string scenario_input, std::string vehicle
 	if(!read_success) {
 		// Input file not formatted correctly, hard fail!
 		fprintf(stderr, "[MASPInput::MASPInput] : Input file format off\n");
-		exit(1);
+		throw std::runtime_error("Input file format off\n");
 	}
 	else if(SANITY_PRINT) {
 		printf("Successfully read input!\n");
@@ -259,6 +266,23 @@ void PatrollingInput::parseScenario(const YAML::Node& scenario) {
     }
 }
 
+void PatrollingInput::parseObstacles(const YAML::Node& obs) {
+	for (const auto& nodeNode : obs) {
+		Obstacle new_obs; 
+		new_obs.ID = nodeNode["ID"].as<std::string>();
+		new_obs.type = nodeNode["type"].as<std::string>();
+		new_obs.location.x = nodeNode["location"]["x"].as<double>();
+		new_obs.location.y = nodeNode["location"]["y"].as<double>();
+		new_obs.radius = nodeNode["radius"].as<double>(); 
+		
+		if (DEBUG_PATROLINPUT) {
+			new_obs.printInfo(); 
+		}
+		
+		obstacles.push_back(new_obs); 
+	}
+}
+
 PatrollingInput::~PatrollingInput() {
 }
 
@@ -296,6 +320,7 @@ void PatrollingInput::AssignDronesToUGV(std::vector<std::vector<int>>& drones_to
 		}
 	}
 }
+
 
 
 // Get the location of the depot for UGV j
@@ -346,8 +371,11 @@ double PatrollingInput::GetDroneMaxDist(int j) {
 	UAV uav = mRa.at(j);
 	double efficiency_v_opt = 396.743 - 1.695*uav.maxSpeed;
 
+	// How much energy does this drone have, minus energy to launch and land again?
+	double usable_jules = GetDroneBatCap(j) - (uav.energyToTakeOff + uav.energyToLand);
+
 	// Determine max operation time (bat-capacity / efficiency) (based on full battery)
-	double max_t = GetDroneBatCap(j)/efficiency_v_opt;
+	double max_t = usable_jules/efficiency_v_opt;
 	// Max-dist = v_opt * max-t
 	return uav.maxSpeed * max_t;
 }
@@ -386,7 +414,7 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 			}
 			else {
 				// Not expected to be here...
-				fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Roots of charge time are imaginary (subtype standard)!\n");
+				fprintf(stderr, "[%s][PatrollingInput::calcChargeTime] : Roots of charge time are imaginary (subtype standard)!\n", ERROR);
 				exit(0);
 			}
 		}
@@ -407,13 +435,13 @@ double PatrollingInput::calcChargeTime(int drone_j, double J) {
 		}
 		else {
 			// Not expected to be here...
-			fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Roots of charge time are imaginary (subtype a_field)!\n");
+			fprintf(stderr, "[%s][PatrollingInput::calcChargeTime] Roots of charge time are imaginary (subtype a_field)!\n", ERROR);
 			exit(0);
 		}
 	}
 	else {
 		// Not expected to be here...
-		fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Drone subtype not recognized!\n");
+		fprintf(stderr, "[%s][Solver::calcChargeTime] Drone subtype not recognized!\n", ERROR);
 		exit(0);
 	}
 
@@ -436,7 +464,7 @@ double PatrollingInput::GetDroneVMax(int drone_j) {
 	}
 	else {
 		// Not expected to be here...
-		fprintf(stderr, "[ERROR] : Solver::calcChargeTime() : Drone subtype not recognized!\n");
+		fprintf(stderr, "[%s][PatrollingInput::calcChargeTime] Drone subtype not recognized!\n", ERROR);
 		exit(0);
 	}
 }

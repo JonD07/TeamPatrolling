@@ -25,7 +25,7 @@ INC_N_STEP = 1
 
 # Where to store files
 # FILE_PATH = "Exp_01/"
-FILE_PATH = ""
+FILE_PATH = "obstacles_tests"
 
 
 # Bounds on area

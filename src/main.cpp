@@ -1,9 +1,11 @@
+#include <cstdio>
 #include <stdio.h>
 #include <vector>
 #include <limits>
 #include <chrono>
 #include <iostream> 
 
+#include "../inc/Solver_LOIRS.h"
 #include "defines.h"
 #include "PatrollingInput.h"
 #include "Solution.h"
@@ -13,6 +15,9 @@
 #include "Solver_OptLaunch.h"
 #include "Solver_Depleted.h"
 #include "Solver_LLS.h"
+#include "Solver_OBS.h"
+#include "Solver_BaselineOBS.h"
+#include "Solver_LORS.h"
 
 
 #define DEBUG_MAIN	DEBUG || 0
@@ -106,40 +111,96 @@ int main(int argc, char *argv[]) {
 	// Capture start time
 	auto start = std::chrono::high_resolution_clock::now();
 	switch(algorithm) {
-	case e_Algo_GREEDY: {		// algo: 1
+	case e_Algo_GREEDY: {			// algo: 1
 		solver = new BaselineSolver();
 	}
 	break;
 
-	case e_Algo_OPTLAUNCH: {	// algo: 2
+	case e_Algo_OPTLAUNCH: {		// algo: 2
 		solver = new OptLaunchSolver();
 	}
 	break;
 
-	case e_Algo_ILO: { 			// algo: 3
+	case e_Algo_ILO: {				// algo: 3
 		solver = new Solver_ILO();
 	}
 	break;
 
-	case e_Algo_DEPLETED: { 			// algo: 4
+	case e_Algo_DEPLETED: {			// algo: 4
 		solver = new Solver_Depleted();
 	}
 	break;
 
-	case e_Algo_LLS: { 				// algo: 5 
+	case e_Algo_LLS: {				// algo: 5
 		solver = new Solver_LLS(); 
+	}
+	break;
+
+	case e_Algo_OBS: {				// algo: 6
+		solver = new Solver_OBS(); 
+	}
+	break; 
+
+	// Evaluated algorithms (all incorporate obstacle avoidance)
+
+	case e_Algo_BASELINE_OBS: {	// alg. 10 Baseline algorithm
+		solver = new Solver_Baseline_OBS();
+	}
+	break;
+
+	case e_Algo_LO: {			// alg. 11 Launch-Optimizer
+		solver = new Solver_LORS(false, false);
+	}
+	break;
+
+	case e_Algo_LOS: {			// alg. 12 Launch-Optimizer with Swapping
+		solver = new Solver_LORS(true, false);
+	}
+	break;
+
+	case e_Algo_LOR: {			// alg. 13 Launch-Optimizer with Replanning
+		solver = new Solver_LORS(false, true);
+	}
+	break;
+
+	case e_Algo_LORS: {			// alg. 14 Launch-Optimizer with Replanning + Swapping
+		solver = new Solver_LORS(true, true);
+	}
+	break;
+
+	case e_Algo_LOIR: {		// alg. 15 Launch-Optimizer with Iterative Replanning
+		solver = new Solver_LOIRS(false, true);
+	}
+	break;
+
+	case e_Algo_LOIS: {		// alg. 16 Launch-Optimizer with Iterative Swapping (just LOS...)
+		solver = new Solver_LOIRS(true, false);
+	}
+	break;
+
+	case e_Algo_LOISR: {		// alg. 17 Launch-Optimizer with Iterative Swapping + Replanning
+		solver = new Solver_LOIRS(true, true);
 	}
 	break;
 
 	case e_Algo_COMP:
 	default:
 		// No valid algorithm given
-		fprintf(stderr, "[ERROR][main] : \n\tInvalid algorithm identifier!\n");
+		fprintf(stderr, "[%s][main] : \n\tInvalid algorithm identifier!\n", ERROR);
 		exit(1);
 	}
 
-	// Run the solver
-	solver->Solve(&input, &solution);
+	double par = INF;
+	bool valid = true;
+
+	try {
+		// Run the solver
+		solver->Solve(&input, &solution);
+	}
+	catch(const std::exception& e) {
+		printf("[%s][main] Exception during optimization: %s\n", ERROR, e.what());
+		valid = false;
+	}
 
 	// Capture end time
 	auto stop = std::chrono::high_resolution_clock::now();
@@ -147,9 +208,21 @@ int main(int argc, char *argv[]) {
 	long long int duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count();
 	double duration_s = (double)duration/1000.0; 
 
-	double par = solution.CalculatePar();
+	// If we haven't already flagged this solution...
+	if(valid)
+		valid = solution.is_valid(&input, algorithm);
+
+	if(!valid) {
+		printf("[%s][main] Solution was found to be invalid\n", ERROR);
+	}
+	else {
+		// Actually calculate PAR
+		par = solution.CalculatePar();
+	}
+
 	if(SANITY_PRINT) {
-		printf("PAR: %f, computation time = %f\n", par, duration_s);
+		solution.PrintSolution();
+		printf("PAR: %f, computation time = %f, valid = %s\n", par, duration_s, valid ? "true" : "false");
 	}
 
 	// Print results to file
@@ -164,15 +237,13 @@ int main(int argc, char *argv[]) {
 		// File format: n m runmun computed_Z estimated_Z comp-time
 		fprintf(pOutputFile, "%d %d %d %d ", input.GetN(), input.GetMa(), input.GetMg(), runnum);
 		fprintf(pOutputFile, "%f %f", par, duration_s);
-		fprintf(pOutputFile, " %d\n", solution.ValidSolution());
+		fprintf(pOutputFile, " %d\n", valid);
 		fclose(pOutputFile);
 	}
 
 	if(print_actions) {
-		//Solution runtime_solution(&input);
-		//runtime_solution.CreateRuntimeSolution(solution);
-		//runtime_solution.GenerateYAML("output_plan.yaml");
-		solution.PrintSolution(); 
+		if(SANITY_PRINT)
+			solution.PrintSolution();
 
 		solution.GenerateYAML("output_plan.yaml");
 	}

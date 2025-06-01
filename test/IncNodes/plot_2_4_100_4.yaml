@@ -1,0 +1,1291 @@
+ID: state_every_UAV_action_plot_2_4_100_4.yaml
+time: 0.0
+description: Generated scenario for UAV and UGV planning problem
+agents:
+- ID: UAV_01
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_01
+- ID: UAV_02
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_02
+- ID: UAV_03
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_03
+- ID: UAV_04
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_04
+- ID: UGV_01
+  type: UGV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 25010000.0
+    current_battery_energy: 25010000.0
+  charging_pads:
+  - ID: pad_01
+    mode: occupied
+    UAV_ID: UAV_01
+    is_charging: true
+  - ID: pad_02
+    mode: occupied
+    UAV_ID: UAV_02
+    is_charging: true
+- ID: UGV_02
+  type: UGV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 25010000.0
+    current_battery_energy: 25010000.0
+  charging_pads:
+  - ID: pad_03
+    mode: occupied
+    UAV_ID: UAV_03
+    is_charging: true
+  - ID: pad_04
+    mode: occupied
+    UAV_ID: UAV_04
+    is_charging: true
+scenario:
+  description: Generated scenario
+  type: persistent_surveillance
+  subtype: standard
+  nodes:
+  - ID: n_0000
+    type: air_only
+    location:
+      x: 4632.9
+      y: 1115.3
+    time_last_service: 0.0
+  - ID: n_0001
+    type: air_only
+    location:
+      x: -1018.8
+      y: 2228.9
+    time_last_service: 0.0
+  - ID: n_0002
+    type: air_only
+    location:
+      x: -4524.5
+      y: -2413.9
+    time_last_service: 0.0
+  - ID: n_0003
+    type: air_only
+    location:
+      x: 3975.4
+      y: -2064.2
+    time_last_service: 0.0
+  - ID: n_0004
+    type: air_only
+    location:
+      x: 1658.3
+      y: 3966.0
+    time_last_service: 0.0
+  - ID: n_0005
+    type: air_only
+    location:
+      x: 3695.1
+      y: -474.3
+    time_last_service: 0.0
+  - ID: n_0006
+    type: air_only
+    location:
+      x: -3712.5
+      y: -1199.0
+    time_last_service: 0.0
+  - ID: n_0007
+    type: air_only
+    location:
+      x: 3536.0
+      y: 303.8
+    time_last_service: 0.0
+  - ID: n_0008
+    type: air_only
+    location:
+      x: 3851.0
+      y: 2000.7
+    time_last_service: 0.0
+  - ID: n_0009
+    type: air_only
+    location:
+      x: -3232.3
+      y: 2809.0
+    time_last_service: 0.0
+  - ID: n_0010
+    type: air_only
+    location:
+      x: 868.1
+      y: -4477.4
+    time_last_service: 0.0
+  - ID: n_0011
+    type: air_only
+    location:
+      x: -2592.3
+      y: -826.4
+    time_last_service: 0.0
+  - ID: n_0012
+    type: air_only
+    location:
+      x: 1488.1
+      y: 4219.6
+    time_last_service: 0.0
+  - ID: n_0013
+    type: air_only
+    location:
+      x: 1695.5
+      y: 1399.6
+    time_last_service: 0.0
+  - ID: n_0014
+    type: air_only
+    location:
+      x: 1036.8
+      y: -3442.0
+    time_last_service: 0.0
+  - ID: n_0015
+    type: air_only
+    location:
+      x: 4398.4
+      y: 1047.8
+    time_last_service: 0.0
+  - ID: n_0016
+    type: air_only
+    location:
+      x: 3588.8
+      y: 3105.3
+    time_last_service: 0.0
+  - ID: n_0017
+    type: air_only
+    location:
+      x: -823.6
+      y: -35.4
+    time_last_service: 0.0
+  - ID: n_0018
+    type: air_only
+    location:
+      x: -4060.1
+      y: -1734.6
+    time_last_service: 0.0
+  - ID: n_0019
+    type: air_only
+    location:
+      x: 237.4
+      y: -3939.6
+    time_last_service: 0.0
+  - ID: n_0020
+    type: air_only
+    location:
+      x: -2280.0
+      y: 4905.6
+    time_last_service: 0.0
+  - ID: n_0021
+    type: air_only
+    location:
+      x: -3212.2
+      y: 2532.5
+    time_last_service: 0.0
+  - ID: n_0022
+    type: air_only
+    location:
+      x: 2422.8
+      y: -2372.1
+    time_last_service: 0.0
+  - ID: n_0023
+    type: air_only
+    location:
+      x: 2643.0
+      y: -1459.5
+    time_last_service: 0.0
+  - ID: n_0024
+    type: air_only
+    location:
+      x: -2742.2
+      y: 1172.3
+    time_last_service: 0.0
+  - ID: n_0025
+    type: air_only
+    location:
+      x: -871.7
+      y: -2954.7
+    time_last_service: 0.0
+  - ID: n_0026
+    type: air_only
+    location:
+      x: 453.7
+      y: -899.3
+    time_last_service: 0.0
+  - ID: n_0027
+    type: air_only
+    location:
+      x: -3067.6
+      y: -776.5
+    time_last_service: 0.0
+  - ID: n_0028
+    type: air_only
+    location:
+      x: -4220.3
+      y: -2192.0
+    time_last_service: 0.0
+  - ID: n_0029
+    type: air_only
+    location:
+      x: 69.0
+      y: 3891.0
+    time_last_service: 0.0
+  - ID: n_0030
+    type: air_only
+    location:
+      x: -2061.2
+      y: -4377.3
+    time_last_service: 0.0
+  - ID: n_0031
+    type: air_only
+    location:
+      x: -1254.4
+      y: 2531.0
+    time_last_service: 0.0
+  - ID: n_0032
+    type: air_only
+    location:
+      x: -2061.7
+      y: -3512.6
+    time_last_service: 0.0
+  - ID: n_0033
+    type: air_only
+    location:
+      x: 978.3
+      y: 251.8
+    time_last_service: 0.0
+  - ID: n_0034
+    type: air_only
+    location:
+      x: 1420.6
+      y: 3823.2
+    time_last_service: 0.0
+  - ID: n_0035
+    type: air_only
+    location:
+      x: -4169.4
+      y: 4845.3
+    time_last_service: 0.0
+  - ID: n_0036
+    type: air_only
+    location:
+      x: -2354.5
+      y: 2031.6
+    time_last_service: 0.0
+  - ID: n_0037
+    type: air_only
+    location:
+      x: 3767.7
+      y: 2002.7
+    time_last_service: 0.0
+  - ID: n_0038
+    type: air_only
+    location:
+      x: -1031.8
+      y: -126.0
+    time_last_service: 0.0
+  - ID: n_0039
+    type: air_only
+    location:
+      x: -1041.6
+      y: 4053.4
+    time_last_service: 0.0
+  - ID: n_0040
+    type: air_only
+    location:
+      x: 511.8
+      y: 3697.7
+    time_last_service: 0.0
+  - ID: n_0041
+    type: air_only
+    location:
+      x: -2372.6
+      y: 4088.2
+    time_last_service: 0.0
+  - ID: n_0042
+    type: air_only
+    location:
+      x: -789.7
+      y: -3861.0
+    time_last_service: 0.0
+  - ID: n_0043
+    type: air_only
+    location:
+      x: 1651.3
+      y: 1028.5
+    time_last_service: 0.0
+  - ID: n_0044
+    type: air_only
+    location:
+      x: 4617.0
+      y: -311.2
+    time_last_service: 0.0
+  - ID: n_0045
+    type: air_only
+    location:
+      x: -2720.1
+      y: 1835.0
+    time_last_service: 0.0
+  - ID: n_0046
+    type: air_only
+    location:
+      x: 296.8
+      y: -4856.5
+    time_last_service: 0.0
+  - ID: n_0047
+    type: air_only
+    location:
+      x: -2740.9
+      y: -1640.5
+    time_last_service: 0.0
+  - ID: n_0048
+    type: air_only
+    location:
+      x: -496.6
+      y: -969.2
+    time_last_service: 0.0
+  - ID: n_0049
+    type: air_only
+    location:
+      x: -2428.9
+      y: -4827.3
+    time_last_service: 0.0
+  - ID: n_0050
+    type: air_only
+    location:
+      x: -2897.7
+      y: 1359.8
+    time_last_service: 0.0
+  - ID: n_0051
+    type: air_only
+    location:
+      x: 63.3
+      y: -3768.6
+    time_last_service: 0.0
+  - ID: n_0052
+    type: air_only
+    location:
+      x: -4022.5
+      y: 817.1
+    time_last_service: 0.0
+  - ID: n_0053
+    type: air_only
+    location:
+      x: -2629.2
+      y: 2005.7
+    time_last_service: 0.0
+  - ID: n_0054
+    type: air_only
+    location:
+      x: -1574.4
+      y: -870.9
+    time_last_service: 0.0
+  - ID: n_0055
+    type: air_only
+    location:
+      x: 49.2
+      y: 3884.8
+    time_last_service: 0.0
+  - ID: n_0056
+    type: air_only
+    location:
+      x: -216.4
+      y: -2438.6
+    time_last_service: 0.0
+  - ID: n_0057
+    type: air_only
+    location:
+      x: 2096.7
+      y: 3662.1
+    time_last_service: 0.0
+  - ID: n_0058
+    type: air_only
+    location:
+      x: 1659.7
+      y: 3532.3
+    time_last_service: 0.0
+  - ID: n_0059
+    type: air_only
+    location:
+      x: -3318.0
+      y: 4291.8
+    time_last_service: 0.0
+  - ID: n_0060
+    type: air_only
+    location:
+      x: -2784.7
+      y: -1145.5
+    time_last_service: 0.0
+  - ID: n_0061
+    type: air_only
+    location:
+      x: -4193.2
+      y: 1171.5
+    time_last_service: 0.0
+  - ID: n_0062
+    type: air_only
+    location:
+      x: -4464.9
+      y: -2847.7
+    time_last_service: 0.0
+  - ID: n_0063
+    type: air_only
+    location:
+      x: -2874.2
+      y: 3479.9
+    time_last_service: 0.0
+  - ID: n_0064
+    type: air_only
+    location:
+      x: -474.8
+      y: -893.3
+    time_last_service: 0.0
+  - ID: n_0065
+    type: air_only
+    location:
+      x: -4795.2
+      y: -214.3
+    time_last_service: 0.0
+  - ID: n_0066
+    type: air_only
+    location:
+      x: 3619.0
+      y: -3149.5
+    time_last_service: 0.0
+  - ID: n_0067
+    type: air_only
+    location:
+      x: 2950.9
+      y: 1154.4
+    time_last_service: 0.0
+  - ID: n_0068
+    type: air_only
+    location:
+      x: 777.1
+      y: -1483.8
+    time_last_service: 0.0
+  - ID: n_0069
+    type: air_only
+    location:
+      x: 2667.9
+      y: -2336.9
+    time_last_service: 0.0
+  - ID: n_0070
+    type: air_only
+    location:
+      x: -1255.7
+      y: 1428.2
+    time_last_service: 0.0
+  - ID: n_0071
+    type: air_only
+    location:
+      x: -3647.5
+      y: 1134.4
+    time_last_service: 0.0
+  - ID: n_0072
+    type: air_only
+    location:
+      x: 4405.6
+      y: -2241.9
+    time_last_service: 0.0
+  - ID: n_0073
+    type: air_only
+    location:
+      x: -3009.4
+      y: -426.8
+    time_last_service: 0.0
+  - ID: n_0074
+    type: air_only
+    location:
+      x: -2498.9
+      y: -4937.7
+    time_last_service: 0.0
+  - ID: n_0075
+    type: air_only
+    location:
+      x: -1923.5
+      y: 3014.4
+    time_last_service: 0.0
+  - ID: n_0076
+    type: air_only
+    location:
+      x: -1481.2
+      y: -4501.8
+    time_last_service: 0.0
+  - ID: n_0077
+    type: air_only
+    location:
+      x: 1374.0
+      y: -501.0
+    time_last_service: 0.0
+  - ID: n_0078
+    type: air_only
+    location:
+      x: -474.6
+      y: 1953.1
+    time_last_service: 0.0
+  - ID: n_0079
+    type: air_only
+    location:
+      x: -3031.7
+      y: -4698.1
+    time_last_service: 0.0
+  - ID: n_0080
+    type: air_only
+    location:
+      x: -1468.6
+      y: -2299.0
+    time_last_service: 0.0
+  - ID: n_0081
+    type: air_only
+    location:
+      x: 4017.3
+      y: 349.8
+    time_last_service: 0.0
+  - ID: n_0082
+    type: air_only
+    location:
+      x: -800.5
+      y: -3201.9
+    time_last_service: 0.0
+  - ID: n_0083
+    type: air_only
+    location:
+      x: 4167.8
+      y: 3713.0
+    time_last_service: 0.0
+  - ID: n_0084
+    type: air_only
+    location:
+      x: -3070.3
+      y: 374.3
+    time_last_service: 0.0
+  - ID: n_0085
+    type: air_only
+    location:
+      x: 3798.2
+      y: -3895.9
+    time_last_service: 0.0
+  - ID: n_0086
+    type: air_only
+    location:
+      x: -2900.7
+      y: -4018.5
+    time_last_service: 0.0
+  - ID: n_0087
+    type: air_only
+    location:
+      x: -3787.0
+      y: 412.6
+    time_last_service: 0.0
+  - ID: n_0088
+    type: air_only
+    location:
+      x: -1182.0
+      y: -1305.5
+    time_last_service: 0.0
+  - ID: n_0089
+    type: air_only
+    location:
+      x: -3893.9
+      y: -4232.4
+    time_last_service: 0.0
+  - ID: n_0090
+    type: air_only
+    location:
+      x: 4339.9
+      y: -2141.2
+    time_last_service: 0.0
+  - ID: n_0091
+    type: air_only
+    location:
+      x: 2566.6
+      y: -75.1
+    time_last_service: 0.0
+  - ID: n_0092
+    type: air_only
+    location:
+      x: -1916.1
+      y: 4639.8
+    time_last_service: 0.0
+  - ID: n_0093
+    type: air_only
+    location:
+      x: 3454.2
+      y: -68.0
+    time_last_service: 0.0
+  - ID: n_0094
+    type: air_only
+    location:
+      x: -4294.5
+      y: -1565.3
+    time_last_service: 0.0
+  - ID: n_0095
+    type: air_only
+    location:
+      x: -719.5
+      y: -785.3
+    time_last_service: 0.0
+  - ID: n_0096
+    type: air_only
+    location:
+      x: 1529.8
+      y: 3534.2
+    time_last_service: 0.0
+  - ID: n_0097
+    type: air_only
+    location:
+      x: -2230.8
+      y: -2552.9
+    time_last_service: 0.0
+  - ID: n_0098
+    type: air_only
+    location:
+      x: 2956.2
+      y: 2813.1
+    time_last_service: 0.0
+  - ID: n_0099
+    type: air_only
+    location:
+      x: 1412.6
+      y: -3738.7
+    time_last_service: 0.0
+  connections: []
+  obstacles:
+  - type: circle
+    ID: o_01
+    location:
+      x: 3833.1
+      y: 2643.5
+    radius: 26.8
+  - type: circle
+    ID: o_02
+    location:
+      x: -69.3
+      y: 4249.1
+    radius: 33.5
+  - type: circle
+    ID: o_03
+    location:
+      x: 2567.3
+      y: 336.9
+    radius: 241.6
+  - type: circle
+    ID: o_04
+    location:
+      x: -1351.4
+      y: -2582.8
+    radius: 41.4
+  - type: circle
+    ID: o_05
+    location:
+      x: -2430.9
+      y: 4605.5
+    radius: 28.7
+  - type: circle
+    ID: o_06
+    location:
+      x: -4972.9
+      y: 628.8
+    radius: 110.8
+  - type: circle
+    ID: o_07
+    location:
+      x: 2597.2
+      y: 3519.4
+    radius: 31.8
+  - type: circle
+    ID: o_08
+    location:
+      x: 2635.9
+      y: 3568.4
+    radius: 209.3
+  - type: circle
+    ID: o_09
+    location:
+      x: -15.2
+      y: 414.1
+    radius: 287.9
+  - type: circle
+    ID: o_10
+    location:
+      x: 3805.2
+      y: -1083.1
+    radius: 280.1
+  - type: circle
+    ID: o_11
+    location:
+      x: -3809.8
+      y: -2320.3
+    radius: 127.6
+  - type: circle
+    ID: o_12
+    location:
+      x: -4697.2
+      y: -3164.3
+    radius: 105.3
+  - type: circle
+    ID: o_13
+    location:
+      x: 3460.0
+      y: -3944.3
+    radius: 99.2
+  - type: circle
+    ID: o_14
+    location:
+      x: -921.8
+      y: 1497.9
+    radius: 187.7
+  - type: circle
+    ID: o_15
+    location:
+      x: 271.4
+      y: 1328.7
+    radius: 72.1
+  - type: circle
+    ID: o_16
+    location:
+      x: -2677.1
+      y: 846.9
+    radius: 289.4
+  - type: circle
+    ID: o_17
+    location:
+      x: -1200.3
+      y: 1080.9
+    radius: 289.8
+  - type: circle
+    ID: o_18
+    location:
+      x: -3609.7
+      y: -1046.2
+    radius: 248.9
+  - type: circle
+    ID: o_19
+    location:
+      x: 4310.6
+      y: 2975.0
+    radius: 105.1
+  - type: circle
+    ID: o_20
+    location:
+      x: 1768.2
+      y: -1794.8
+    radius: 57.5
+  - type: circle
+    ID: o_21
+    location:
+      x: 538.6
+      y: 4745.0
+    radius: 31.3
+  - type: circle
+    ID: o_22
+    location:
+      x: 4775.7
+      y: -1735.6
+    radius: 57.8
+  - type: circle
+    ID: o_23
+    location:
+      x: 2391.7
+      y: -2284.7
+    radius: 148.5
+  - type: circle
+    ID: o_24
+    location:
+      x: 1178.1
+      y: -3109.2
+    radius: 201.9
+  - type: circle
+    ID: o_25
+    location:
+      x: -1649.3
+      y: 2329.4
+    radius: 121.9
+  - type: circle
+    ID: o_26
+    location:
+      x: -785.2
+      y: -782.4
+    radius: 18.9
+  - type: circle
+    ID: o_27
+    location:
+      x: -3.9
+      y: -2046.9
+    radius: 248.0
+  - type: circle
+    ID: o_28
+    location:
+      x: 3227.9
+      y: 4256.0
+    radius: 81.1
+  - type: circle
+    ID: o_29
+    location:
+      x: -2800.0
+      y: 2166.2
+    radius: 46.1
+  - type: circle
+    ID: o_30
+    location:
+      x: -4966.8
+      y: -4689.5
+    radius: 56.1
+  - type: circle
+    ID: o_31
+    location:
+      x: -4433.1
+      y: -2725.2
+    radius: 111.6
+  - type: circle
+    ID: o_32
+    location:
+      x: -3127.4
+      y: 4066.6
+    radius: 39.0
+  - type: circle
+    ID: o_33
+    location:
+      x: -4575.0
+      y: -735.6
+    radius: 23.0
+  - type: circle
+    ID: o_34
+    location:
+      x: -4283.5
+      y: 1781.0
+    radius: 2.6
+  - type: circle
+    ID: o_35
+    location:
+      x: -1322.4
+      y: 3591.6
+    radius: 38.8
+  - type: circle
+    ID: o_36
+    location:
+      x: 4938.9
+      y: 286.3
+    radius: 112.3
+  - type: circle
+    ID: o_37
+    location:
+      x: 1245.0
+      y: 2193.0
+    radius: 250.0
+  - type: circle
+    ID: o_38
+    location:
+      x: 4944.6
+      y: 2841.9
+    radius: 137.9
+  - type: circle
+    ID: o_39
+    location:
+      x: 3013.1
+      y: -3084.2
+    radius: 268.4
+  - type: circle
+    ID: o_40
+    location:
+      x: -1755.4
+      y: -3955.9
+    radius: 157.5
+  - type: circle
+    ID: o_41
+    location:
+      x: -2312.1
+      y: -3435.7
+    radius: 31.5
+  - type: circle
+    ID: o_42
+    location:
+      x: 4290.0
+      y: 868.5
+    radius: 171.6
+  - type: circle
+    ID: o_43
+    location:
+      x: 4857.5
+      y: 3203.5
+    radius: 297.6
+  - type: circle
+    ID: o_44
+    location:
+      x: 3381.6
+      y: 4995.0
+    radius: 291.6
+  - type: circle
+    ID: o_45
+    location:
+      x: 4351.8
+      y: -3205.8
+    radius: 90.0
+  - type: circle
+    ID: o_46
+    location:
+      x: 1390.5
+      y: 958.5
+    radius: 142.4
+  - type: circle
+    ID: o_47
+    location:
+      x: -2407.7
+      y: 1976.2
+    radius: 184.6
+  - type: circle
+    ID: o_48
+    location:
+      x: 675.0
+      y: 417.1
+    radius: 237.2
+  - type: circle
+    ID: o_49
+    location:
+      x: -2339.4
+      y: -4942.2
+    radius: 275.0
+  - type: circle
+    ID: o_50
+    location:
+      x: 893.8
+      y: -3124.1
+    radius: 280.8
+  - type: circle
+    ID: o_51
+    location:
+      x: -3382.1
+      y: -3988.1
+    radius: 41.1
+  - type: circle
+    ID: o_52
+    location:
+      x: 760.0
+      y: 1148.3
+    radius: 59.9
+  - type: circle
+    ID: o_53
+    location:
+      x: -894.5
+      y: 4359.4
+    radius: 47.8
+  - type: circle
+    ID: o_54
+    location:
+      x: -2878.6
+      y: -606.4
+    radius: 201.1
+  - type: circle
+    ID: o_55
+    location:
+      x: -3648.3
+      y: -3829.0
+    radius: 213.4
+  - type: circle
+    ID: o_56
+    location:
+      x: -2891.4
+      y: 3730.2
+    radius: 292.8
+  - type: circle
+    ID: o_57
+    location:
+      x: 4397.9
+      y: -576.8
+    radius: 36.3
+  - type: circle
+    ID: o_58
+    location:
+      x: -2316.6
+      y: 1620.8
+    radius: 85.5
+  - type: circle
+    ID: o_59
+    location:
+      x: 0.9
+      y: -2567.4
+    radius: 186.6
+  - type: circle
+    ID: o_60
+    location:
+      x: -4989.8
+      y: 3186.6
+    radius: 261.6
+  - type: circle
+    ID: o_61
+    location:
+      x: -1384.5
+      y: -3170.0
+    radius: 124.5
+  - type: circle
+    ID: o_62
+    location:
+      x: -2502.0
+      y: 58.4
+    radius: 228.7
+  - type: circle
+    ID: o_63
+    location:
+      x: -2204.0
+      y: -3736.6
+    radius: 225.7
+  - type: circle
+    ID: o_64
+    location:
+      x: -1131.4
+      y: 3912.5
+    radius: 294.4
+  - type: circle
+    ID: o_65
+    location:
+      x: -2478.9
+      y: 2284.3
+    radius: 133.4
+  - type: circle
+    ID: o_66
+    location:
+      x: -23.4
+      y: 2344.3
+    radius: 166.2
+  - type: circle
+    ID: o_67
+    location:
+      x: 3052.7
+      y: 3073.6
+    radius: 187.5
+  - type: circle
+    ID: o_68
+    location:
+      x: -4827.7
+      y: -908.8
+    radius: 238.3
+  - type: circle
+    ID: o_69
+    location:
+      x: -4017.0
+      y: -2736.1
+    radius: 126.4
+  - type: circle
+    ID: o_70
+    location:
+      x: -3516.1
+      y: 4803.2
+    radius: 165.7
+  - type: circle
+    ID: o_71
+    location:
+      x: 1818.2
+      y: 119.5
+    radius: 67.7
+  - type: circle
+    ID: o_72
+    location:
+      x: -3733.4
+      y: -4067.5
+    radius: 248.2
+  - type: circle
+    ID: o_73
+    location:
+      x: 1962.7
+      y: 1680.9
+    radius: 101.2
+  - type: circle
+    ID: o_74
+    location:
+      x: -3734.2
+      y: -1182.5
+    radius: 148.7
+  - type: circle
+    ID: o_75
+    location:
+      x: 728.7
+      y: -357.5
+    radius: 285.2
+  - type: circle
+    ID: o_76
+    location:
+      x: -3092.6
+      y: 2816.8
+    radius: 273.7
+  - type: circle
+    ID: o_77
+    location:
+      x: -4921.8
+      y: -4413.5
+    radius: 87.2
+  - type: circle
+    ID: o_78
+    location:
+      x: 4625.0
+      y: 3099.5
+    radius: 228.5
+  - type: circle
+    ID: o_79
+    location:
+      x: 4124.6
+      y: 3217.2
+    radius: 201.6
+  - type: circle
+    ID: o_80
+    location:
+      x: 2305.6
+      y: 4368.5
+    radius: 121.3
+  - type: circle
+    ID: o_81
+    location:
+      x: 3851.3
+      y: -2867.0
+    radius: 121.3
+  - type: circle
+    ID: o_82
+    location:
+      x: -3133.3
+      y: -2324.3
+    radius: 264.0
+  - type: circle
+    ID: o_83
+    location:
+      x: 828.7
+      y: -3177.8
+    radius: 213.5
+  - type: circle
+    ID: o_84
+    location:
+      x: 1058.3
+      y: 2132.0
+    radius: 81.5
+  - type: circle
+    ID: o_85
+    location:
+      x: 2658.2
+      y: 3222.2
+    radius: 238.4
+  - type: circle
+    ID: o_86
+    location:
+      x: -1252.0
+      y: -746.4
+    radius: 138.7
+  - type: circle
+    ID: o_87
+    location:
+      x: -716.6
+      y: -2686.0
+    radius: 189.1
+  - type: circle
+    ID: o_88
+    location:
+      x: -3834.4
+      y: -2842.1
+    radius: 53.1
+  - type: circle
+    ID: o_89
+    location:
+      x: -4791.1
+      y: -1308.6
+    radius: 25.0
+  - type: circle
+    ID: o_90
+    location:
+      x: -749.3
+      y: 4137.5
+    radius: 274.6
+  - type: circle
+    ID: o_91
+    location:
+      x: 666.5
+      y: -3708.1
+    radius: 148.4
+  - type: circle
+    ID: o_92
+    location:
+      x: 3957.5
+      y: -2880.2
+    radius: 18.6
+  - type: circle
+    ID: o_93
+    location:
+      x: 4265.8
+      y: 305.7
+    radius: 243.8
+  - type: circle
+    ID: o_94
+    location:
+      x: -732.4
+      y: -1812.6
+    radius: 298.6
+  - type: circle
+    ID: o_95
+    location:
+      x: -2639.8
+      y: -3131.2
+    radius: 226.0
+  - type: circle
+    ID: o_96
+    location:
+      x: 1551.8
+      y: -2896.8
+    radius: 291.0
+  - type: circle
+    ID: o_97
+    location:
+      x: -4454.8
+      y: 3765.4
+    radius: 57.3
+  - type: circle
+    ID: o_98
+    location:
+      x: -3800.2
+      y: -1637.8
+    radius: 79.9
+  - type: circle
+    ID: o_99
+    location:
+      x: -2088.5
+      y: -673.9
+    radius: 280.6
+  - type: circle
+    ID: o_100
+    location:
+      x: 2597.5
+      y: -865.9
+    radius: 289.2

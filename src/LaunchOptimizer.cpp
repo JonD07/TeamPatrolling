@@ -1,4 +1,5 @@
 #include "LaunchOptimizer.h"
+#include "SOCTypes.h"
 #include "UAV.h"
 #include "UGV.h"
 
@@ -14,8 +15,10 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 
 	// Get the POI Nodes from the input
 	std::vector<Node> vctrPOINodes = input->GetNodes();
-	printf("vctrPOINodes size: %lu\n", vctrPOINodes.size());
-	printf("ugv num: %d\n", ugv_num);
+	if(DEBUG_LAUNCHOPT) {
+		printf("vctrPOINodes size: %lu\n", vctrPOINodes.size());
+		printf("ugv num: %d\n", ugv_num);
+	}
 	// We need the lists of actions that each drone is performing
 	std::vector<std::vector<DroneAction>> drone_action_lists;
 	std::vector<int> drone_action_lists_i;
@@ -30,7 +33,8 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 		drone_action_lists_i.push_back(1);
 	}
 
-	printf("Drone action lists size: %lu\n", drone_action_lists.size());
+	if(DEBUG_LAUNCHOPT)
+		printf("Drone action lists size: %lu\n", drone_action_lists.size());
 
 	// Create vectors of actions for each vehicle
 	std::vector<UGVAction> ugv_final_actions;
@@ -75,9 +79,10 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			int subtour_counter = 0;
 			// For each drone assigned to the UGV
 			for(int drone_id : drones_on_UGV) {
-				printf("Drone %d\n", drone_id);
-				if(DEBUG_LAUNCHOPT)
+				if(DEBUG_LAUNCHOPT) {
+					printf("Drone %d\n", drone_id);
 					printf(" Get actions for drone %d\n", drone_id);
+				}
 				bool on_tour = false;
 				double tour_dist = 0.0;
 				double strt_x = 0.0, strt_y = 0.0;
@@ -96,7 +101,8 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 						// Are we still visiting nodes...?
 						if(next_action.mActionType == E_DroneActionTypes::e_MoveToNode) {
 							// Visited next node, record distance and update previous
-							printf("Visiting node %d (%f,%f)\n", next_action.mDetails, next_action.fX, next_action.fY);
+							if(DEBUG_LAUNCHOPT)
+								printf("Visiting node %d (%f,%f)\n", next_action.mDetails, next_action.fX, next_action.fY);
 							tour_dist += distAtoB(prev_x, prev_y, next_action.fX, next_action.fY);
 							prev_x = next_action.fX;
 							prev_y = next_action.fY;
@@ -614,7 +620,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			}
 		}
 		catch(GRBException& e) {
-			printf("[ERROR] %d: %s\n", e.getErrorCode(), e.getMessage().c_str());
+			printf("[%s][LaunchOptimizer::OptLaunching] %d: %s\n", ERROR, e.getErrorCode(), e.getMessage().c_str());
 		}
 		catch(const std::exception& e) {
 			printf("Exception during optimization: %s\n", e.what());
@@ -671,5 +677,4 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 		DroneAction endAction(E_DroneActionTypes::e_KernelEnd, last_action.fX, last_action.fY, last_action.fCompletionTime);
 		sol_final->PushDroneAction(drone_id, endAction);
 	}
-
 }

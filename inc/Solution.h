@@ -39,8 +39,33 @@ enum class E_UGVActionTypes {
 	e_MoveToWaypoint,	// 3
 	e_MoveToDepot,		// 4
 	e_AtDepot,			// 5
-	e_KernelEnd			// 6
+	e_KernelEnd, 		// 6
+	e_MoveToPosition 	// 7 
 };
+
+inline std::string ugvActionTypeToString(E_UGVActionTypes type) {
+	switch (type) {
+		case E_UGVActionTypes::e_AtDepot:         return "AtDepot";
+		case E_UGVActionTypes::e_MoveToWaypoint:  return "MoveToWaypoint";
+		case E_UGVActionTypes::e_LaunchDrone:     return "LaunchDrone";
+		case E_UGVActionTypes::e_ReceiveDrone:    return "ReceiveDrone";
+		case E_UGVActionTypes::e_KernelEnd:       return "KernelEnd";
+		case E_UGVActionTypes::e_MoveToPosition:  return "MoveToPosition";
+		default:                                  return "Unknown";
+	}
+}
+
+inline std::string uavActionTypeToString(E_DroneActionTypes type) {
+	switch (type) {
+		case E_DroneActionTypes::e_LaunchFromUGV: return "LaunchFromUGV";
+		case E_DroneActionTypes::e_LandOnUGV:     return "LandOnUGV";
+		case E_DroneActionTypes::e_MoveToNode:    return "MoveToNode";
+		case E_DroneActionTypes::e_MoveToUGV:     return "MoveToUGV";
+		case E_DroneActionTypes::e_AtUGV:         return "AtUGV";
+		case E_DroneActionTypes::e_KernelEnd:     return "KernelEnd";
+		default:                                  return "Unknown";
+	}
+}
 
 struct DroneAction {
 	int mActionID;
@@ -70,7 +95,17 @@ struct DroneAction {
 		fCompletionTime = other.fCompletionTime;
 		mDetails = other.mDetails;
 	}
+
+	void print() const {
+		std::cout << "UAVAction #" << mActionID << "\n";
+		std::cout << "  Type: " << uavActionTypeToString(mActionType) << "\n";
+		std::cout << "  Location: (" << fX << ", " << fY << ")\n";
+		std::cout << "  Completion Time: " << fCompletionTime << "\n";
+		std::cout << "  Details: " << mDetails << "\n";
+	}
 };
+
+
 
 struct UGVAction {
 	int mActionID;
@@ -99,6 +134,14 @@ struct UGVAction {
 		mActionType = other.mActionType;
 		fCompletionTime = other.fCompletionTime;
 		mDetails = other.mDetails;
+	}
+
+	void print() const {
+		std::cout << "UGVAction #" << mActionID << "\n";
+		std::cout << "  Type: " << ugvActionTypeToString(mActionType) << "\n";
+		std::cout << "  Location: (" << fX << ", " << fY << ")\n";
+		std::cout << "  Completion Time: " << fCompletionTime << "\n";
+		std::cout << "  Details: " << mDetails << "\n";
 	}
 };
 
@@ -168,10 +211,27 @@ public:
 	void swapUGVActionList(int UGVId, std::vector<UGVAction>& newActionList);
 	// Function to swap an Entire Drone Action List out
 	void swapDroneActionLists(int DroneId, const std::vector<DroneAction>& newActionList); 
-	// Function two actions in a particular UGVAction List
+	// Function to swap two actions in a particular UGVAction List
 	void swapUGVActions(int ugv_num, int index1, int index2); 
-
+	// Checks a solution for anything that would make it invalid, (can't quarentee its valid but can prove its invalid)
+	bool is_valid(PatrollingInput* input, int algorithm);
+	// Checks if a single action pair intercepts any two obstacles 
+	bool collisionsPresent(const UGVAction actionA,const UGVAction actionB, const std::vector<Obstacle>& obstacles);
 private:
+	// Checks to see if UGV - Drone corresponding action is at the same time and at the same place
+	bool syncUGVDroneAction(UGVAction& UGV_action, DroneAction& drone_action);
+	// Charges drone A for some time
+	void chargeDrone(UAV& drone, int drone_ID, double time_on_UGV, PatrollingInput* input);
+	// Equation 8 
+	double calcEnergyFromTime(UAV drone, double t);
+	// Equation 10
+	double calcChargedEnergy(UAV drone, int drone_id, double charge_duration, PatrollingInput* input);
+	// Starts from a drone being launched, checks to make sure it has enough battery
+	bool validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& action_list, int& list_index);
+	// Finds the moving energy from 2 UGV actions
+	double calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current,UGV& UGV_current_object); 
+	// For a UGV does the time and distance of its move make sense
+	bool validateMovementAndTiming(const UGVAction& prev, const UGVAction& next, const UGV& ugv, double overhead_time);
 	PatrollingInput* m_input;
 
 	// Lists of actions for each robot

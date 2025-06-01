@@ -45,8 +45,11 @@ void Solver_Depleted::Solve(PatrollingInput* input, Solution* sol_final) {
 	// Run the baseline solver to get an initial solution
 	RunBaseline(input, sol_final, drones_to_UGV);
 
-	printf("now printing the solution \n");
-	sol_final->PrintSolution(); 
+	if(DEBUG_DEPLETED) {
+		printf("now printing the solution \n");
+		sol_final->PrintSolution();
+	}
+
 	RunDepletedSolver(input, sol_final, drones_to_UGV);
 
 }

@@ -67,31 +67,46 @@ include_directories(
 	${Boost_INCLUDE_DIRS} 
 )
 
+#Get OMPL
+find_package(ompl REQUIRED)
+
+include_directories(${OMPL_INCLUDE_DIRS})
+
+
 # list source files here
 set(sources src/main.cpp)
 
 add_executable(${CMAKE_PROJECT_NAME}
 	${sources}
+	src/ActionSwapper.cpp
+	src/ClusteringAlgorithm.cpp 
 	src/Input.cpp
 	src/KMeansSolver.cpp
 	src/LaunchOptimizer.cpp
+	src/LaunchOptimizerOBS.cpp
+	src/LKH_TSP_Solver.cpp 
+	src/OMPL_RRTSTAR.cpp
 	src/PatrollingInput.cpp
 	src/Roots.cpp
 	src/Solution.cpp
-	src/Solver.cpp
+	src/Solver.cpp 
 	src/Solver_Baseline.cpp
+	src/Solver_BaselineOBS.cpp
+	src/Solver_Depleted.cpp
 	src/Solver_ILO.cpp
+	src/Solver_LLS.cpp
+	src/Solver_LOIRS.cpp
+	src/Solver_LORS.cpp
+	src/Solver_OBS.cpp 
 	src/Solver_OptLaunch.cpp
 	src/Utilities.cpp
 	src/VRPSolver.cpp
-	src/ClusteringAlgorithm.cpp 
-	src/LKH_TSP_Solver.cpp 
-	src/Solver_Depleted.cpp
 )
 
 if(CXX)
 	set(CMAKE_CXX_STANDARD 11)
 	target_link_libraries(${CMAKE_PROJECT_NAME} optimized ${GUROBI_CXX_LIBRARY} debug ${GUROBI_CXX_DEBUG_LIBRARY})
+	target_link_libraries(${CMAKE_PROJECT_NAME} ompl)
 endif()
 
 # Link Gurobi
