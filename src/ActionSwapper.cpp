@@ -11,34 +11,52 @@ ActionSwapper::~ActionSwapper() { }
 
 void ActionSwapper::LazySwap(PatrollingInput* input, Solution* sol_final, int ugv_num, std::vector<std::vector<int>>& drones_to_UGV) {
 	double old_par = sol_final->CalculatePar();
+
+	if(DEBUG_SWAP) {
+		printf("Initial par = %f\n", old_par);
+	}
 	while(true) {
 		// Create interim solution
 		Solution sol_temp(*sol_final);
 
-		// Swap overlapping actions
-		LazyLLS(ugv_num, drones_to_UGV, input, &sol_temp);
-		double new_par = sol_temp.CalculatePar();
-
 		if(DEBUG_SWAP) {
-			printf("**** Swapped overlap ****\n New par = %f\n", new_par);
+			printf("Run swapping..\n");
 		}
 
-		// Did we improve solution quality?
-		if((old_par - new_par) > EPSILON) {
-			*sol_final = sol_temp;
-			old_par = new_par;
+		// Swap overlapping actions
+		bool good_swap = LazyLLS(ugv_num, drones_to_UGV, input, &sol_temp);
+		// Did we successfully swap something?
+		if(good_swap) {
+			// We found a new value for PAR
+			double new_par = sol_temp.CalculatePar();
 
 			if(DEBUG_SWAP) {
-				printf("  Keep solution, run again\n");
+				printf("**** Swapped overlap ****\n New par = %f\n", new_par);
 			}
 
-			continue;
+			// Did we improve solution quality?
+			if((old_par - new_par) > EPSILON) {
+				*sol_final = sol_temp;
+				old_par = new_par;
+
+				if(DEBUG_SWAP) {
+					printf("  Keep solution, run again\n");
+				}
+
+				continue;
+			}
+			else {
+				if(DEBUG_SWAP) {
+					printf("  Old solution was better\n");
+				}
+
+				// Stop running swap logic
+				break;
+			}
 		}
 		else {
-			if(DEBUG_SWAP) {
-				printf("  Old solution was better\n");
-			}
-
+			if(DEBUG_SWAP)
+				printf(" Swap was not successful\n");
 			// Stop running swap logic
 			break;
 		}
@@ -95,30 +113,35 @@ void ActionSwapper::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& dron
 							// * Did we improve the solution?**
 							if(DEBUG_SWAP) {
 								printf("Prev best par and corresponding solution %f\n", prev_best_par);
-								sol_current->PrintSolution();
 							}
 
+							bool good_swap = optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_temp);
+							if(good_swap) {
+								double new_par = sol_temp.CalculatePar();
 
-							optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_temp);
-							double new_par = sol_temp.CalculatePar();
-
-							if(DEBUG_SWAP) {
-								printf("New par and temp sol %f\n", new_par);
-								sol_temp.PrintSolution();
-							}
-
-							if(new_par < prev_best_par) {
-								if (DEBUG_SWAP) {
-									printf("The LLS has made a successful switch\n");
+								if(DEBUG_SWAP) {
+									printf("New par and temp sol %f\n", new_par);
 								}
 
-								prev_best_par = new_par;
-								swapped = true;
-								*sol_current = sol_temp;
-								break;  // * Exit the for-loop to restart while-loop
+								if(new_par < prev_best_par) {
+									if (DEBUG_SWAP) {
+										printf("The LLS has made a successful switch\n");
+									}
+
+									prev_best_par = new_par;
+									swapped = true;
+									*sol_current = sol_temp;
+									break;  // * Exit the for-loop to restart while-loop
+								}
+								else {
+									// * No improvement
+									if(DEBUG_SWAP) {
+										printf("The LLS switch was NOT helpful\n");
+									}
+								}
 							}
 							else {
-								// * No improvement
+								// Not able to swap things
 								if(DEBUG_SWAP) {
 									printf("The LLS switch was NOT successful\n");
 								}
@@ -144,9 +167,9 @@ void ActionSwapper::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& dron
 
 /*
 *  Perform the basic LLS, but don't worry about improvements. Swap all actions that are on top of
-*  each other and then optimize. This returns an optimized (consistent) solution.
+*  each other and then optimize. Returns true if we were able to optimize the solution in sol_current.
 */
-void ActionSwapper::LazyLLS(int ugv_num, std::vector<std::vector<int>>& drones_to_UGV, PatrollingInput* input, Solution* sol_current) {
+bool ActionSwapper::LazyLLS(int ugv_num, std::vector<std::vector<int>>& drones_to_UGV, PatrollingInput* input, Solution* sol_current) {
 	if(SANITY_PRINT) {
 		printf("Attempting to perform relaxing swaps!\n");
 	}
@@ -167,11 +190,11 @@ void ActionSwapper::LazyLLS(int ugv_num, std::vector<std::vector<int>>& drones_t
 				// * Is the MoveToWaypoint a dummy?
 				if(isMoveADummy(curr_action, prev_action)) {
 					if(DEBUG_SWAP) {
-						printf("A dummy MoveToWaypoint has been found\n");
+						printf(" Found dummy MoveToWaypoint action: %d (overlaps: %d)\n", curr_action.mActionID, prev_action.mActionID);
 					}
 					if(isOverlappingLaunchOrReceive(prev_action, next_action)) {
 						if(DEBUG_SWAP) {
-							printf("A overlapping launch and/or receive has been found\n");
+							printf("  Previous (%d) and next (%d) actions can be swapped\n", prev_action.mActionID, next_action.mActionID);
 						}
 
 						// * Swap these actions
@@ -190,7 +213,7 @@ void ActionSwapper::LazyLLS(int ugv_num, std::vector<std::vector<int>>& drones_t
 	}
 
 	// Run optimizer once
-	optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_current);
+	return optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_current);
 }
 
 

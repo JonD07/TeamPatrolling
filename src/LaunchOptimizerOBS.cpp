@@ -391,7 +391,7 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 }
 
 
-void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final) {
+bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final) {
 	if(DEBUG_LAUNCHOPTOBS)
 		printf("Optimizing UGV %d route\n", ugv_num);
 
@@ -1109,14 +1109,15 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 					ugv_tour_start = kernel_complete_time;
 				}
 			}
-			// No!! break!
+			// Bad input to Gurobi.. break and return false
 			else {
-				fprintf(stderr,"[%s][LaunchOptimizerOBS::OptLaunching] : Gurobi did not find a solution!\n", ERROR);
-				throw std::runtime_error("Gurobi did not find a solution\n");
+				if(DEBUG_LAUNCHOPTOBS)
+					fprintf(stderr,"[%s][LaunchOptimizerOBS::OptLaunching] : Gurobi did not find a solution!\n", WARNING);
+				return false;
 			}
 		}
 		catch(GRBException& e) {
-			printf("[%s][LaunchOptimizerOBS::OptLaunching] %d: %s\n", ERROR, e.getErrorCode(), e.getMessage().c_str());
+			fprintf(stderr, "[%s][LaunchOptimizerOBS::OptLaunching] %d: %s\n", ERROR, e.getErrorCode(), e.getMessage().c_str());
 			throw std::runtime_error("Gurobi error\n");
 		}
 
@@ -1171,4 +1172,7 @@ void LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 		DroneAction endAction(E_DroneActionTypes::e_KernelEnd, last_action.fX, last_action.fY, last_action.fCompletionTime);
 		sol_final->PushDroneAction(drone_id, endAction);
 	}
+
+	// If we made it this far.. then we must have found a valid solution.
+	return true;
 }

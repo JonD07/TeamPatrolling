@@ -221,7 +221,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	if(SANITY_PRINT) {
-		solution.PrintSolution();
 		printf("PAR: %f, computation time = %f, valid = %s\n", par, duration_s, valid ? "true" : "false");
 	}
 

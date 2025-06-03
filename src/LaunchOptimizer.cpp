@@ -9,7 +9,8 @@ LaunchOptimizer::LaunchOptimizer() { }
 LaunchOptimizer::~LaunchOptimizer() { }
 
 
-void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final) {
+// Attempts to optimize the location/time of all launch/land actions assigned to this UGV. Returns true if Gurobi finds a valid solution, false otherwise.
+bool LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final) {
 	if(DEBUG_LAUNCHOPT)
 		printf("Optimizing UGV %d route\n", ugv_num);
 
@@ -417,213 +418,223 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 			// Optimize model
 			model.optimize();
 
-			if(DEBUG_LAUNCHOPT) {
-				printf("minimized %s = %f\n", t_base.get(GRB_StringAttr_VarName).c_str(), t_base.get(GRB_DoubleAttr_X));
+			// Did we find a solution..?
+			if(model.get(GRB_IntAttr_SolCount) >= 1) {
+				if(DEBUG_LAUNCHOPT) {
+					printf("minimized %s = %f\n", t_base.get(GRB_StringAttr_VarName).c_str(), t_base.get(GRB_DoubleAttr_X));
 
-				// Record this so we can watch how well the optimizer is improving things
-				FILE * pOutputFile;
-				pOutputFile = fopen("qp_improvement.dat", "a");
-				fprintf(pOutputFile, "%f\n", t_base.get(GRB_DoubleAttr_X));
-				fclose(pOutputFile);
+					// Record this so we can watch how well the optimizer is improving things
+					FILE * pOutputFile;
+					pOutputFile = fopen("qp_improvement.dat", "a");
+					fprintf(pOutputFile, "%f\n", t_base.get(GRB_DoubleAttr_X));
+					fclose(pOutputFile);
 
-				printf("Actions:\n");
-				for(int a_i = 0; a_i < boost::numeric_cast<int>(ordered_action_list.size()); a_i++) {
-					printf(" %d: (%f,%f) @ %f", a_i, action_coord_vars.at(a_i).at(0).get(GRB_DoubleAttr_X), action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X), action_time_vars.at(a_i).get(GRB_DoubleAttr_X));
-					if(ordered_action_list.at(a_i).action_type == E_SOCActionType::e_LaunchDrone) {
-						printf(" launch %d\n", ordered_action_list.at(a_i).ID);
-					}
-					else if(ordered_action_list.at(a_i).action_type == E_SOCActionType::e_ReceiveDrone) {
-						printf(" land %d\n", ordered_action_list.at(a_i).ID);
-					}
-					else {
-						printf("\n");
-					}
-				}
-			}
-
-			double ugv_x_i;
-			double ugv_y_i;
-			double ugv_t_i;
-			std::map<int, std::vector<double>> drone_pos_x_y_t;
-
-			// Start with the initial action of each robot on this team
-			{
-				double x_b, y_b;
-				input->GetDepot(ugv_num, &x_b, &y_b);
-				double t_i = ugv_tour_start;
-
-				// UGV is at the base depot
-				UGVAction bsUGVAction(E_UGVActionTypes::e_AtDepot, x_b, y_b, t_i);
-				ugv_final_actions.push_back(bsUGVAction);
-				// Update the running position of the UGV
-				ugv_x_i = x_b;
-				ugv_y_i = y_b;
-				ugv_t_i = t_i;
-
-				// Add this to each drone
-				for(int drone_j : drones_on_UGV) {
-					// Record the drone's position
-					std::vector<double> drone_x_y_t;
-					drone_x_y_t.push_back(x_b);
-					drone_x_y_t.push_back(y_b);
-					drone_x_y_t.push_back(t_i);
-					drone_pos_x_y_t.insert(std::pair<int, std::vector<double>>(drone_j, drone_x_y_t));
-				}
-			}
-
-			// Extract solution (we want locations and times of each action)
-			for(int a_i = 0; a_i < boost::numeric_cast<int>(ordered_action_list.size()); a_i++) {
-				SOCAction action_i = ordered_action_list.at(a_i);
-
-				// What type of action is this?
-				if(action_i.action_type == E_SOCActionType::e_BaseStation) {
-					// Do nothing... We handle this outside of this loop (before and after)
-				}
-				else if(action_i.action_type == E_SOCActionType::e_LaunchDrone) {
-					// Where?
-					double x_j = action_coord_vars.at(a_i).at(0).get(GRB_DoubleAttr_X);
-					double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
-					// When?
-					double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
-					double t_i_j = dist_i_j/input->getUGV(ugv_num).ugv_v_crg;
-					double t_j = t_i_j + ugv_t_i;
-
-					// Move UGV to this location
-					UGVAction moveUGV(E_UGVActionTypes::e_MoveToWaypoint, x_j, y_j, t_j);
-					ugv_final_actions.push_back(moveUGV);
-
-					// Update UGV position/time
-					ugv_x_i = x_j;
-					ugv_y_i = y_j;
-					ugv_t_i = t_j;
-
-					// Launch the drone
-
-					int drone_id = action_i.ID;
-					UAV uav = input->getUAV(drone_id);
-					t_j = ugv_t_i + uav.timeNeededToLaunch;
-
-					UGVAction launchDrone(E_UGVActionTypes::e_LaunchDrone, ugv_x_i, ugv_y_i, t_j, drone_id);
-					ugv_final_actions.push_back(launchDrone);
-					DroneAction launchAction(E_DroneActionTypes::e_LaunchFromUGV, ugv_x_i, ugv_y_i, t_j, ugv_num);
-					drone_final_actions_j.at(drone_id).push_back(launchAction);
-
-					// Update when the UGV finished doing this..
-					ugv_t_i = t_j;
-
-					// To track the drone
-					double drone_x_i = ugv_x_i;
-					double drone_y_i = ugv_y_i;
-					double drone_t_i = ugv_t_i;
-
-					// Add in all stops for this drone
-					while(old_action_queues.at(drone_id).front().mActionType != E_DroneActionTypes::e_LandOnUGV) {
-						DroneAction next_action = old_action_queues.at(drone_id).front();
-						if(next_action.mActionType == E_DroneActionTypes::e_MoveToNode) {
-							int node_id = next_action.mDetails;
-							double x_j = vctrPOINodes.at(node_id).location.x, y_j = vctrPOINodes.at(node_id).location.y;
-							double dist_i_j = distAtoB(drone_x_i, drone_y_i, x_j, y_j);
-							double time_i_j = dist_i_j/input->GetDroneVMax(DRONE_I);
-							double t_j = drone_t_i + time_i_j;
-
-							// Add visit node action
-							DroneAction launchAction(E_DroneActionTypes::e_MoveToNode, x_j, y_j, t_j, next_action.mDetails);
-							drone_final_actions_j.at(drone_id).push_back(launchAction);
-
-							// Update drone's location
-							drone_pos_x_y_t.at(drone_id).at(0) = x_j;
-							drone_pos_x_y_t.at(drone_id).at(1) = y_j;
-							drone_pos_x_y_t.at(drone_id).at(2) = t_j;
-
-							// Update previous
-							drone_x_i = x_j;
-							drone_y_i = y_j;
-							drone_t_i = t_j;
+					printf("Actions:\n");
+					for(int a_i = 0; a_i < boost::numeric_cast<int>(ordered_action_list.size()); a_i++) {
+						printf(" %d: (%f,%f) @ %f", a_i, action_coord_vars.at(a_i).at(0).get(GRB_DoubleAttr_X), action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X), action_time_vars.at(a_i).get(GRB_DoubleAttr_X));
+						if(ordered_action_list.at(a_i).action_type == E_SOCActionType::e_LaunchDrone) {
+							printf(" launch %d\n", ordered_action_list.at(a_i).ID);
 						}
+						else if(ordered_action_list.at(a_i).action_type == E_SOCActionType::e_ReceiveDrone) {
+							printf(" land %d\n", ordered_action_list.at(a_i).ID);
+						}
+						else {
+							printf("\n");
+						}
+					}
+				}
 
-						// Remove the last action
+				double ugv_x_i;
+				double ugv_y_i;
+				double ugv_t_i;
+				std::map<int, std::vector<double>> drone_pos_x_y_t;
+
+				// Start with the initial action of each robot on this team
+				{
+					double x_b, y_b;
+					input->GetDepot(ugv_num, &x_b, &y_b);
+					double t_i = ugv_tour_start;
+
+					// UGV is at the base depot
+					UGVAction bsUGVAction(E_UGVActionTypes::e_AtDepot, x_b, y_b, t_i);
+					ugv_final_actions.push_back(bsUGVAction);
+					// Update the running position of the UGV
+					ugv_x_i = x_b;
+					ugv_y_i = y_b;
+					ugv_t_i = t_i;
+
+					// Add this to each drone
+					for(int drone_j : drones_on_UGV) {
+						// Record the drone's position
+						std::vector<double> drone_x_y_t;
+						drone_x_y_t.push_back(x_b);
+						drone_x_y_t.push_back(y_b);
+						drone_x_y_t.push_back(t_i);
+						drone_pos_x_y_t.insert(std::pair<int, std::vector<double>>(drone_j, drone_x_y_t));
+					}
+				}
+
+				// Extract solution (we want locations and times of each action)
+				for(int a_i = 0; a_i < boost::numeric_cast<int>(ordered_action_list.size()); a_i++) {
+					SOCAction action_i = ordered_action_list.at(a_i);
+
+					// What type of action is this?
+					if(action_i.action_type == E_SOCActionType::e_BaseStation) {
+						// Do nothing... We handle this outside of this loop (before and after)
+					}
+					else if(action_i.action_type == E_SOCActionType::e_LaunchDrone) {
+						// Where?
+						double x_j = action_coord_vars.at(a_i).at(0).get(GRB_DoubleAttr_X);
+						double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
+						// When?
+						double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
+						double t_i_j = dist_i_j/input->getUGV(ugv_num).ugv_v_crg;
+						double t_j = t_i_j + ugv_t_i;
+
+						// Move UGV to this location
+						UGVAction moveUGV(E_UGVActionTypes::e_MoveToWaypoint, x_j, y_j, t_j);
+						ugv_final_actions.push_back(moveUGV);
+
+						// Update UGV position/time
+						ugv_x_i = x_j;
+						ugv_y_i = y_j;
+						ugv_t_i = t_j;
+
+						// Launch the drone
+
+						int drone_id = action_i.ID;
+						UAV uav = input->getUAV(drone_id);
+						t_j = ugv_t_i + uav.timeNeededToLaunch;
+
+						UGVAction launchDrone(E_UGVActionTypes::e_LaunchDrone, ugv_x_i, ugv_y_i, t_j, drone_id);
+						ugv_final_actions.push_back(launchDrone);
+						DroneAction launchAction(E_DroneActionTypes::e_LaunchFromUGV, ugv_x_i, ugv_y_i, t_j, ugv_num);
+						drone_final_actions_j.at(drone_id).push_back(launchAction);
+
+						// Update when the UGV finished doing this..
+						ugv_t_i = t_j;
+
+						// To track the drone
+						double drone_x_i = ugv_x_i;
+						double drone_y_i = ugv_y_i;
+						double drone_t_i = ugv_t_i;
+
+						// Add in all stops for this drone
+						while(old_action_queues.at(drone_id).front().mActionType != E_DroneActionTypes::e_LandOnUGV) {
+							DroneAction next_action = old_action_queues.at(drone_id).front();
+							if(next_action.mActionType == E_DroneActionTypes::e_MoveToNode) {
+								int node_id = next_action.mDetails;
+								double x_j = vctrPOINodes.at(node_id).location.x, y_j = vctrPOINodes.at(node_id).location.y;
+								double dist_i_j = distAtoB(drone_x_i, drone_y_i, x_j, y_j);
+								double time_i_j = dist_i_j/input->GetDroneVMax(DRONE_I);
+								double t_j = drone_t_i + time_i_j;
+
+								// Add visit node action
+								DroneAction launchAction(E_DroneActionTypes::e_MoveToNode, x_j, y_j, t_j, next_action.mDetails);
+								drone_final_actions_j.at(drone_id).push_back(launchAction);
+
+								// Update drone's location
+								drone_pos_x_y_t.at(drone_id).at(0) = x_j;
+								drone_pos_x_y_t.at(drone_id).at(1) = y_j;
+								drone_pos_x_y_t.at(drone_id).at(2) = t_j;
+
+								// Update previous
+								drone_x_i = x_j;
+								drone_y_i = y_j;
+								drone_t_i = t_j;
+							}
+
+							// Remove the last action
+							old_action_queues.at(drone_id).pop();
+						}
+						// Pop off the land action (we create the new action later)
 						old_action_queues.at(drone_id).pop();
 					}
-					// Pop off the land action (we create the new action later)
-					old_action_queues.at(drone_id).pop();
+					else if(action_i.action_type == E_SOCActionType::e_ReceiveDrone) {
+						// Move the UGV to this point, move the drone to this point, then land the drone
+						// Where?
+						double x_j = action_coord_vars.at(a_i).at(0).get(GRB_DoubleAttr_X);
+						double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
+						// When?
+						double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
+						double t_i_j = dist_i_j/input->getUGV(ugv_num).ugv_v_crg;
+
+						double t_j = t_i_j + ugv_t_i;
+
+						// Move UGV to this location
+						UGVAction moveUGV(E_UGVActionTypes::e_MoveToWaypoint, x_j, y_j, t_j);
+						ugv_final_actions.push_back(moveUGV);
+
+						// Update UGV position/time
+						ugv_x_i = x_j;
+						ugv_y_i = y_j;
+						ugv_t_i = t_j;
+
+						// Move the drone to this point
+						int drone_id = action_i.ID;
+						double dist_drone_j = distAtoB(drone_pos_x_y_t.at(drone_id).at(0), drone_pos_x_y_t.at(drone_id).at(1), x_j, y_j);
+						double t_drone_j = drone_pos_x_y_t.at(drone_id).at(2) + dist_drone_j/input->GetDroneVMax(DRONE_I);
+						double drone_arrives = std::max(t_drone_j, t_j);
+
+						// Move drone to UGV
+						DroneAction moveAction(E_DroneActionTypes::e_MoveToUGV, ugv_x_i, ugv_y_i, drone_arrives, ugv_num);
+						drone_final_actions_j.at(drone_id).push_back(moveAction);
+
+						// Land the drone
+						UAV uav = input->getUAV(drone_id);
+						t_j = drone_arrives + uav.timeNeededToLand;
+						UGVAction landDrone(E_UGVActionTypes::e_ReceiveDrone, ugv_x_i, ugv_y_i, t_j, drone_id);
+						ugv_final_actions.push_back(landDrone);
+						DroneAction landAction(E_DroneActionTypes::e_LandOnUGV, ugv_x_i, ugv_y_i, t_j, ugv_num);
+						drone_final_actions_j.at(drone_id).push_back(landAction);
+
+						// Update when the UGV finished doing this..
+						ugv_t_i = t_j;
+					}
 				}
-				else if(action_i.action_type == E_SOCActionType::e_ReceiveDrone) {
-					// Move the UGV to this point, move the drone to this point, then land the drone
-					// Where?
-					double x_j = action_coord_vars.at(a_i).at(0).get(GRB_DoubleAttr_X);
-					double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
-					// When?
-					double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
-					double t_i_j = dist_i_j/input->getUGV(ugv_num).ugv_v_crg;
 
-					double t_j = t_i_j + ugv_t_i;
+				// Move back to the base
+				{
+					double x_b, y_b;
+					input->GetDepot(ugv_num, &x_b, &y_b);
+					double dist_i_b = distAtoB(ugv_x_i, ugv_y_i, x_b, y_b);
+					double t_i_b = dist_i_b/input->getUGV(ugv_num).ugv_v_crg;
 
-					// Move UGV to this location
-					UGVAction moveUGV(E_UGVActionTypes::e_MoveToWaypoint, x_j, y_j, t_j);
-					ugv_final_actions.push_back(moveUGV);
+					double t_b = t_i_b + ugv_t_i;
 
-					// Update UGV position/time
-					ugv_x_i = x_j;
-					ugv_y_i = y_j;
-					ugv_t_i = t_j;
+					// UGV is at the base depot
+					UGVAction bsUGVAction(E_UGVActionTypes::e_MoveToDepot, x_b, y_b, t_b);
+					ugv_final_actions.push_back(bsUGVAction);
 
-					// Move the drone to this point
-					int drone_id = action_i.ID;
-					double dist_drone_j = distAtoB(drone_pos_x_y_t.at(drone_id).at(0), drone_pos_x_y_t.at(drone_id).at(1), x_j, y_j);
-					double t_drone_j = drone_pos_x_y_t.at(drone_id).at(2) + dist_drone_j/input->GetDroneVMax(DRONE_I);
-					double drone_arrives = std::max(t_drone_j, t_j);
+					// The kernel ends after the battery swap
+					UGV ugv = input->getUGV(ugv_num);
+					double kernel_complete_time = t_b + ugv.batterySwapTime;
+					// Record that UGV is at the base station
+					UGVAction ugvAtDepotAction(E_UGVActionTypes::e_AtDepot, x_b, y_b, kernel_complete_time);
+					ugv_final_actions.push_back(ugvAtDepotAction);
+					for(int drone : drones_on_UGV) {
+						// Record that you are at the UGV
+						DroneAction atUGVAction(E_DroneActionTypes::e_AtUGV, x_b, y_b, kernel_complete_time);
+						drone_final_actions_j.at(drone).push_back(atUGVAction);
+					}
 
-					// Move drone to UGV
-					DroneAction moveAction(E_DroneActionTypes::e_MoveToUGV, ugv_x_i, ugv_y_i, drone_arrives, ugv_num);
-					drone_final_actions_j.at(drone_id).push_back(moveAction);
-
-					// Land the drone
-					UAV uav = input->getUAV(drone_id);
-					t_j = drone_arrives + uav.timeNeededToLand;
-					UGVAction landDrone(E_UGVActionTypes::e_ReceiveDrone, ugv_x_i, ugv_y_i, t_j, drone_id);
-					ugv_final_actions.push_back(landDrone);
-					DroneAction landAction(E_DroneActionTypes::e_LandOnUGV, ugv_x_i, ugv_y_i, t_j, ugv_num);
-					drone_final_actions_j.at(drone_id).push_back(landAction);
-
-					// Update when the UGV finished doing this..
-					ugv_t_i = t_j;
+					// Update when this things UGV tour ended
+					ugv_tour_start = kernel_complete_time;
 				}
 			}
-
-			// Move back to the base
-			{
-				double x_b, y_b;
-				input->GetDepot(ugv_num, &x_b, &y_b);
-				double dist_i_b = distAtoB(ugv_x_i, ugv_y_i, x_b, y_b);
-				double t_i_b = dist_i_b/input->getUGV(ugv_num).ugv_v_crg;
-
-				double t_b = t_i_b + ugv_t_i;
-
-				// UGV is at the base depot
-				UGVAction bsUGVAction(E_UGVActionTypes::e_MoveToDepot, x_b, y_b, t_b);
-				ugv_final_actions.push_back(bsUGVAction);
-
-				// The kernel ends after the battery swap
-				UGV ugv = input->getUGV(ugv_num);
-				double kernel_complete_time = t_b + ugv.batterySwapTime;
-				// Record that UGV is at the base station
-				UGVAction ugvAtDepotAction(E_UGVActionTypes::e_AtDepot, x_b, y_b, kernel_complete_time);
-				ugv_final_actions.push_back(ugvAtDepotAction);
-				for(int drone : drones_on_UGV) {
-					// Record that you are at the UGV
-					DroneAction atUGVAction(E_DroneActionTypes::e_AtUGV, x_b, y_b, kernel_complete_time);
-					drone_final_actions_j.at(drone).push_back(atUGVAction);
-				}
-
-				// Update when this things UGV tour ended
-				ugv_tour_start = kernel_complete_time;
+			else {
+				if(DEBUG_LAUNCHOPT)
+					fprintf(stderr, "[%s][LaunchOptimizer::OptLaunching] Bad input, Gurobi could not find a valid solution\n", WARNING);
+				return false;
 			}
 		}
 		catch(GRBException& e) {
-			printf("[%s][LaunchOptimizer::OptLaunching] %d: %s\n", ERROR, e.getErrorCode(), e.getMessage().c_str());
+			fprintf(stderr, "[%s][LaunchOptimizer::OptLaunching] %d: %s\n", ERROR, e.getErrorCode(), e.getMessage().c_str());
+			exit(1);
 		}
 		catch(const std::exception& e) {
-			printf("Exception during optimization: %s\n", e.what());
+			fprintf(stderr, "[%s][LaunchOptimizer::OptLaunching] Exception during optimization: %s\n", ERROR, e.what());
+			exit(1);
 		}
 
 		// Determine if there is another team-tour to process
@@ -677,4 +688,7 @@ void LaunchOptimizer::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV,
 		DroneAction endAction(E_DroneActionTypes::e_KernelEnd, last_action.fX, last_action.fY, last_action.fCompletionTime);
 		sol_final->PushDroneAction(drone_id, endAction);
 	}
+
+	// If we made it this far.. then we must have found a valid solution.
+	return true;
 }

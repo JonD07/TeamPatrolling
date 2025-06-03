@@ -29,7 +29,8 @@ public:
 	LaunchOptimizer();
 	~LaunchOptimizer();
 
-	void OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final);
+	// Attempts to optimize the location/time of all launch/land actions assigned to this UGV. Returns true if Gurobi finds a valid solution, false otherwise.
+	bool OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final);
 
 protected:
 };

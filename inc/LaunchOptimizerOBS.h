@@ -39,7 +39,7 @@ public:
 	LaunchOptimizerOBS();
 	~LaunchOptimizerOBS();
 
-	void OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final);
+	bool OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final);
     void static addCorridorConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
                                 const UGVAction& p1, const UGVAction& p2, const UGVAction& p3,
                                 const Obstacle& obstacle, std::vector<Obstacle>& obstacles);

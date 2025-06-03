@@ -65,7 +65,11 @@ void Solver_LOIRS::Solve(PatrollingInput* input, Solution* sol_final) {
 	/// Optimize launch/land actions once
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
 		// Need to break things up a little before continuing...
-		optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+		bool good_run = optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+		if(!good_run) {
+			// Gurobi failed to find a solution..
+			throw std::runtime_error("[LOIRS] Gurobi failed after baseline\n");;
+		}
 	}
 
 	if(DEBUG_LOS_IR) {
@@ -98,17 +102,28 @@ void Solver_LOIRS::Solve(PatrollingInput* input, Solution* sol_final) {
 
 				if(made_update) {
 					/// Update the final solution
-					*sol_final = Solution(sol_new);
-					optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+					bool good_run = optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_new);
+
+					// Did we successfully optimize the new solution?
+					if(good_run) {
+						// Update solution
+						*sol_final = Solution(sol_new);
+					}
+					else {
+						// No..
+						made_update = false;
+					}
 				}
 			}
 
 			/// While UGV tour has collisions... run obstacle avoidance
 			while(moveAroundObstacles(ugv_num, input, sol_final, drones_to_UGV)) {
-				sol_final->GenerateYAML("midsolve_plan.yaml");
-
 				/// Optimize solution
-				optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+				bool good_run = optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+				if(!good_run) {
+					// Gurobi failed to find a solution..
+					throw std::runtime_error("[LOIRS] Gurobi failed while avoiding obstacles\n");;
+				}
 			}
 
 		} while(made_update);

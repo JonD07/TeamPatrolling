@@ -61,24 +61,37 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 	/// Optimize launch/land actions once
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
 		// Need to break things up a little before continuing...
-		optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+		bool good_run = optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+		if(!good_run) {
+			// Gurobi failed to find a solution..
+			throw std::runtime_error("[LORS] Gurobi failed after baseline\n");;
+		}
 	}
 
 	if(DEBUG_LORS) {
 		double old_par = sol_final->CalculatePar();
 		printf("**** Optimized initial solution ****\n New par = %f\n", old_par);
 	}
+
 	/// For each UGV...
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
 		// Stopping condition
 		bool made_update = false;
 
 		if(bSwapping) {
+			if(DEBUG_LORS) {
+				printf("Attempting to swap actions\n");
+			}
+
 			/// Perform action swapping
 			swapper.LazySwap(input, sol_final, ugv_num, drones_to_UGV);
 		}
 
 		if(bReplanning) {
+			if(DEBUG_LORS) {
+				printf("Attempting to replan sub-tours\n");
+			}
+
 			// Create a temporary solution
 			Solution sol_new(*sol_final);
 
@@ -89,18 +102,34 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 			}
 
 			if(made_update) {
-				/// Update the final solution
-				*sol_final = Solution(sol_new);
-				optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+				// Try to optimize this new solution
+				bool good_run = optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, &sol_new);
+				// Did the optimizer succeed?
+				if(good_run) {
+					if(DEBUG_LORS) {
+						printf("Good re-plan, updating solution\n");
+					}
+					/// Update the final solution
+					*sol_final = Solution(sol_new);
+				}
 			}
 		}
 
+		if(DEBUG_LORS) {
+			printf("Running obstacle avoidance\n");
+		}
 		/// While UGV tour has collisions... run obstacle avoidance
 		while(moveAroundObstacles(ugv_num, input, sol_final, drones_to_UGV)) {
+			if(DEBUG_LORS) {
+				printf("Ran avoidance algorithm, updating solution\n");
+			}
 			/// Optimize solution
-			optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+			bool good_run = optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
+			if(!good_run) {
+				// Gurobi failed to find a solution..
+				throw std::runtime_error("[LORS] Gurobi failed while avoiding obstacles\n");;
+			}
 		}
-
 	}
 
 	if(DEBUG_LORS) {
