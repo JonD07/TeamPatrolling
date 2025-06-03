@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
 		solver->Solve(&input, &solution);
 	}
 	catch(const std::exception& e) {
-		printf("[%s][main] Exception during optimization: %s\n", ERROR, e.what());
+		fprintf(stderr, "[%s][main] Exception during optimization: %s", ERROR, e.what());
 		valid = false;
 	}
 
@@ -209,15 +209,15 @@ int main(int argc, char *argv[]) {
 	double duration_s = (double)duration/1000.0; 
 
 	// If we haven't already flagged this solution...
-	if(valid)
-		valid = solution.is_valid(&input, algorithm);
-
-	if(!valid) {
-		printf("[%s][main] Solution was found to be invalid\n", ERROR);
-	}
-	else {
+	if(valid) {
 		// Actually calculate PAR
 		par = solution.CalculatePar();
+		// Check that the solution is valid again
+		valid = solution.is_valid(&input, algorithm);
+	}
+
+	if(!valid) {
+		fprintf(stderr, "[%s][main] Solution was found to be invalid\n", ERROR);
 	}
 
 	if(SANITY_PRINT) {
