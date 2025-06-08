@@ -74,7 +74,7 @@ public:
 		}
 	}
 
-	bool static checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle) {
+	bool static checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle, double buffer = OMPL_OBST_BUFFER_DIST) {
 	    /*
 	    * Determines whether the line segment between two points intersects a circular obstacle.
 	    *
@@ -95,10 +95,10 @@ public:
 	    double dy = obstacle.location.y - y1;
 	    double lineLength = std::sqrt(lineVecX * lineVecX + lineVecY * lineVecY);
 
-	    if (lineLength < std::numeric_limits<double>::epsilon()) {
+	    if(lineLength < std::numeric_limits<double>::epsilon()) {
 	        // If line length is essentially zero, check direct distance to obstacle
 	        double directDistance = std::sqrt(dx * dx + dy * dy);
-	        return directDistance <= obstacle.radius;
+	        return directDistance <= (obstacle.radius + OMPL_OBST_BUFFER_DIST);
 	    }
 
 	    double unitLineVecX = lineVecX / lineLength;
@@ -118,18 +118,12 @@ public:
 	        projectionLength >= 0 &&
 	        projectionLength <= lineLength;
 
-	    bool isEndpoint1InCircle = std::sqrt(
-	        (x1 - obstacle.location.x) * (x1 - obstacle.location.x) +
-	        (y1 - obstacle.location.y) * (y1 - obstacle.location.y)
-	    ) <= (obstacle.radius*0.99);
+	    bool isEndpoint1InCircle = distAtoB(x1, y1, obstacle.location.x, obstacle.location.y) <= (obstacle.radius+buffer);
 
-	    bool isEndpoint2InCircle = std::sqrt(
-	        (x2 - obstacle.location.x) * (x2 - obstacle.location.x) +
-	        (y2 - obstacle.location.y) * (y2 - obstacle.location.y)
-	    ) <= (obstacle.radius*0.99);
+	    bool isEndpoint2InCircle = distAtoB(x2, y2, obstacle.location.x, obstacle.location.y) <= (obstacle.radius+buffer);
 
 	    return isEndpoint1InCircle || isEndpoint2InCircle ||
-	           ((distanceToCenter <= obstacle.radius) && isClosestPointOnSegment);
+	           ((distanceToCenter <= (obstacle.radius + OMPL_OBST_BUFFER_DIST)) && isClosestPointOnSegment);
 	}
 
 };

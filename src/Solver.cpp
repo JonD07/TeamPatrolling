@@ -1390,139 +1390,173 @@ void Solver::solverTSP_LKH(std::vector<GeneralVertex>& lst, std::vector<GeneralV
 }
 
 
-
+// * Loop through each UGV actions to check for obstacles, find a path around a obstacle if it exists
 bool Solver::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV) {
-	// * The first thing we need to do is push any overlapping actions outside of the obstacles
-	pushActionsOutside(ugv_num, input, sol_current, drones_to_UGV);
-
-	// * Loop through each UGV actions to check for obstacles, find a path around a obstacle if it exists
-	bool moved_around_obstacle = false;
-
+	bool updated_path = false;
 	const std::vector<Obstacle> input_obstacles = input->GetObstacles();
     OMPL_RRTSTAR pathSolver;
 
-	bool path_created = true;
+	// * The first thing we need to do is push any overlapping actions outside of the obstacles
+	updated_path |= pushActionsOutside(ugv_num, input, sol_current, drones_to_UGV);
 
 	if(DEBUG_SOLVER)
-		printf("* Check for point-to-point collisions\n");
+		printf("** Check for point-to-point collisions\n");
 
-	// * It is important that we are using the most updated action list when considering pathing
-	// * This loop ensures that each time we change our action list we restart the loop and get the action list again
-	// * The new action list will have the new move actions that we just created
-	while(path_created) {
-		path_created = false;
-		std::vector<UGVAction> new_UGV_action_list;
-		std::vector<UGVAction> ugv_action_list;
-		sol_current->GetUGVActionList(ugv_num, ugv_action_list);
+	// Get current action list
+	std::vector<UGVAction> ugv_action_list;
+	sol_current->GetUGVActionList(ugv_num, ugv_action_list);
+	// Create a new action list (might not be needed)
+	std::vector<UGVAction> new_UGV_action_list;
 
-		for(size_t UGV_action_index = 0; UGV_action_index < ugv_action_list.size(); UGV_action_index++) {
-			switch(ugv_action_list[UGV_action_index].mActionType) {
+	// Check each action
+	for(size_t UGV_action_index = 0; UGV_action_index < ugv_action_list.size(); UGV_action_index++) {
+		UGVAction current_action = ugv_action_list[UGV_action_index];
+
+		// Make sure we jumped past the first action (it should always be a dummy action)
+		if(UGV_action_index > 0) {
+			// What type of action is this?
+			switch(current_action.mActionType)
+			{
+				// We are intested in move actions...
 				case E_UGVActionTypes::e_MoveToDepot:
 				case E_UGVActionTypes::e_MoveToWaypoint:
-					if ( UGV_action_index  == 0) {
-						throw std::runtime_error("Action #1 is a move action, something is malformed with the action list");
-					}
+				case E_UGVActionTypes::e_MoveToPosition:
+				{
+					// Verify that we don't cross through an obstacle over the move
+					bool obstacle_found = false;
+					UGVAction previous_action = new_UGV_action_list.back();
 
-					for (const Obstacle& obstacle : input_obstacles) {
-						UGVAction action1 = ugv_action_list[UGV_action_index - 1];
-						UGVAction action2 = ugv_action_list[UGV_action_index];
-
-						bool obstacle_found = Obstacle::checkForObstacle(action1.fX, action1.fY, action2.fX, action2.fY, obstacle);
-						if (obstacle_found) {
-							if(DEBUG_SOLVER)
-								printf("** Found collision!\n");
-							// * Set the return variable to true if we have to move around even 1 obstacle
-							moved_around_obstacle = true;
-							// * Find a path around the obstacle
-							std::vector<std::pair<double, double>> path;
-							pathSolver.findPathBetweenActions(input, action1, action2, input_obstacles, &path);
-
-							if(DEBUG_SOLVER) {
-								printf("This obstacle:\n");
-								obstacle.printInfo();
-								printf("Was found between:\n");
-								action1.print();
-								action2.print();
-								printf("\n Path around obstacle:\n  ");
-								for(std::pair<double,double> n : path) {
-									printf("->(%f,%f)", n.first, n.second);
-								}
-								puts("");
-							}
-
-							if(path.size() >= 3) {
-								// * Path found successfully!
-								// * Add in all the items before
-								for(size_t j = 0; j < UGV_action_index; j++) {
-									new_UGV_action_list.push_back(ugv_action_list[j]);
-								}
-
-								// * Add all middle items in the path to be MoveToPosition Actions
-								for(int i = 1; i < boost::numeric_cast<int>(path.size()) - 1; i++) {
-									// Determine which obstacle we are maneuvering around
-									int obstacle_id = determineAssociatedObstacle({-1, path[i-1].first, path[i-1].second}, {-1, path[i].first, path[i].second}, {-1, path[i+1].first, path[i+1].second}, input_obstacles);
-									if(obstacle_id > -1) {
-										// Create a new action here
-										UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, action1.fCompletionTime+(i*0.1), obstacle_id);
-										new_UGV_action_list.push_back(tmp);
-									}
-									else {
-										fprintf(stderr, "[%s][Solver::moveAroundObstacles] No associated obstacle for waypoint\n", WARNING);
-									}
-								}
-
-								// * Add the current action
-								new_UGV_action_list.push_back(ugv_action_list[UGV_action_index]);
-
-								// * Append remaining unchanged actions from current list
-								for(size_t k = UGV_action_index + 1; k < ugv_action_list.size(); ++k) {
-									new_UGV_action_list.push_back(ugv_action_list[k]);
-								}
-
-								// * Swap and restart loop
-								sol_current->swapUGVActionList(ugv_num, new_UGV_action_list);
-								new_UGV_action_list.clear();
-								path_created = true;
-
-								if (DEBUG_SOLVER) {
-									printf("\n");
-									printf("Our new solution after adding that last path: \n");
-									sol_current->PrintSolution();
-								}
-								break;  // break obstacle loop
-							}
-							else {
-								throw std::runtime_error("Path around an obstacle should contain at least 3 points");
-							}
+					for(const Obstacle& obstacle : input_obstacles) {
+						if(Obstacle::checkForObstacle(previous_action.fX, previous_action.fY, current_action.fX, current_action.fY, obstacle)) {
+							// We will hit something.. break out of the loop
+							obstacle_found = true;
+							break;
 						}
 					}
+
+					if(obstacle_found) {
+						if(DEBUG_SOLVER)
+							printf("** Found collision!\n");
+
+						// * Set the return variable to true if we have to move around even 1 obstacle
+						updated_path = true;
+
+						// * Find a path around the obstacle
+						std::vector<std::pair<double, double>> path;
+						pathSolver.findPathBetweenActions(input, previous_action, current_action, input_obstacles, &path);
+
+						if(DEBUG_SOLVER) {
+							printf("*** Path around obstacle:\n     ");
+							for(std::pair<double,double> n : path) {
+								printf("->(%f,%f)", n.first, n.second);
+							}
+							puts("");
+						}
+
+						// Verify this is a valid path
+						if(path.size() >= 3) {
+							// * Add all middle waypoints to the action list
+							for(int i = 1; i < boost::numeric_cast<int>(path.size()) - 1; i++) {
+								// Determine which obstacle we are maneuvering around
+								int obstacle_id = determineAssociatedObstacle({-1, path[i-1].first, path[i-1].second}, {-1, path[i].first, path[i].second}, {-1, path[i+1].first, path[i+1].second}, input_obstacles);
+								if(obstacle_id > -1) {
+									// Create a new action here
+									UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, path[i].first, path[i].second, previous_action.fCompletionTime+(i*0.1), obstacle_id);
+									new_UGV_action_list.push_back(tmp);
+								}
+								else {
+									fprintf(stderr, "[%s][Solver::moveAroundObstacles] No associated obstacle for waypoint\n", WARNING);
+								}
+							}
+						}
+						else {
+							throw std::runtime_error("Path around an obstacle should contain at least 3 points\n");
+						}
+					}
+				}
 					break;
 				default:
 					// * Do nothing
 					break;
 			}
-			if (path_created) {
-				// TODO: Is this strictly needed? If we aren't changing the original actions, just adding new
-				// points between the old ones, then I don't think restarting changes much. Maybe I'm missing something.
-				break; // * We have made a path change, thus we need to restart at the while loop
+		}
+
+		// Add the current action to the new list
+		new_UGV_action_list.push_back(current_action);
+
+		// Have we been pushing things around..? Then consider removing extra actions.
+		// TODO: We should be able to do the following without replanning, but we need to update action times
+		if(updated_path) {
+			// Is the next action an extra move action to avoid obstacles..?
+			if(ugv_action_list[UGV_action_index+1].mActionType == E_UGVActionTypes::e_MoveToPosition) {
+				if(DEBUG_SOLVER)
+					printf("*** Next is e_MoveToPosition (%d), find next real action...\n", ugv_action_list[UGV_action_index+1].mActionID);
+				// Can we skip future MoveToPosition actions?
+				size_t jump_to_action_i = UGV_action_index+2;
+				// Find next real action...
+				while(jump_to_action_i < ugv_action_list.size() && ugv_action_list[jump_to_action_i].mActionType == E_UGVActionTypes::e_MoveToPosition) {
+					if(DEBUG_SOLVER)
+						printf(" %d is not real..\n", ugv_action_list[jump_to_action_i].mActionID);
+					jump_to_action_i++;
+				}
+				if(DEBUG_SOLVER)
+					printf(" * %d is a real action! (%d)\n", ugv_action_list[jump_to_action_i].mActionID, (int)ugv_action_list[jump_to_action_i].mActionType);
+
+				// Work backwards to determine if we can skip the MoveToPosition actions
+				while(jump_to_action_i > (UGV_action_index+1)) {
+					// Can we jump directly to the jump_to_action?
+					bool obstacle_found = false;
+					UGVAction jump_to_action = ugv_action_list[jump_to_action_i];
+
+					for(const Obstacle& obstacle : input_obstacles) {
+						if(Obstacle::checkForObstacle(jump_to_action.fX, jump_to_action.fY, current_action.fX, current_action.fY, obstacle)) {
+							// We will hit something.. break out of the loop
+							obstacle_found = true;
+							break;
+						}
+					}
+
+					// Can we jump..?
+					if(!obstacle_found) {
+						if(DEBUG_SOLVER) {
+							printf("*** Next is e_MoveToPosition (%d), this can be skipped\n", ugv_action_list[UGV_action_index+1].mActionID);
+							printf(" ** Move forward to %d!\n", ugv_action_list[jump_to_action_i].mActionID);
+						}
+
+						// Yes! Move action index up so that we skip the extra moves
+						UGV_action_index = jump_to_action_i - 1;
+						updated_path = true;
+
+						// Break out of the while-loop
+						break;
+					}
+					else {
+						// Nope.. Move back one action and try again
+						jump_to_action_i--;
+					}
+				}
 			}
 		}
 	}
 
-	return moved_around_obstacle;
+	// Did we actually update the action list..?
+	if(updated_path) {
+		// Update our action list
+		sol_current->swapUGVActionList(ugv_num, new_UGV_action_list);
+	}
+
+	return updated_path;
 }
 
 
 
-bool Solver::isActionInsideObstacle(const UGVAction& action, const Obstacle& obstacle) {
-    double dx = action.fX - obstacle.location.x;
-    double dy = action.fY - obstacle.location.y;
-    double distanceSquared = dx * dx + dy * dy;
-    double radiusSquared = obstacle.radius * obstacle.radius;
-    return distanceSquared <= radiusSquared;
+bool Solver::actionInObstacle(const UGVAction& action, const Obstacle& obstacle, double buffer) {
+	double dist_a_o = distAtoB(action.fX, action.fY, obstacle.location.x, obstacle.location.y);
+    return dist_a_o <= (obstacle.radius + buffer);
 }
 
-UGVAction Solver::fixOverlappingActionOBS(const UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles) {
+// Moves issueAction in the direction of the stepTowardsAction. Returns the ID of the last obstacle that we stepped out of.
+int Solver::fixOverlappingActionOBS(UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles) {
 	// * We step from the issueAction action to the stepTowardsAction until we are not in any obstacles
 	double dx = stepTowardsAction.fX - issueAction.fX;
 	double dy = stepTowardsAction.fY - issueAction.fY;
@@ -1531,78 +1565,95 @@ UGVAction Solver::fixOverlappingActionOBS(const UGVAction& issueAction, const Dr
 		throw std::runtime_error("Cannot fix overlapping action — direction vector has zero length");
 	}
 
-	double fixedX = issueAction.fX;
-	double fixedY = issueAction.fY;
+//	double fixedX = issueAction.fX;
+//	double fixedY = issueAction.fY;
 
 	// * Create out unit vector
 	double ux = dx / distance;
 	double uy = dy / distance;
 
-	if(0) {
-		// * Stop when rounded coordinates match — "close enough" to consider on top of target
-		while (std::round(fixedX) != std::round(stepTowardsAction.fX) || std::round(fixedY) != std::round(stepTowardsAction.fY)) {
-			fixedX += OVERLAPPING_STEP_SIZE * ux;
-			fixedY += OVERLAPPING_STEP_SIZE * uy;
-
-			// * Test to see if our new action is inside any obstacles
-			UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
-			bool isClear = true;
-			for (const Obstacle& obstacle : input_obstacles) {
-				if (isActionInsideObstacle(tempAction, obstacle)) {
-					isClear = false; // * We need to keep stepping
-					break;
-				}
-			}
-			if (isClear) return tempAction; // * We have stepped out of all obstacles
+	// The last obstacle we crossed
+	int last_obstacle = -1;
+	for(const Obstacle& obstacle : input_obstacles) {
+		// Still in an obstacle... move and try again
+		if(actionInObstacle(issueAction, obstacle)) {
+			last_obstacle = obstacle.get_id();
+			break;
 		}
+	}
 
-		// * Test one last time
-		UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
-		bool isClear = true;
-		for (const Obstacle& obstacle : input_obstacles) {
-			if (isActionInsideObstacle(tempAction, obstacle)) {
-				isClear = false; // * We need to keep stepping
+	// Is this actually an problem action..?
+	if(last_obstacle == -1) {
+		// No! Something is messed up... return -1
+		fprintf(stderr, "[%s][Solver::fixOverlappingActionOBS] Asked to move action, but action is not in an obstacle\n", WARNING);
+		return last_obstacle;
+	}
+
+	// Try to step out of obstacles
+	bool isClear = true;
+	for(int i = 0; i < OBS_MOVE_ITERATIONS; i++) {
+		issueAction.fX += OBS_MOVE_STEP_SIZE * ux;
+		issueAction.fY += OBS_MOVE_STEP_SIZE * uy;
+
+		// Determine if we moved out of all obstacles
+		isClear = true;
+		for(const Obstacle& obstacle : input_obstacles) {
+			// Still in an obstacle... move and try again
+			if(actionInObstacle(issueAction, obstacle, OMPL_OBST_BUFFER_DIST + 2.0)) {
+				isClear = false;
+				last_obstacle = obstacle.get_id();
 				break;
 			}
 		}
 
-		if (isClear) {
-			return tempAction;
-		} else {
-			std::cerr << "Could not step action out of obstacle -- solution is currently unsolveable" << std::endl;
-			std::cerr.flush();
-			throw std::runtime_error("Obstacle overlap");
+		// Did we clear all obstacles?
+		if(isClear) {
+			// Cleared obstacle!
+			return last_obstacle;
 		}
 	}
-	else {
-		// Try to step out of obstacles
-		bool isClear = true;
-		for(int i = 0; i < OBS_MOVE_ITERATIONS; i++) {
-			fixedX += OBS_MOVE_STEP_SIZE * ux;
-			fixedY += OBS_MOVE_STEP_SIZE * uy;
 
-			// Create a new action at this point...
-			UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
-			// Determine if we moved out of all obstacles
-			isClear = true;
-			for(const Obstacle& obstacle : input_obstacles) {
-				// Still in an obstacle... move and try again
-				if(isActionInsideObstacle(tempAction, obstacle)) {
-					isClear = false;
-					break;
-				}
-			}
+	// If we made it this far... we never moved out of the obstacles...
+	fprintf(stderr,"[%s][Solver::fixOverlappingActionOBS] Could not walk action out of obstacles\n", ERROR);
+	throw std::runtime_error("Stuck in obstacle\n");
 
-			// Did we clear all obstacles?
-			if(isClear) {
-				return tempAction;
-			}
-		}
 
-		// If we made it this far... we never moved out of the obstacles...
-		fprintf(stderr,"[%s][Solver::fixOverlappingActionOBS] Could not walk action out of obstacles\n", ERROR);
-		throw std::runtime_error("Stuck in obstacle\n");
-	}
+//	if(0) {
+//		// * Stop when rounded coordinates match — "close enough" to consider on top of target
+//		while (std::round(fixedX) != std::round(stepTowardsAction.fX) || std::round(fixedY) != std::round(stepTowardsAction.fY)) {
+//			fixedX += OVERLAPPING_STEP_SIZE * ux;
+//			fixedY += OVERLAPPING_STEP_SIZE * uy;
+//
+//			// * Test to see if our new action is inside any obstacles
+//			UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
+//			bool isClear = true;
+//			for (const Obstacle& obstacle : input_obstacles) {
+//				if (isActionInsideObstacle(tempAction, obstacle)) {
+//					isClear = false; // * We need to keep stepping
+//					break;
+//				}
+//			}
+//			if (isClear) return tempAction; // * We have stepped out of all obstacles
+//		}
+//
+//		// * Test one last time
+//		UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
+//		bool isClear = true;
+//		for (const Obstacle& obstacle : input_obstacles) {
+//			if (isActionInsideObstacle(tempAction, obstacle)) {
+//				isClear = false; // * We need to keep stepping
+//				break;
+//			}
+//		}
+//
+//		if (isClear) {
+//			return tempAction;
+//		} else {
+//			std::cerr << "Could not step action out of obstacle -- solution is currently unsolveable" << std::endl;
+//			std::cerr.flush();
+//			throw std::runtime_error("Obstacle overlap");
+//		}
+//	}
 }
 
 // Attempts to update all sub-tours belong to drone drone_id. Returns true if one of the updates improved solution quality (that is, we changed the ordering of a sub-tour).
@@ -1760,199 +1811,228 @@ bool Solver::updateSubtours(int drone_id, Solution* sol_final) {
 	return opt_flag;
 }
 
-void Solver::pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV) {
+bool Solver::pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV) {
+	bool moved_something = false;
+
+	// Get current action list
 	std::vector<UGVAction> ugv_action_list;
 	sol_current->GetUGVActionList(ugv_num, ugv_action_list);
-	std::vector<Obstacle> input_obstacles = input->GetObstacles();
-
-	// * create a temp action list that is a copy
+	// Get another list (we will update this one)
 	std::vector<UGVAction> temp_ugv_action_list;
 	sol_current->GetUGVActionList(ugv_num, temp_ugv_action_list);
+	// Get obstacles
+	std::vector<Obstacle> input_obstacles = input->GetObstacles();
+
+	// Get drones assigned to this UGV
 	std::vector<int> drone_IDs = drones_to_UGV[ugv_num];
-
-	// * Need to create a list mapping
+	// Mapping of drones to their action lists
 	std::map<int, std::vector<DroneAction>> ugv_drone_action_lists;
-
-	for(size_t i = 0; i < 2; ++i) {
-		if(i < drone_IDs.size()) {
-			int droneId = drone_IDs[i];
-			std::vector<DroneAction> temp_action_list;
-			sol_current->GetDroneActionList(droneId, temp_action_list);
-			ugv_drone_action_lists[droneId] = temp_action_list;
-		}
-		else {
-			ugv_drone_action_lists[-1] = {}; // empty vector = missing slot
-		}
+	// Get the action lists
+	for(size_t i = 0; i < drone_IDs.size(); ++i) {
+		int droneId = drone_IDs[i];
+		std::vector<DroneAction> temp_action_list;
+		sol_current->GetDroneActionList(droneId, temp_action_list);
+		ugv_drone_action_lists[droneId] = temp_action_list;
 	}
 
-	// * First we need to check if action exist on top of obstacles, if so they need to be pushed out
+	// For each UGV actions...
 	for(size_t UGV_action_index = 0; UGV_action_index < ugv_action_list.size(); UGV_action_index++) {
 		UGVAction curr_action = ugv_action_list[UGV_action_index];
 
-		for (const Obstacle& obstacle : input_obstacles) {
-			if (isActionInsideObstacle(curr_action, obstacle)) {
-				if (DEBUG_SOLVER) {
-					printf("We have found a obstacle overlaping with a action\n");
-					printf("Action:\n");
-					curr_action.print();
-					printf("Obstacle:\n");
-					obstacle.printInfo();
-					printf("\n");
+		// Check that action isn't inside an obstacle...
+		bool in_obstacle = false;
+		for(const Obstacle& obstacle : input_obstacles) {
+			// Is this action inside of an obstacle?
+			if(actionInObstacle(curr_action, obstacle)) {
+				if(DEBUG_SOLVER) {
+					if(curr_action.mActionType == E_UGVActionTypes::e_LaunchDrone || curr_action.mActionType == E_UGVActionTypes::e_ReceiveDrone) {
+						printf("We have found a obstacle overlaping with a action\n");
+						printf("Action:\n");
+						curr_action.print();
+						printf("Obstacle:\n");
+						obstacle.printInfo();
+						printf("\n");
+					}
 				}
-				switch (curr_action.mActionType)
-				{
-					// * We do nothing, since we want to move the launch/land and will just recreate this action later
-					case E_UGVActionTypes::e_MoveToWaypoint:
-						break;
-					// * For both of these we will need to move this action out of the obstacle and then create a new corresponding move to waypoint
-					case E_UGVActionTypes::e_LaunchDrone:
-						{
-							// * We need to determine the drone action we want to move towards
-							std::vector<DroneAction>& drone_actions = ugv_drone_action_lists.at(curr_action.mDetails);
+				in_obstacle = true;
+				break;
+			}
+		}
 
-							DroneAction* moveTowardsAction = nullptr;
-							int swap_index = -1;
-							for(size_t i = 0; i < drone_actions.size(); i++) {
-								DroneAction& d_a = drone_actions[i];
-								if(d_a.mActionType == E_DroneActionTypes::e_LaunchFromUGV &&
-										isZero(d_a.fCompletionTime - curr_action.fCompletionTime)) {
-									// * The action after the corresponding launch is the first move to waypoint
-									// * This is the action we want to push towards
-									moveTowardsAction = &drone_actions[i+1];
-
-									// * Sanity Check
-									if(moveTowardsAction->mActionType != E_DroneActionTypes::e_MoveToNode) {
-										throw std::runtime_error("Action list is malformed, we are assuming to be moving toward a #2 action");
-									}
-									swap_index = i;
-
-									break;
-								}
-							}
-
-							if(moveTowardsAction == nullptr) {
-								throw std::runtime_error("Matching DroneAction not found for UGV LaunchDrone action.");
-							}
-
-							if(DEBUG_SOLVER) {
-								printf("Pushing the action toward this action:\n");
-								moveTowardsAction->print();
-								printf("\n");
-							}
-
-							UGVAction fixed_action = fixOverlappingActionOBS(curr_action, *moveTowardsAction, input_obstacles);
-
-							if(DEBUG_SOLVER) {
-								printf("Here is our pushed action: \n");
-								fixed_action.print();
-								printf("\n");
-							}
-
-							// * Now we create our new actions
-							int uav_num = curr_action.mDetails;
-							if(ugv_drone_action_lists.find(uav_num) != ugv_drone_action_lists.end()) { // * Double check to make sure we have a drone action list for the UAV #
-								ugv_drone_action_lists[uav_num][swap_index].fX = fixed_action.fX;
-								ugv_drone_action_lists[uav_num][swap_index].fY = fixed_action.fY;
-							}
-							else {
-								// * Our lists doesn't exist in the mapping but it should so throw a error
-								throw std::runtime_error("Drone list mapping error");
-							}
-
-							temp_ugv_action_list[UGV_action_index - 1].fX = fixed_action.fX;
-							temp_ugv_action_list[UGV_action_index - 1].fY = fixed_action.fY;
-							temp_ugv_action_list[UGV_action_index].fX = fixed_action.fX;
-							temp_ugv_action_list[UGV_action_index].fY = fixed_action.fY;
-						}
-						break;
-					case E_UGVActionTypes::e_ReceiveDrone:
-						{
-							// * We need to determine the drone action we want to move towards
-							std::vector<DroneAction>& drone_actions = ugv_drone_action_lists.at(curr_action.mDetails);
-
-							DroneAction* moveTowardsAction = nullptr;
-							int swap_index = -1;
-							for(size_t i = 0; i < drone_actions.size(); i++) {
-								DroneAction& d_a = drone_actions[i];
-								if(d_a.mActionType == E_DroneActionTypes::e_LandOnUGV &&
-										isZero(d_a.fCompletionTime - curr_action.fCompletionTime)) {
-									// * The action 2 actions before the Land is the last waypoint
-									// * This is the action we want to push towards
-									moveTowardsAction = &drone_actions[i-2];
-
-									// * Sanity Check
-									if(moveTowardsAction->mActionType != E_DroneActionTypes::e_MoveToNode) {
-										throw std::runtime_error("Action list is malformed, we are assuming to be moving toward a #2 action");
-									}
-									swap_index = i;
-
-									break;
-								}
-							}
-
-							if(moveTowardsAction == nullptr) {
-								throw std::runtime_error("Matching DroneAction not found for UGV LaunchDrone action.");
-							}
-
-							if(DEBUG_SOLVER) {
-								printf("Pushing the action toward this action:\n");
-								moveTowardsAction->print();
-								printf("\n");
-							}
-
-							UGVAction fixed_action = fixOverlappingActionOBS(curr_action, *moveTowardsAction, input_obstacles);
-
-							if(DEBUG_SOLVER) {
-								printf("Here is our pushed action: \n");
-								fixed_action.print();
-								printf("\n");
-							}
-
-							int uav_num = curr_action.mDetails;
-							if(ugv_drone_action_lists.find(uav_num) != ugv_drone_action_lists.end()) { // * Double check to make sure we have a drone action list for the UAV #
-								ugv_drone_action_lists[uav_num][swap_index - 1].fX = fixed_action.fX;
-								ugv_drone_action_lists[uav_num][swap_index - 1].fY = fixed_action.fY;
-								ugv_drone_action_lists[uav_num][swap_index].fX = fixed_action.fX;
-								ugv_drone_action_lists[uav_num][swap_index].fY = fixed_action.fY;
-							}
-							else {
-								// * Our lists doesn't exist in the mapping but it should so throw a error
-								throw std::runtime_error("Done List Mapping Error");
-							}
-
-							temp_ugv_action_list[UGV_action_index - 1].fX = fixed_action.fX;
-							temp_ugv_action_list[UGV_action_index - 1].fY = fixed_action.fY;
-							temp_ugv_action_list[UGV_action_index].fX = fixed_action.fX;
-							temp_ugv_action_list[UGV_action_index].fY = fixed_action.fY;
-						}
-						break;
-					default:
+		if(in_obstacle) {
+			// What type of action is this?
+			switch(curr_action.mActionType)
+			{
+				// * We do nothing, since we want to move the launch/land and will just recreate this action later
+				case E_UGVActionTypes::e_MoveToWaypoint:
 					break;
+				// * For both of these we will need to move this action out of the obstacle and then create a new corresponding move to waypoint
+				case E_UGVActionTypes::e_LaunchDrone:
+					{
+						// * We need to determine the drone action we want to move towards
+						std::vector<DroneAction>& drone_actions = ugv_drone_action_lists.at(curr_action.mDetails);
 
-				}
+						DroneAction* moveTowardsAction = nullptr;
+						int swap_index = -1;
+						for(size_t i = 0; i < drone_actions.size(); i++) {
+							DroneAction& d_a = drone_actions[i];
+							if(d_a.mActionType == E_DroneActionTypes::e_LaunchFromUGV &&
+									isZero(d_a.fCompletionTime - curr_action.fCompletionTime)) {
+								// * The action after the corresponding launch is the first move to waypoint
+								// * This is the action we want to push towards
+								moveTowardsAction = &drone_actions[i+1];
+
+								// * Sanity Check
+								if(moveTowardsAction->mActionType != E_DroneActionTypes::e_MoveToNode) {
+									throw std::runtime_error("Action list is malformed, we are assuming to be moving toward a #2 action");
+								}
+								swap_index = i;
+
+								break;
+							}
+						}
+
+						if(moveTowardsAction == nullptr) {
+							throw std::runtime_error("Matching DroneAction not found for UGV LaunchDrone action.");
+						}
+
+						if(DEBUG_SOLVER) {
+							printf("Pushing the action toward this action:\n");
+							moveTowardsAction->print();
+							printf("\n");
+						}
+
+						int last_obstacle = fixOverlappingActionOBS(curr_action, *moveTowardsAction, input_obstacles);
+
+						if(DEBUG_SOLVER) {
+							printf("Here is our pushed action: \n");
+							curr_action.print();
+							printf("\n");
+						}
+
+						// * Now we create our new actions
+						int uav_num = curr_action.mDetails;
+						if(ugv_drone_action_lists.find(uav_num) != ugv_drone_action_lists.end()) { // * Double check to make sure we have a drone action list for the UAV #
+							ugv_drone_action_lists[uav_num][swap_index].fX = curr_action.fX;
+							ugv_drone_action_lists[uav_num][swap_index].fY = curr_action.fY;
+							ugv_drone_action_lists[uav_num][swap_index].mObstacle = last_obstacle;
+							if(DEBUG_SOLVER)
+								printf("****** Launch pushed out of: %d\n", ugv_drone_action_lists[uav_num][swap_index].mObstacle);
+						}
+						else {
+							// * Our lists doesn't exist in the mapping but it should so throw a error
+							throw std::runtime_error("Drone list mapping error");
+						}
+
+						// Update this action's location
+						temp_ugv_action_list[UGV_action_index].fX = curr_action.fX;
+						temp_ugv_action_list[UGV_action_index].fY = curr_action.fY;
+						// Update the previous action's location
+						temp_ugv_action_list[UGV_action_index - 1].fX = curr_action.fX;
+						temp_ugv_action_list[UGV_action_index - 1].fY = curr_action.fY;
+						// Update the details of the previous action
+						temp_ugv_action_list[UGV_action_index - 1].mDetails = last_obstacle;
+					}
+					moved_something = true;
+					break;
+				case E_UGVActionTypes::e_ReceiveDrone:
+					{
+						// * We need to determine the drone action we want to move towards
+						std::vector<DroneAction>& drone_actions = ugv_drone_action_lists.at(curr_action.mDetails);
+
+						DroneAction* moveTowardsAction = nullptr;
+						int swap_index = -1;
+						for(size_t i = 0; i < drone_actions.size(); i++) {
+							DroneAction& d_a = drone_actions[i];
+							if(d_a.mActionType == E_DroneActionTypes::e_LandOnUGV &&
+									isZero(d_a.fCompletionTime - curr_action.fCompletionTime)) {
+								// * The action 2 actions before the Land is the last waypoint
+								// * This is the action we want to push towards
+								moveTowardsAction = &drone_actions[i-2];
+
+								// * Sanity Check
+								if(moveTowardsAction->mActionType != E_DroneActionTypes::e_MoveToNode) {
+									throw std::runtime_error("Action list is malformed, we are assuming to be moving toward a #2 action");
+								}
+								swap_index = i;
+
+								break;
+							}
+						}
+
+						if(moveTowardsAction == nullptr) {
+							throw std::runtime_error("Matching DroneAction not found for UGV LaunchDrone action.");
+						}
+
+						if(DEBUG_SOLVER) {
+							printf("Pushing the action toward this action:\n");
+							moveTowardsAction->print();
+							printf("\n");
+						}
+
+						int last_obstacle = fixOverlappingActionOBS(curr_action, *moveTowardsAction, input_obstacles);
+
+						if(DEBUG_SOLVER) {
+							printf("Here is our pushed action: \n");
+							curr_action.print();
+							printf("\n");
+						}
+
+						int uav_num = curr_action.mDetails;
+						if(ugv_drone_action_lists.find(uav_num) != ugv_drone_action_lists.end()) { // * Double check to make sure we have a drone action list for the UAV #
+							ugv_drone_action_lists[uav_num][swap_index - 1].fX = curr_action.fX;
+							ugv_drone_action_lists[uav_num][swap_index - 1].fY = curr_action.fY;
+							ugv_drone_action_lists[uav_num][swap_index].fX = curr_action.fX;
+							ugv_drone_action_lists[uav_num][swap_index].fY = curr_action.fY;
+							ugv_drone_action_lists[uav_num][swap_index].mObstacle = last_obstacle;
+							if(DEBUG_SOLVER)
+								printf("****** Land pushed out of: %d\n", ugv_drone_action_lists[uav_num][swap_index].mObstacle);
+						}
+						else {
+							// * Our lists doesn't exist in the mapping but it should so throw a error
+							throw std::runtime_error("Done List Mapping Error");
+						}
+
+						// Update the location of this action
+						temp_ugv_action_list[UGV_action_index].fX = curr_action.fX;
+						temp_ugv_action_list[UGV_action_index].fY = curr_action.fY;
+						// Update the location of the previous action
+						temp_ugv_action_list[UGV_action_index - 1].fX = curr_action.fX;
+						temp_ugv_action_list[UGV_action_index - 1].fY = curr_action.fY;
+						// Associate the previous move-to action with the obstacle
+						temp_ugv_action_list[UGV_action_index - 1].mDetails = last_obstacle;
+					}
+					moved_something = true;
+					break;
+				default:
+					fprintf(stderr, "[%s][Solver::pushActionsOutside] Unexpected action type (%d) in obstacle\n", WARNING, (int)curr_action.mActionType);
+				break;
 			}
 		}
 	}
 
+	if(moved_something) {
+		// * Swap our temp lists into the solution
+		sol_current->swapUGVActionList(ugv_num, temp_ugv_action_list);
+		for(const auto& pair : ugv_drone_action_lists) {
+			int drone_ID = pair.first;
+			const std::vector<DroneAction>& actionList = pair.second;
 
-	// * Swap our temp lists into the solution
-	sol_current->swapUGVActionList(ugv_num, temp_ugv_action_list);
-	for(const auto& pair : ugv_drone_action_lists) {
-		int drone_ID = pair.first;
-		const std::vector<DroneAction>& actionList = pair.second;
-
-		if (drone_ID == -1) {
-			continue;
+			if (drone_ID == -1) {
+				continue;
+			}
+			sol_current->swapDroneActionLists(drone_ID, actionList);
 		}
-		sol_current->swapDroneActionLists(drone_ID, actionList);
+
+		if(DEBUG_SOLVER) {
+			printf("\n");
+			printf("Solution after the actions are pushed out of obstacles\n");
+			sol_current->PrintSolution();
+			printf("\n");
+		}
 	}
 
-	if(DEBUG_SOLVER) {
-		printf("\n");
-		printf("Solution after the actions are pushed out of obstacles\n");
-		sol_current->PrintSolution();
-		printf("\n");
-	}
+	return moved_something;
 }
 
 // Cycles through the obstacles (circles) and determines if this point is in at least on obstacle

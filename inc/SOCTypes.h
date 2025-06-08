@@ -45,16 +45,50 @@ struct SOCAction {
 	int ID; // Which drone?
 	E_SOCActionType action_type;
 	int subtour_index; // Which sub-tour?
-	int mDetails = -1; // Optional metadata used for move to position actions, default to -1 if unused
+	int mDetails = -1; // Optional metadata, usually obstacle ID, defaults to -1 if unused
+	double initial_x, initial_y;
 
 	// Constructor
 	SOCAction(double t, int id, E_SOCActionType type, int subtour, int m = -1)
-		: time(t), ID(id), action_type(type), subtour_index(subtour), mDetails(m) {}
+		: time(t), ID(id), action_type(type), subtour_index(subtour), mDetails(m) {
+		initial_x = 0.0;
+		initial_y = 0.0;
+	}
 
 	// Copy constructor
 	SOCAction(const SOCAction& other)
 		: time(other.time), ID(other.ID), action_type(other.action_type),
-		  subtour_index(other.subtour_index), mDetails(other.mDetails) {}
+		  subtour_index(other.subtour_index), mDetails(other.mDetails),
+		  initial_x(other.initial_x), initial_y(other.initial_y) {}
+
+	// Constructor from drone action
+	SOCAction(const DroneAction& drone_action, int drone_ID, int sub_tour, int details) {
+		time = drone_action.fCompletionTime;
+		ID = drone_ID;
+		subtour_index = sub_tour;
+		mDetails = details;
+		initial_x = drone_action.fX;
+		initial_y = drone_action.fY;
+
+		switch(drone_action.mActionType)
+		{
+		case E_DroneActionTypes::e_LaunchFromUGV:
+			action_type = E_SOCActionType::e_LaunchDrone;
+			break;
+		case E_DroneActionTypes::e_LandOnUGV:
+			action_type = E_SOCActionType::e_ReceiveDrone;
+			break;
+		default:
+			action_type = E_SOCActionType::e_BaseStation;
+			break;
+		}
+	}
+
+	// Constructor from drone action
+	SOCAction(const UGVAction& ugv_action, int ugv_ID, int details)
+		: time(ugv_action.fCompletionTime), ID(ugv_ID), action_type(E_SOCActionType::e_MoveToPosition),
+		  subtour_index(-1), mDetails(details), initial_x(ugv_action.fX), initial_y(ugv_action.fY) {
+	}
 };
 
 

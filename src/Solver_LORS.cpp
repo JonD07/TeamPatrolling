@@ -55,7 +55,8 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 	RunBaseline(input, sol_final, drones_to_UGV);
 
 	if(DEBUG_LORS) {
-		printf("**** Found initial solution ****\n Current par = %f\n", sol_final->CalculatePar());
+		printf("* Found initial solution *\n Current par = %f\n", sol_final->CalculatePar());
+		sol_final->GenerateYAML("intial_solution.yaml");
 	}
 
 	/// Optimize launch/land actions once
@@ -70,27 +71,30 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 
 	if(DEBUG_LORS) {
 		double old_par = sol_final->CalculatePar();
-		printf("**** Optimized initial solution ****\n New par = %f\n", old_par);
+		printf("* Optimized initial solution *\n New par = %f\n", old_par);
+		sol_final->GenerateYAML("intial_opt.yaml");
 	}
 
 	/// For each UGV...
+	int iter = 0;
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-		// Stopping condition
-		bool made_update = false;
-
+		// Are we running the swapping logic?
 		if(bSwapping) {
 			if(DEBUG_LORS) {
-				printf("Attempting to swap actions\n");
+				printf("** Attempting to swap actions **\n");
 			}
 
 			/// Perform action swapping
 			swapper.LazySwap(input, sol_final, ugv_num, drones_to_UGV);
 		}
 
+		// Are we replanning drone sub-tours?
 		if(bReplanning) {
 			if(DEBUG_LORS) {
-				printf("Attempting to replan sub-tours\n");
+				printf("** Attempting to replan sub-tours **\n");
 			}
+			// Stopping condition
+			bool made_update = false;
 
 			// Create a temporary solution
 			Solution sol_new(*sol_final);
@@ -107,7 +111,7 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 				// Did the optimizer succeed?
 				if(good_run) {
 					if(DEBUG_LORS) {
-						printf("Good re-plan, updating solution\n");
+						printf("*** Good re-plan, updating solution ***\n");
 					}
 					/// Update the final solution
 					*sol_final = Solution(sol_new);
@@ -116,30 +120,41 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 		}
 
 		if(DEBUG_LORS) {
-			printf("Running obstacle avoidance\n");
+			printf("* Running obstacle avoidance *\n");
 		}
 		/// While UGV tour has collisions... run obstacle avoidance
 		while(moveAroundObstacles(ugv_num, input, sol_final, drones_to_UGV)) {
 			if(DEBUG_LORS) {
-				printf("Ran avoidance algorithm, updating solution\n");
+				printf("** Ran avoidance algorithm, updating solution **\n");
 			}
+
+			if(DEBUG_LORS) {
+				char buff[100];
+				snprintf(buff, sizeof(buff), "midsolve_%d.yaml", iter);
+				std::string buffAsStdStr = buff;
+				sol_final->GenerateYAML(buffAsStdStr);
+				iter++;
+			}
+
 			/// Optimize solution
 			bool good_run = optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
 			if(!good_run) {
 				// Gurobi failed to find a solution..
 				throw std::runtime_error("[LORS] Gurobi failed while avoiding obstacles\n");;
 			}
-		}
-	}
 
-	if(DEBUG_LORS) {
-		printf("\nFinal Solution:\n");
-		sol_final->PrintSolution();
-		printf("\n");
-		// Record this so we can watch how well the optimizer is improving things
-		FILE * pOutputFile;
-		pOutputFile = fopen("ilo_improvement.dat", "a");
-		fprintf(pOutputFile, "%d %f ", input->GetN(), sol_final->GetTotalTourTime(0));
-		fclose(pOutputFile);
+			if(DEBUG_LORS) {
+				char buff[100];
+				snprintf(buff, sizeof(buff), "midsolve_%d.yaml", iter);
+				std::string buffAsStdStr = buff;
+				sol_final->GenerateYAML(buffAsStdStr);
+				iter++;
+			}
+
+//			if(iter > 4) {
+//				sol_final->PrintSolution();
+//				exit(1);
+//			}
+		}
 	}
 }

@@ -52,9 +52,20 @@ private:
     // Helper Function to calculate distance from a point to a line segment
     double static distancePointToLineSegment(double px, double py, 
                                  double x1, double y1, double x2, double y2);
-    // Entry point fo Box x Obstacles collision detection 
-    bool static checkObstaclesInSquare(Obstacle& obs_to_ignore, const std::vector<Obstacle>& obstacles,
+    // Returns true if the square defined by the given 4 points does not intersect with an obstacle
+    bool static checkObstaclesInSquare(const Obstacle& obs_to_ignore, const std::vector<Obstacle>& obstacles,
                            double x1, double y1, double x2, double y2, 
                            double x3, double y3, double x4, double y4);
 
+    // Determine the maximum size of a bounding box
+    void findBoxCoords(double& CS_P_1x, double& CS_P_2x, double& CS_P_3x, double& CS_P_4x,
+    		double& CS_P_1y, double& CS_P_2y, double& CS_P_3y, double& CS_P_4y, double a_x, double a_y,
+    		const Obstacle& obstacle, std::vector<Obstacle>& obstacles);
+
+    // Similar to corridor, but just adds the box. Intended to box in actions that get pushed into obstacles.
+    void addBoxConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
+    		const SOCAction& p2, const Obstacle& obstacle, std::vector<Obstacle>& obstacles);
+
+    // Builds a box around the action
+	void buildBoxOnAction(PatrollingInput* input, GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var, SOCAction& action);
 };

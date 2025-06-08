@@ -74,8 +74,9 @@ struct DroneAction {
 	double fCompletionTime;
 	// When applicable, this field holds the node ID or drones
 	int mDetails;
+	int mObstacle;
 
-	DroneAction(E_DroneActionTypes actionType, double x, double y, double t, int details = -1) {
+	DroneAction(E_DroneActionTypes actionType, double x, double y, double t, int details = -1, int obstacle = -1) {
 		// Track how many actions have been created
 		static int action_count = 0;
 
@@ -85,8 +86,8 @@ struct DroneAction {
 		fY = y;
 		fCompletionTime = t;
 		mDetails = details;
+		mObstacle = obstacle;
 	}
-
 	DroneAction(const DroneAction& other) {
 		mActionID = other.mActionID;
 		mActionType = other.mActionType;
@@ -94,6 +95,18 @@ struct DroneAction {
 		fY = other.fY;
 		fCompletionTime = other.fCompletionTime;
 		mDetails = other.mDetails;
+		mObstacle = other.mObstacle;
+	}
+
+	DroneAction& operator=(const DroneAction& other) {
+		mActionID = other.mActionID;
+		mActionType = other.mActionType;
+		fX = other.fX;
+		fY = other.fY;
+		fCompletionTime = other.fCompletionTime;
+		mDetails = other.mDetails;
+		mObstacle = other.mObstacle;
+		return *this;
 	}
 
 	void print() const {
@@ -134,6 +147,16 @@ struct UGVAction {
 		mActionType = other.mActionType;
 		fCompletionTime = other.fCompletionTime;
 		mDetails = other.mDetails;
+	}
+
+	UGVAction& operator=(const UGVAction& other) {
+		mActionID = other.mActionID;
+		fX = other.fX;
+		fY = other.fY;
+		mActionType = other.mActionType;
+		fCompletionTime = other.fCompletionTime;
+		mDetails = other.mDetails;
+		return *this;
 	}
 
 	void print() const {

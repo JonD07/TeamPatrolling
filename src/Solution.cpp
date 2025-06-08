@@ -948,7 +948,7 @@ void Solution::swapUGVActions(int ugv_num, int index1, int index2) {
 
 bool Solution::collisionsPresent(const UGVAction actionA, const UGVAction actionB, const std::vector<Obstacle>& obstacles) {
 	for (Obstacle o : obstacles) {
-		if (Obstacle::checkForObstacle(actionA.fX, actionA.fY, actionB.fX, actionB.fY, o)) {
+		if (Obstacle::checkForObstacle(actionA.fX, actionA.fY, actionB.fX, actionB.fY, o, 0.0)) {
 			printf("Obstacle found between two actions:\n");
 			o.printInfo();
 			actionA.print();

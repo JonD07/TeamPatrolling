@@ -66,10 +66,10 @@ void OMPL_RRTSTAR::get_subproblem_obstacles(const std::vector<Obstacle>* all_obs
         // Check if any part of the circle intersects the rectangle
         if (distanceSquared <= obstacle.radius * obstacle.radius) {
             obstaclesInBounds->push_back(obstacle);
-            if (DEBUG_OMPL) {
-                printf("Found the following obstacles to be relevant to the subproblem: \n"); 
-                obstacle.printInfo();
-            }
+//            if (DEBUG_OMPL) {
+//                printf("Found the following obstacles to be relevant to the subproblem: \n");
+//                obstacle.printInfo();
+//            }
         }
     }
 }

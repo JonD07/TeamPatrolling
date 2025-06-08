@@ -80,7 +80,7 @@ protected:
 	// * Helper function to see if after optmizations any of the move actions are no longer needed
 	void checkForRedundantMoves(PatrollingInput* input, int ugv_num, Solution* sol_current, const std::vector<Obstacle>& obstacles);
 	// * Helper function to determine if a action is inside a obstacle
-	bool isActionInsideObstacle(const UGVAction& action, const Obstacle& obstacle);
+	bool actionInObstacle(const UGVAction& action, const Obstacle& obstacle, double buffer = OMPL_OBST_BUFFER_DIST);
 	// Cycles through the obstacles (circles) and determines if this point is in at least on obstacle
 	bool pointInObstacle(double x, double y, const std::vector<Obstacle>& obstacles);
 	// Iteratively moves action out of obstacles by pushing away from center of all obstacles that the action falls into
@@ -92,9 +92,9 @@ protected:
 	 */
 	int determineAssociatedObstacle(GeneralVertex A, GeneralVertex B, GeneralVertex C, const std::vector<Obstacle>& obstacles);
 	// * Pushing a aciton outside of a obstacle and changes the action lists after the move based on the action type (above fixOverlappingActionOBS)
-	void pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
+	bool pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* sol_current, std::vector<std::vector<int>>& drones_to_UGV);
 	// * This is the function that does the moving of the action (low level) this performs that actual geometry; This is basically a helper function
-	UGVAction fixOverlappingActionOBS(const UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles);
+	int fixOverlappingActionOBS(UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles);
 	// Attempts to update all sub-tours belong to drone drone_id. Returns true if one of the updates improved solution quality (that is, we changed the ordering of a sub-tour).
 	bool updateSubtours(int drone_id, Solution* sol_final);
 private:
