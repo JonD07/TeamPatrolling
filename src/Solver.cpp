@@ -1087,7 +1087,7 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 }
 
 // Adds (possibly multiple) actions to UGV action queue to move the vehicle to a new point
-double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, double j_actual, double p_x, double p_y, int subtour, E_UGVActionTypes move_type, bool obstacle_avoidance) {
+double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, int j_actual, double p_x, double p_y, int subtour, E_UGVActionTypes move_type, bool obstacle_avoidance) {
 	// Determine how long it took to move to the next depot
 	UGVAction ugv_last = sol_final->GetLastUGVAction(j_actual);
 	double t_duration = 0;
@@ -1112,6 +1112,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 			// * Find a path around the obstacle
 		    OMPL_RRTSTAR pathSolver;
 			std::vector<std::pair<double, double>> path;
+			printf("Running path planner: UGV %d (%0.1f, %0.1f) -> (%0.1f, %0.1f)\n", j_actual, ugv_last.fX, ugv_last.fY, ugv_nxt.fX, ugv_nxt.fY);
 			pathSolver.findPathBetweenActions(input, ugv_last, ugv_nxt, input->GetObstacles(), &path);
 
 			if(DEBUG_SOLVER) {
@@ -1164,7 +1165,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 			}
 			else {
 				fprintf(stderr,"[%s][Solver::RunBaseline] Path planning around obstacles failed\n", ERROR);
-				throw std::runtime_error("RunBaseline Error\n");
+				throw std::runtime_error("Baseline obstacle avoidance error\n");
 			}
 		}
 		else {
@@ -1470,6 +1471,7 @@ bool Solver::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* 
 							}
 						}
 						else {
+							fprintf(stderr, "[%s][Solver::moveAroundObstacles] Path planning around obstacles failed\n", ERROR);
 							throw std::runtime_error("Path around an obstacle should contain at least 3 points\n");
 						}
 					}
@@ -1557,6 +1559,8 @@ bool Solver::actionInObstacle(const UGVAction& action, const Obstacle& obstacle,
 
 // Moves issueAction in the direction of the stepTowardsAction. Returns the ID of the last obstacle that we stepped out of.
 int Solver::fixOverlappingActionOBS(UGVAction& issueAction, const DroneAction& stepTowardsAction, const std::vector<Obstacle>& input_obstacles) {
+	double overlap_buffer = OMPL_OBST_BUFFER_DIST + 2.0;
+
 	// * We step from the issueAction action to the stepTowardsAction until we are not in any obstacles
 	double dx = stepTowardsAction.fX - issueAction.fX;
 	double dy = stepTowardsAction.fY - issueAction.fY;
@@ -1564,9 +1568,6 @@ int Solver::fixOverlappingActionOBS(UGVAction& issueAction, const DroneAction& s
 	if(distance == 0.0) {
 		throw std::runtime_error("Cannot fix overlapping action — direction vector has zero length");
 	}
-
-//	double fixedX = issueAction.fX;
-//	double fixedY = issueAction.fY;
 
 	// * Create out unit vector
 	double ux = dx / distance;
@@ -1576,7 +1577,7 @@ int Solver::fixOverlappingActionOBS(UGVAction& issueAction, const DroneAction& s
 	int last_obstacle = -1;
 	for(const Obstacle& obstacle : input_obstacles) {
 		// Still in an obstacle... move and try again
-		if(actionInObstacle(issueAction, obstacle)) {
+		if(actionInObstacle(issueAction, obstacle, overlap_buffer)) {
 			last_obstacle = obstacle.get_id();
 			break;
 		}
@@ -1599,7 +1600,7 @@ int Solver::fixOverlappingActionOBS(UGVAction& issueAction, const DroneAction& s
 		isClear = true;
 		for(const Obstacle& obstacle : input_obstacles) {
 			// Still in an obstacle... move and try again
-			if(actionInObstacle(issueAction, obstacle, OMPL_OBST_BUFFER_DIST + 2.0)) {
+			if(actionInObstacle(issueAction, obstacle, overlap_buffer)) {
 				isClear = false;
 				last_obstacle = obstacle.get_id();
 				break;
@@ -1616,44 +1617,6 @@ int Solver::fixOverlappingActionOBS(UGVAction& issueAction, const DroneAction& s
 	// If we made it this far... we never moved out of the obstacles...
 	fprintf(stderr,"[%s][Solver::fixOverlappingActionOBS] Could not walk action out of obstacles\n", ERROR);
 	throw std::runtime_error("Stuck in obstacle\n");
-
-
-//	if(0) {
-//		// * Stop when rounded coordinates match — "close enough" to consider on top of target
-//		while (std::round(fixedX) != std::round(stepTowardsAction.fX) || std::round(fixedY) != std::round(stepTowardsAction.fY)) {
-//			fixedX += OVERLAPPING_STEP_SIZE * ux;
-//			fixedY += OVERLAPPING_STEP_SIZE * uy;
-//
-//			// * Test to see if our new action is inside any obstacles
-//			UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
-//			bool isClear = true;
-//			for (const Obstacle& obstacle : input_obstacles) {
-//				if (isActionInsideObstacle(tempAction, obstacle)) {
-//					isClear = false; // * We need to keep stepping
-//					break;
-//				}
-//			}
-//			if (isClear) return tempAction; // * We have stepped out of all obstacles
-//		}
-//
-//		// * Test one last time
-//		UGVAction tempAction(issueAction.mActionType, fixedX, fixedY, issueAction.fCompletionTime, issueAction.mDetails);
-//		bool isClear = true;
-//		for (const Obstacle& obstacle : input_obstacles) {
-//			if (isActionInsideObstacle(tempAction, obstacle)) {
-//				isClear = false; // * We need to keep stepping
-//				break;
-//			}
-//		}
-//
-//		if (isClear) {
-//			return tempAction;
-//		} else {
-//			std::cerr << "Could not step action out of obstacle -- solution is currently unsolveable" << std::endl;
-//			std::cerr.flush();
-//			throw std::runtime_error("Obstacle overlap");
-//		}
-//	}
 }
 
 // Attempts to update all sub-tours belong to drone drone_id. Returns true if one of the updates improved solution quality (that is, we changed the ordering of a sub-tour).
@@ -1843,7 +1806,7 @@ bool Solver::pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* s
 		bool in_obstacle = false;
 		for(const Obstacle& obstacle : input_obstacles) {
 			// Is this action inside of an obstacle?
-			if(actionInObstacle(curr_action, obstacle)) {
+			if(actionInObstacle(curr_action, obstacle, (OMPL_OBST_BUFFER_DIST + 2.0))) {
 				if(DEBUG_SOLVER) {
 					if(curr_action.mActionType == E_UGVActionTypes::e_LaunchDrone || curr_action.mActionType == E_UGVActionTypes::e_ReceiveDrone) {
 						printf("We have found a obstacle overlaping with a action\n");
@@ -2059,7 +2022,7 @@ bool Solver::findClosestOutsidePointIterative(double* x, double* y, const std::v
 			double dy = *y - obst.location.y;
 			double dist = std::sqrt(dx * dx + dy * dy);
 
-			if(dist < obst.radius) {
+			if(dist < (obst.radius + OMPL_OBST_BUFFER_DIST + 2.0)) {
 				inside = true;
 				double delta = obst.radius - dist;
 

@@ -98,7 +98,7 @@ public:
 	    if(lineLength < std::numeric_limits<double>::epsilon()) {
 	        // If line length is essentially zero, check direct distance to obstacle
 	        double directDistance = std::sqrt(dx * dx + dy * dy);
-	        return directDistance <= (obstacle.radius + OMPL_OBST_BUFFER_DIST);
+	        return directDistance <= (obstacle.radius + buffer);
 	    }
 
 	    double unitLineVecX = lineVecX / lineLength;
@@ -123,7 +123,7 @@ public:
 	    bool isEndpoint2InCircle = distAtoB(x2, y2, obstacle.location.x, obstacle.location.y) <= (obstacle.radius+buffer);
 
 	    return isEndpoint1InCircle || isEndpoint2InCircle ||
-	           ((distanceToCenter <= (obstacle.radius + OMPL_OBST_BUFFER_DIST)) && isClosestPointOnSegment);
+	           ((distanceToCenter <= (obstacle.radius + buffer)) && isClosestPointOnSegment);
 	}
 
 };

@@ -66,7 +66,7 @@ public:
 	void RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std::vector<std::vector<int>>& drones_to_UGV);
 protected:
 	// Adds (possibly multiple) actions to UGV action queue to move the vehicle to a new point
-	double moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, double j_actual, double p_x, double p_y, int subtour, E_UGVActionTypes move_type, bool obstacle_avoidance);
+	double moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, int j_actual, double p_x, double p_y, int subtour, E_UGVActionTypes move_type, bool obstacle_avoidance);
 	/*
 	 * Solves TSP on on vertices held in lst and stores found ordering in result. The multiplier
 	 * variable can be set to force the solver to solver a fixed-HPP (forcing the first and last
