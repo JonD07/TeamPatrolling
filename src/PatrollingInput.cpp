@@ -141,7 +141,6 @@ void PatrollingInput::parseUGVs(const YAML::Node& UGVList) {
 				ugv.chargeEfficiency = ugvStatObject["CHARGE_EFFICIENCY"].as<double>();
 				ugv.SPlineSegDist = ugvStatObject["UGV_SPLINE_SEG_DIST"].as<double>();
 				ugv.dronesPerVehicle = ugvStatObject["DRONE_PER_UGV"].as<int>();
-				ugv.ugv_v_crg = ugvStatObject["UGV_V_CRG"].as<double>();
 				ugv.speed_cubed_coefficient = ugvStatObject["SPEED_CUBED_COEFFICIENT"].as<double>();
 				ugv.speed_squared_coefficient = ugvStatObject["SPEED_SQUARED_COEFFICIENT"].as<double>();
 				ugv.speed_linear_coefficient = ugvStatObject["SPEED_LINEAR_COEFFICIENT"].as<double>();

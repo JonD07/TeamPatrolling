@@ -499,7 +499,7 @@ void Solution::GenerateYAML(const std::string& filename) {
 						// How far are we going? (we expect this to be 10 m)
 						double seg_dist = distAtoB(crnt_x, crnt_y, crnt_x + delta_x, crnt_y + delta_y);
 					
-						double seg_t = seg_dist/m_input->getUGV(a_j).ugv_v_crg;
+						double seg_t = seg_dist/m_input->getUGV(a_j).maxDriveAndChargeSpeed;
 
 						// Move the UGV over this distance
 						out << YAML::BeginMap;
@@ -961,7 +961,7 @@ bool Solution::collisionsPresent(const UGVAction actionA, const UGVAction action
 
 double Solution::calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current,UGV& UGV_current_object) {
 	double dist_prev_next = distAtoB(UGV_last.fX, UGV_last.fY, UGV_current.fX, UGV_current.fY);
-	double t_duration = dist_prev_next/UGV_current_object.ugv_v_crg; 
+	double t_duration = dist_prev_next/UGV_current_object.maxDriveAndChargeSpeed;
 	double drivingEnergy = UGV_current_object.getJoulesPerSecondDriving(UGV_current_object.maxDriveAndChargeSpeed);
 	double move_energy = drivingEnergy*t_duration; 
 	if (DEBUG_SOL) {
@@ -972,7 +972,7 @@ double Solution::calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current
 
 bool Solution::validateMovementAndTiming(const UGVAction& prev, const UGVAction& next, const UGV& ugv, double overhead_time = 0.0) {
     double dist = distAtoB(prev.fX, prev.fY, next.fX, next.fY);
-    double expected_time = (dist / ugv.ugv_v_crg) + overhead_time;
+    double expected_time = (dist / ugv.maxDriveAndChargeSpeed) + overhead_time;
     double actual_time = next.fCompletionTime - prev.fCompletionTime;
 
     // Return true if the actual time is enough to cover the distance including the overhead

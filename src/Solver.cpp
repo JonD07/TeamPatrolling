@@ -336,7 +336,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 					// Determine time required to move to base
 					double dist_to_base = distAtoB(depots.at(depot_order.at(ugv_num).back()).x, depots.at(depot_order.at(ugv_num).back()).y, depots.back().x, depots.back().y);
-					double time_to_base = dist_to_base/input->getUGV(ugv_num).ugv_v_crg;
+					double time_to_base = dist_to_base/input->getUGV(ugv_num).maxDriveAndChargeSpeed;
 					// How long has the drone been charging by the end of the kernel?
 					UGV ugv = input->getUGV(ugv_num);
 					double kernel_end_time = time_to_base + ugv.batterySwapTime;
@@ -585,7 +585,7 @@ void Solver::RunBaseline(PatrollingInput* input, Solution* sol_final, std::vecto
 
 double Solver::calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current, UGV& UGV_current_object) {
 	double dist_prev_next = distAtoB(UGV_last.fX, UGV_last.fY, UGV_current.fX, UGV_current.fY);
-	double t_duration = dist_prev_next/UGV_current_object.ugv_v_crg; 
+	double t_duration = dist_prev_next/UGV_current_object.maxDriveAndChargeSpeed;
 	double drivingEnergy = UGV_current_object.getJoulesPerSecondDriving(UGV_current_object.maxDriveAndChargeSpeed);
 	double move_energy = drivingEnergy*t_duration; 
 	if (DEBUG_SOL) {
@@ -902,7 +902,7 @@ void Solver::RunDepletedSolver(PatrollingInput* input, Solution* sol_final, std:
 						for (int i = 0; i < numLoops; i++) {
 							// * Create and add a action moving to the first waypoint cords 
 							double dist_prev_next = distAtoB(newUGVActionList.back().fX, newUGVActionList.back().fY, firstWaypoint.fX, firstWaypoint.fY);
-							double t_duration = dist_prev_next/currentUGV.ugv_v_crg;
+							double t_duration = dist_prev_next/currentUGV.maxDriveAndChargeSpeed;
 							double ugv_arrival_time = newUGVActionList.back().fCompletionTime + t_duration;
 							// TODO need to make sure the drones are charged by the time we arrive at first way point again have to wait for them to charge if not 
 							UGVAction moveToFirstWaypoint(E_UGVActionTypes::e_MoveToWaypoint, firstWaypoint.fX, firstWaypoint.fY, ugv_arrival_time ,firstWaypoint.mDetails);
@@ -1139,7 +1139,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 						double next_x = path[i].first, next_y = path[i].second;
 						// Dist/time to move to next stop
 						double dist_prev_next = distAtoB(ugv_x, ugv_y, next_x, next_y);
-						t_duration += dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+						t_duration += dist_prev_next/input->getUGV(j_actual).maxDriveAndChargeSpeed;
 						// Create a new action
 						UGVAction tmp(E_UGVActionTypes::e_MoveToPosition, next_x, next_y, ugv_last.fCompletionTime+t_duration, obstacle_id);
 						// Add to solution
@@ -1156,7 +1156,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 				double next_x = ugv_nxt.fX, next_y = ugv_nxt.fY;
 				// Dist/time to move to next stop
 				double dist_prev_next = distAtoB(ugv_x, ugv_y, next_x, next_y);
-				t_duration += dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+				t_duration += dist_prev_next/input->getUGV(j_actual).maxDriveAndChargeSpeed;
 				// Correct arrival time
 				ugv_nxt.fCompletionTime = ugv_last.fCompletionTime+t_duration;
 				// Add to solution
@@ -1172,7 +1172,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 				printf("Path from (%f,%f) to (%f,%f) is clear\n", ugv_last.fX, ugv_last.fY, ugv_nxt.fX, ugv_nxt.fY);
 			// Add next action as we would normally
 			double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, p_x, p_y);
-			t_duration = dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+			t_duration = dist_prev_next/input->getUGV(j_actual).maxDriveAndChargeSpeed;
 			// Create action for moving here
 			UGVAction moveToDepot(move_type, p_x, p_y, ugv_last.fCompletionTime+t_duration, subtour);
 			sol_final->PushUGVAction(j_actual, moveToDepot);
@@ -1180,7 +1180,7 @@ double Solver::moveUGVtoPoint(PatrollingInput* input, Solution* sol_final, doubl
 	}
 	else {
 		double dist_prev_next = distAtoB(ugv_last.fX, ugv_last.fY, p_x, p_y);
-		t_duration = dist_prev_next/input->getUGV(j_actual).ugv_v_crg;
+		t_duration = dist_prev_next/input->getUGV(j_actual).maxDriveAndChargeSpeed;
 		// Create action for moving here
 		UGVAction moveToDepot(move_type, p_x, p_y, ugv_last.fCompletionTime+t_duration, subtour);
 		sol_final->PushUGVAction(j_actual, moveToDepot);

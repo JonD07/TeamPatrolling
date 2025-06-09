@@ -741,7 +741,7 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 				}
 
 				//ugv_num
-				double ugv_v_charge = input->getUGV(ugv_num).ugv_v_crg;
+				double ugv_v_charge = input->getUGV(ugv_num).maxDriveAndChargeSpeed;
 				model.addConstr(t_j >= t_i + d_j/ugv_v_charge + action_time, "t_"+itos(j)+"_geq_t_"+itos(i));
 				if(DEBUG_LAUNCHOPTOBS)
 					printf("* t_%d >= t_%d + d_%d/%f + %f\n", j, i, i, ugv_v_charge, action_time);
@@ -897,7 +897,7 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 						double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
 						// When?
 						double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
-						double t_i_j = dist_i_j/input->getUGV(ugv_num).ugv_v_crg;
+						double t_i_j = dist_i_j/input->getUGV(ugv_num).maxDriveAndChargeSpeed;
 						double t_j = t_i_j + ugv_t_i;
 
 						// Move UGV to this location
@@ -966,7 +966,7 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 						double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
 						// When?
 						double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
-						double t_i_j = dist_i_j/input->getUGV(ugv_num).ugv_v_crg;
+						double t_i_j = dist_i_j/input->getUGV(ugv_num).maxDriveAndChargeSpeed;
 
 						double t_j = t_i_j + ugv_t_i;
 
@@ -1009,7 +1009,7 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 					double x_b, y_b;
 					input->GetDepot(ugv_num, &x_b, &y_b);
 					double dist_i_b = distAtoB(ugv_x_i, ugv_y_i, x_b, y_b);
-					double t_i_b = dist_i_b/input->getUGV(ugv_num).ugv_v_crg;
+					double t_i_b = dist_i_b/input->getUGV(ugv_num).maxDriveAndChargeSpeed;
 
 					double t_b = t_i_b + ugv_t_i;
 

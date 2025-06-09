@@ -19,7 +19,6 @@ public:
     double joulesPerSecondWhileWaiting;
     double chargeEfficiency;
     double SPlineSegDist;
-    double ugv_v_crg;
     int dronesPerVehicle;
     double speed_cubed_coefficient;
     double speed_squared_coefficient;
@@ -40,7 +39,6 @@ public:
         std::cout << "Charge Efficiency: " << this->chargeEfficiency << std::endl;
         std::cout << "Spline Segment Distance: " << this->SPlineSegDist << std::endl;
         std::cout << "Drones Per Vehicle: " << this->dronesPerVehicle << std::endl;
-        std::cout << "UGV Charge Speed: " << this->ugv_v_crg << std::endl;
         std::cout << "Speed Cubed Coefficient: " << this->speed_cubed_coefficient << std::endl;
         std::cout << "Speed Squared Coefficient: " << this->speed_squared_coefficient << std::endl;
         std::cout << "Speed Linear Coefficient: " << this->speed_linear_coefficient << std::endl;
