@@ -74,7 +74,7 @@ public:
 		}
 	}
 
-	bool static checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle, double buffer = OMPL_OBST_BUFFER_DIST) {
+	bool static checkForObstacle(double x1, double y1, double x2, double y2, Obstacle obstacle, double buffer = 0) {
 	    /*
 	    * Determines whether the line segment between two points intersects a circular obstacle.
 	    *

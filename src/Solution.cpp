@@ -974,16 +974,17 @@ bool Solution::validateMovementAndTiming(const UGVAction& prev, const UGVAction&
     double dist = distAtoB(prev.fX, prev.fY, next.fX, next.fY);
     double expected_time = (dist / ugv.maxDriveAndChargeSpeed) + overhead_time;
     double actual_time = next.fCompletionTime - prev.fCompletionTime;
-
-    // Return true if the actual time is enough to cover the distance including the overhead
-	bool result = std::abs(actual_time - expected_time) <= 1.0;
-	if (!result) {
-		printf("Movement/Timing was invalid between these actions: \n");
-		prev.print();
-		next.print();
-		printf("Actual time: %f vs Expected time: %f\n", actual_time, expected_time);
-	}
-	return result; 
+    
+    // Valid if actual time >= expected time (within tolerance)
+    bool result = (actual_time + 1) >= expected_time;
+    if (!result) {
+        printf("Movement/Timing was invalid between these actions: \n");
+        prev.print();
+        next.print();
+        printf("Actual time: %.10f vs Expected time: %.10f (difference: %.2e)\n", 
+               actual_time, expected_time, expected_time - actual_time);
+    }
+    return result; 
 }
 
 

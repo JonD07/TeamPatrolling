@@ -130,7 +130,7 @@ bool OMPL_RRTSTAR::findPathXY(
 	public:
 		LocalMotionValidator(const ob::SpaceInformationPtr& si,
 						   const std::vector<Obstacle>& obstacles, const UGVAction& goal)
-			: ob::MotionValidator(si), obstacles_(obstacles), goal_(goal) {}
+			: ob::MotionValidator(si), obstacles_(obstacles) {}
 
 		bool checkMotion(const ob::State* s1, const ob::State* s2) const override {
 			const auto* se2s1 = s1->as<ob::SE2StateSpace::StateType>();
@@ -138,20 +138,8 @@ bool OMPL_RRTSTAR::findPathXY(
 			double x1 = se2s1->getX(), y1 = se2s1->getY();
 			double x2 = se2s2->getX(), y2 = se2s2->getY();
 
-			// Check if this is a motion TO the goal state
-			bool isMotionToGoal = (abs(x2 - goal_.fX) < 1e-6 && abs(y2 - goal_.fY) < 1e-6);
-			
-			double buffer; 
-			if (isMotionToGoal) {
-				buffer = 0;
-			} else {
-				buffer = OMPL_OBST_BUFFER_DIST;
-			}
-
-			
-
 			for (const auto& obstacle : obstacles_) {
-				if (Obstacle::checkForObstacle(x1, y1, x2, y2, obstacle, buffer)) {
+				if (Obstacle::checkForObstacle(x1, y1, x2, y2, obstacle)) {
 					return false;
 				}
 			}
@@ -166,7 +154,6 @@ bool OMPL_RRTSTAR::findPathXY(
 
 	private:
 		const std::vector<Obstacle>& obstacles_;
-		const UGVAction& goal_; 
 	};
 
 	si->setMotionValidator(std::make_shared<LocalMotionValidator>(si, subproblem_obstacles, action_goal));
