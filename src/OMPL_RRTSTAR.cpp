@@ -138,7 +138,7 @@ bool OMPL_RRTSTAR::findPathXY(
 			double x2 = se2s2->getX(), y2 = se2s2->getY();
 
 			for (const auto& obstacle : obstacles_) {
-				if (Obstacle::checkForObstacle(x1, y1, x2, y2, obstacle)) {
+				if (Obstacle::checkForObstacle(x1, y1, x2, y2, obstacle, 0)) {
 					return false;
 				}
 			}
