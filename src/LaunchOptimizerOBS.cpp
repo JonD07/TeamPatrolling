@@ -45,7 +45,7 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 		bool has_collision;
 		
 		// INITIALIZE CS_P points with first safe size
-		o_x = obstacle.location.x, o_y = obstacle.location.y, o_r = obstacle.radius;
+		o_x = obstacle.location.x, o_y = obstacle.location.y, o_r = obstacle.radius + GUROBI_OBSTACLE_BUFFER;
 		a_x = p2.fX, a_y = p2.fY;
 		d = step_size;
 		v_x = a_x - o_x; v_y = a_y - o_y;
@@ -53,7 +53,8 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 		d_x = v_x/m; d_y = v_y/m;
 		p_x = -d_y; p_y = d_x;
 		h = d/2.0;
-		c_x = o_x + (o_r+h)*d_x; c_y = o_y + (o_r+h)*d_y;
+		c_x = o_x + (o_r + h)*d_x;
+		c_y = o_y + (o_r + h)*d_y;
 		
 		CS_P_1x = c_x + h*p_x + h*d_x; CS_P_2x = c_x + h*p_x - h*d_x;
 		CS_P_3x = c_x - h*p_x + h*d_x; CS_P_4x = c_x - h*p_x - h*d_x;
@@ -112,7 +113,8 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 			
 			// Calculate temp points with larger step_size
 			h = d/2.0;
-			c_x = o_x + (o_r+h)*d_x; c_y = o_y + (o_r+h)*d_y;
+			c_x = o_x + (o_r + h)*d_x;
+			c_y = o_y + (o_r + h)*d_y;
 
 			temp_CS_P_1x = c_x + h*p_x + h*d_x; temp_CS_P_2x = c_x + h*p_x - h*d_x;
 			temp_CS_P_3x = c_x - h*p_x + h*d_x; temp_CS_P_4x = c_x - h*p_x - h*d_x;
@@ -1267,7 +1269,7 @@ void LaunchOptimizerOBS::findBoxCoords(double& CS_P_1x, double& CS_P_2x, double&
 	bool has_collision;
 
 	// INITIALIZE CS_P points with first safe size
-	o_x = obstacle.location.x, o_y = obstacle.location.y, o_r = obstacle.radius;
+	o_x = obstacle.location.x, o_y = obstacle.location.y, o_r = obstacle.radius + GUROBI_OBSTACLE_BUFFER;
 	d = step_size;
 	v_x = a_x - o_x; v_y = a_y - o_y;
 	m = sqrt(v_x*v_x + v_y*v_y);

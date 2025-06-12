@@ -1989,12 +1989,12 @@ bool Solver::pushActionsOutside(int ugv_num, PatrollingInput* input, Solution* s
 			sol_current->swapDroneActionLists(drone_ID, actionList);
 		}
 
-		if(DEBUG_SOLVER) {
-			printf("\n");
-			printf("Solution after the actions are pushed out of obstacles\n");
-			sol_current->PrintSolution();
-			printf("\n");
-		}
+//		if(DEBUG_SOLVER) {
+//			printf("\n");
+//			printf("Solution after the actions are pushed out of obstacles\n");
+//			sol_current->PrintSolution();
+//			printf("\n");
+//		}
 	}
 
 	return moved_something;

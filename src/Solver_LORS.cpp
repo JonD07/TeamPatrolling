@@ -160,5 +160,13 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 				printf("** Ran optimizer, running obstacle avoidance **\n");
 			}
 		}
+
+		if(DEBUG_LORS) {
+			printf("* Team complete, check next team *\n");
+		}
+	}
+
+	if(DEBUG_LORS) {
+		printf("* LORS algorithm complete *\n");
 	}
 }

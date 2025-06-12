@@ -38,13 +38,13 @@
 // OMPL Constants 
 #define OMPL_PLANNING_TIME		3.0	// Adjust time (RRT* and its variants will run until the time-out)
 #define OMPL_SUBPROBLEM_PADDING	10000.0
-// TODO figure out if I need to implement a buffer dist 
 #define OMPL_OBST_BUFFER_DIST	5
 
 #define OVERLAPPING_STEP_SIZE	1
 
 #define OBSTALCE_GURI_CORRIDOR_SIZE 20
 #define GUROBI_BOX_SIZE_LIMIT		5000.0
+#define GUROBI_OBSTACLE_BUFFER		OMPL_OBST_BUFFER_DIST
 
 // Pushing action points out of obstacles
 #define OBS_MOVE_STEP_SIZE		10.0 // (meters)
