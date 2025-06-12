@@ -13,7 +13,7 @@ LaunchOptimizerOBS::~LaunchOptimizerOBS() { }
 
 void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
                             const UGVAction& p1, const UGVAction& p2, const UGVAction& p3,
-                            const Obstacle& obstacle, std::vector<Obstacle>& obstacles) {
+                            const Obstacle& obstacle, std::vector<Obstacle>& obstacles, int rec_count) {
     
 	Obstacle obs_to_ignore = obstacle; 
 	const std::string obsID = std::to_string(p2.mDetails);
@@ -22,11 +22,16 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
     GRBVar y = act_pos_var->back()[1];
 
 	if(DEBUG_LAUNCHOPTOBS) {
-		printf("Constrain action into boundary: a(%0.2f, %0.2f), o(%0.2f, %0.2f)\n", p2.fX, p2.fY, obstacle.location.x, obstacle.location.y);
+		printf("Constrain MoveToPosition action into boundary: a(%0.2f, %0.2f), o(%0.2f, %0.2f)\n", p2.fX, p2.fY, obstacle.location.x, obstacle.location.y);
 	}
 
     // Are we bounding the point into a square tangent to the obstacle..?
 	if(CONVEX_SQUARE) {
+		if(rec_count > 3) {
+			fprintf(stderr, "[%s][LaunchOptimizerOBS::addCorridorConstraints] Constraint cannot be placed\n", ERROR);
+			throw std::runtime_error("Constraint cannot be placed.\n");
+		}
+
 		// We want to figure out how large we step out to create out points 
 		// CS_P_#{x,y} -> Convex Square Point 
 		double CS_P_1x, CS_P_2x, CS_P_3x, CS_P_4x, CS_P_1y, CS_P_2y, CS_P_3y, CS_P_4y;
@@ -60,10 +65,15 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 		if(checkObstaclesInSquare(obs_to_ignore, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
 			// Now test smaller sizing until we are good
 			while(true) {
-				printf("Step size: %f\n", step_size);
+				if(DEBUG_LAUNCHOPTOBS)
+					printf("Step size: %f\n", step_size);
 				if (step_size < 1) {
-					printf("Constraint cannot be placed\n");
-					throw std::runtime_error("Constraint cannot be placed.\n");
+					fprintf(stderr, "[%s][LaunchOptimizerOBS::addCorridorConstraints] Obstacle of interest seems to be overlapped by another obstacle\n", WARNING);
+					// Figure out which obstacle is interfering with our setup
+					const Obstacle& other_obst = getBadObstacle(obs_to_ignore, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y);
+					// Try again...
+					addCorridorConstraints(model, act_pos_var, p1, p2, p3, other_obst, obstacles, rec_count + 1);
+					return;
 				}
 
 				step_size = step_size / 2;  
@@ -95,6 +105,8 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 		// Now test larger sizes by stepping up 
 		has_collision = false; 
 		while(true) {
+			if(DEBUG_LAUNCHOPTOBS)
+				printf("Step size: %f\n", step_size);
 			step_size += OBSTALCE_GURI_CORRIDOR_SIZE;  
 			d = step_size;
 			
@@ -111,8 +123,14 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 			
 			// If there is a collision use our safe points instead 
 			if (has_collision) {
+				// Keep previous guess
 				break; 
-			} else {
+			}
+			else if(step_size > GUROBI_BOX_SIZE_LIMIT) {
+				// We hit the size limiter, break
+				break;
+			}
+			else {
 				// Update CS_P points to the new safe temp points
 				CS_P_1x = temp_CS_P_1x; CS_P_2x = temp_CS_P_2x; CS_P_3x = temp_CS_P_3x; CS_P_4x = temp_CS_P_4x;
 				CS_P_1y = temp_CS_P_1y; CS_P_2y = temp_CS_P_2y; CS_P_3y = temp_CS_P_3y; CS_P_4y = temp_CS_P_4y;
@@ -1161,7 +1179,7 @@ bool LaunchOptimizerOBS::checkObstaclesInSquare(const Obstacle& obs_to_ignore, c
     double squareMinY = std::min({y1, y2, y3, y4});
     double squareMaxY = std::max({y1, y2, y3, y4});
 
-    for (const auto& obstacle : obstacles) {
+    for(const auto& obstacle : obstacles) {
         double cx = obstacle.location.x;
         double cy = obstacle.location.y;
         double radius = obstacle.radius;
@@ -1191,6 +1209,48 @@ bool LaunchOptimizerOBS::checkObstaclesInSquare(const Obstacle& obs_to_ignore, c
         }
     }
     return false;
+}
+
+// Used for weird edge case where there is another obstacle overlapping where we want to put a square...
+const Obstacle& LaunchOptimizerOBS::getBadObstacle(const Obstacle& obs_to_ignore, const std::vector<Obstacle>& obstacles,
+                           double x1, double y1, double x2, double y2,
+                           double x3, double y3, double x4, double y4) {
+
+    double squareMinX = std::min({x1, x2, x3, x4});
+    double squareMaxX = std::max({x1, x2, x3, x4});
+    double squareMinY = std::min({y1, y2, y3, y4});
+    double squareMaxY = std::max({y1, y2, y3, y4});
+
+    for(const auto& obstacle : obstacles) {
+        double cx = obstacle.location.x;
+        double cy = obstacle.location.y;
+        double radius = obstacle.radius;
+
+		// This is the obstacle we are routing around so we can ignore it
+		if(obstacle.get_id() == obs_to_ignore.get_id()) {
+			continue;
+		}
+
+        // FAST REJECTION: Bounding box test to elimnate obstacles that are cleary too far away
+        if (cx + radius < squareMinX || cx - radius > squareMaxX ||
+            cy + radius < squareMinY || cy - radius > squareMaxY) {
+            continue;
+        }
+
+        // Check if circle center is inside square
+        if (isPointInSquare(cx, cy, x1, y1, x2, y2, x3, y3, x4, y4)) {
+            return obstacle;
+        }
+
+        // Check if circle intersects any edge using your existing method
+        if (Obstacle::checkForObstacle(x1, y1, x2, y2, obstacle) ||
+            Obstacle::checkForObstacle(x2, y2, x3, y3, obstacle) ||
+            Obstacle::checkForObstacle(x3, y3, x4, y4, obstacle) ||
+            Obstacle::checkForObstacle(x4, y4, x1, y1, obstacle)) {
+            return obstacle;
+        }
+    }
+    return obs_to_ignore;
 }
 
 // Determine the maximum size of a bounding box
@@ -1295,7 +1355,7 @@ void LaunchOptimizerOBS::addBoxConstraints(GRBModel* model, std::vector<std::vec
     GRBVar y = act_pos_var->back()[1];
 
 	if(DEBUG_LAUNCHOPTOBS) {
-		printf("Constrain action into boundary: a[%d](%0.2f, %0.2f), o(%0.2f, %0.2f)\n", p2.ID, p2.initial_x, p2.initial_y, obstacle.location.x, obstacle.location.y);
+		printf("Constrain Launch/Land action into boundary: a[%d](%0.2f, %0.2f), o(%0.2f, %0.2f)\n", p2.ID, p2.initial_x, p2.initial_y, obstacle.location.x, obstacle.location.y);
 	}
 
 

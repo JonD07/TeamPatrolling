@@ -40,9 +40,9 @@ public:
 	~LaunchOptimizerOBS();
 
 	bool OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final);
-    void static addCorridorConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
+    void addCorridorConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
                                 const UGVAction& p1, const UGVAction& p2, const UGVAction& p3,
-                                const Obstacle& obstacle, std::vector<Obstacle>& obstacles);
+                                const Obstacle& obstacle, std::vector<Obstacle>& obstacles, int rec_count = 0);
 protected:
 private:
     // Function to check if a point is inside a polygon using cross product method
@@ -56,6 +56,10 @@ private:
     bool static checkObstaclesInSquare(const Obstacle& obs_to_ignore, const std::vector<Obstacle>& obstacles,
                            double x1, double y1, double x2, double y2, 
                            double x3, double y3, double x4, double y4);
+    // Used for weird edge case where there is another obstacle overlapping where we want to put a square...
+    const Obstacle& getBadObstacle(const Obstacle& obs_to_ignore, const std::vector<Obstacle>& obstacles,
+                               double x1, double y1, double x2, double y2,
+                               double x3, double y3, double x4, double y4);
 
     // Determine the maximum size of a bounding box
     void findBoxCoords(double& CS_P_1x, double& CS_P_2x, double& CS_P_3x, double& CS_P_4x,

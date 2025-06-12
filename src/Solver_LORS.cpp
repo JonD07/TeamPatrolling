@@ -155,6 +155,10 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 //				sol_final->PrintSolution();
 //				exit(1);
 //			}
+
+			if(DEBUG_LORS) {
+				printf("** Ran optimizer, running obstacle avoidance **\n");
+			}
 		}
 	}
 }

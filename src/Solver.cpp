@@ -1439,8 +1439,9 @@ bool Solver::moveAroundObstacles(int ugv_num, PatrollingInput* input, Solution* 
 					}
 
 					if(obstacle_found) {
-						if(DEBUG_SOLVER)
-							printf("** Found collision!\n");
+						if(DEBUG_SOLVER) {
+							printf("** Found collision!\n  (%0.1f, %0.1f) -> (%0.1f, %0.1f)\n", previous_action.fX, previous_action.fY, current_action.fX, current_action.fY);
+						}
 
 						// * Set the return variable to true if we have to move around even 1 obstacle
 						updated_path = true;

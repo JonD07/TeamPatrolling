@@ -44,6 +44,7 @@
 #define OVERLAPPING_STEP_SIZE	1
 
 #define OBSTALCE_GURI_CORRIDOR_SIZE 20
+#define GUROBI_BOX_SIZE_LIMIT		5000.0
 
 // Pushing action points out of obstacles
 #define OBS_MOVE_STEP_SIZE		10.0 // (meters)
