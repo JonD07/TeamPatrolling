@@ -1289,8 +1289,8 @@ void LaunchOptimizerOBS::findBoxCoords(double& CS_P_1x, double& CS_P_2x, double&
 		// Now test smaller sizing until we are good
 		while(true) {
 			printf("Step size: %f\n", step_size);
-			if (step_size < 1) {
-				printf("Constraint cannot be placed\n");
+			if(step_size < 1) {
+				fprintf(stderr, "[%s][LaunchOptimizerOBS::findBoxCoords] Constraint cannot be placed\n", ERROR);
 				throw std::runtime_error("Constraint cannot be placed.\n");
 			}
 
@@ -1309,7 +1309,7 @@ void LaunchOptimizerOBS::findBoxCoords(double& CS_P_1x, double& CS_P_2x, double&
 			has_collision = checkObstaclesInSquare(obstacle, obstacles, temp_CS_P_1x, temp_CS_P_1y, temp_CS_P_3x, temp_CS_P_3y, temp_CS_P_4x, temp_CS_P_4y, temp_CS_P_2x, temp_CS_P_2y);
 
 			// If NO collision, we found a safe size
-			if (!has_collision) {
+			if(!has_collision) {
 				// Update CS_P points to the new safe temp points
 				CS_P_1x = temp_CS_P_1x; CS_P_2x = temp_CS_P_2x; CS_P_3x = temp_CS_P_3x; CS_P_4x = temp_CS_P_4x;
 				CS_P_1y = temp_CS_P_1y; CS_P_2y = temp_CS_P_2y; CS_P_3y = temp_CS_P_3y; CS_P_4y = temp_CS_P_4y;
@@ -1338,9 +1338,14 @@ void LaunchOptimizerOBS::findBoxCoords(double& CS_P_1x, double& CS_P_2x, double&
 		has_collision = checkObstaclesInSquare(obstacle, obstacles, temp_CS_P_1x, temp_CS_P_1y, temp_CS_P_3x, temp_CS_P_3y, temp_CS_P_4x, temp_CS_P_4y, temp_CS_P_2x, temp_CS_P_2y);
 
 		// If there is a collision use our safe points instead
-		if (has_collision) {
+		if(has_collision) {
 			break;
-		} else {
+		}
+		else if(step_size > GUROBI_BOX_SIZE_LIMIT) {
+			// We hit the size limiter, break
+			break;
+		}
+		else {
 			// Update CS_P points to the new safe temp points
 			CS_P_1x = temp_CS_P_1x; CS_P_2x = temp_CS_P_2x; CS_P_3x = temp_CS_P_3x; CS_P_4x = temp_CS_P_4x;
 			CS_P_1y = temp_CS_P_1y; CS_P_2y = temp_CS_P_2y; CS_P_3y = temp_CS_P_3y; CS_P_4y = temp_CS_P_4y;
