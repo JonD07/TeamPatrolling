@@ -1050,6 +1050,7 @@ double Solution::calcChargedEnergy(UAV drone, int drone_id, double charge_durati
     // Step 3: Cap at maximum charge time
     if (drone.subtype == "standard") {
         final_time = std::min(final_time, drone.t_max);
+//        final_time = std::min(final_time, input->calcChargeTime(drone_id, input->GetDroneBatCap(drone_id)));
     } else if (drone.subtype == "a_field") {
         // For a_field, cap at reasonable time or when we hit max energy
         final_time = std::min(final_time, 1000.0); // Reasonable cap

@@ -296,7 +296,7 @@ bool OMPL_RRTSTAR::findPathXY(
 
 		if(resultPath->size() <= 2) {
 			fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find a valid solution in the alloted time\n", ERROR);
-			throw PathPlanningException("OMPL: Failed to find valid solution\n");
+			throw PathPlanningException("OMPL: Failed to find valid solution");
 		}
 
 		if (DEBUG_OMPL) {
