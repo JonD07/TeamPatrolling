@@ -54,6 +54,16 @@ struct GeneralVertex {
 	double y;
 };
 
+class SolverException : public std::runtime_error {
+public:
+    SolverException(const std::string& msg) : std::runtime_error("Solver Error: " + msg) {}
+};
+
+class PathPlanningException : public SolverException {
+public:
+    PathPlanningException(const std::string& msg) : SolverException("Obstacle Avoidance: " + msg) {}
+};
+
 
 class Solver {
 public:

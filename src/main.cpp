@@ -191,15 +191,19 @@ int main(int argc, char *argv[]) {
 	}
 
 	double par = INF;
-	bool valid = true;
+	int valid = 0;
 
 	try {
 		// Run the solver
 		solver->Solve(&input, &solution);
 	}
+	catch(const PathPlanningException& e) {
+		fprintf(stderr, "[%s][main] Path planning failed: %s\n", ERROR, e.what());
+		valid = 1;
+	}
 	catch(const std::exception& e) {
 		fprintf(stderr, "[%s][main] Exception during optimization: %s", ERROR, e.what());
-		valid = false;
+		valid = 2; // TODO find a default exception value 
 	}
 
 	// Capture end time
@@ -209,19 +213,21 @@ int main(int argc, char *argv[]) {
 	double duration_s = (double)duration/1000.0; 
 
 	// If we haven't already flagged this solution...
-	if(valid) {
+	if(valid == 0) {
 		// Actually calculate PAR
 		par = solution.CalculatePar();
 		// Check that the solution is valid again
-		valid = solution.is_valid(&input, algorithm);
+		if(!solution.is_valid(&input, algorithm)) {
+			valid = 3; // TODO might need to change this number
+		}
 	}
 
-	if(!valid) {
+	if(valid != 0) {
 		fprintf(stderr, "[%s][main] Solution was found to be invalid\n", ERROR);
 	}
 
 	if(SANITY_PRINT) {
-		printf("PAR: %f, computation time = %f, valid = %s\n", par, duration_s, valid ? "true" : "false");
+		printf("PAR: %f, computation time = %f, valid = %d\n", par, duration_s, valid);
 	}
 
 	// Print results to file
