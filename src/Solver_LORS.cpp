@@ -65,7 +65,7 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 		bool good_run = optimizer.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
 		if(!good_run) {
 			// Gurobi failed to find a solution..
-			throw std::runtime_error("[LORS] Gurobi failed after baseline\n");;
+			throw PathOptimizerException("[LORS] Gurobi failed after baseline\n");
 		}
 	}
 
@@ -140,7 +140,7 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 			bool good_run = optimizerOBS.OptLaunching(ugv_num, drones_to_UGV.at(ugv_num), input, sol_final);
 			if(!good_run) {
 				// Gurobi failed to find a solution..
-				throw std::runtime_error("[LORS] Gurobi failed while avoiding obstacles\n");;
+				throw PathOptimizerException("[LORS] Gurobi failed while avoiding obstacles\n");;
 			}
 
 			if(DEBUG_LORS) {

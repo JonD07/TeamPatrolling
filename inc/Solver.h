@@ -64,6 +64,11 @@ public:
     PathPlanningException(const std::string& msg) : SolverException("Obstacle Avoidance: " + msg) {}
 };
 
+class PathOptimizerException : public SolverException {
+public:
+	PathOptimizerException(const std::string& msg) : SolverException("Obstacle Avoidance: " + msg) {}
+};
+
 
 class Solver {
 public:

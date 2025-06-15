@@ -66,8 +66,8 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 		if(checkObstaclesInSquare(obs_to_ignore, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
 			// Now test smaller sizing until we are good
 			while(true) {
-				if(DEBUG_LAUNCHOPTOBS)
-					printf("Step size: %f\n", step_size);
+//				if(DEBUG_LAUNCHOPTOBS)
+//					printf("Step size: %f\n", step_size);
 				if (step_size < 1) {
 					fprintf(stderr, "[%s][LaunchOptimizerOBS::addCorridorConstraints] Obstacle of interest seems to be overlapped by another obstacle\n", WARNING);
 					// Figure out which obstacle is interfering with our setup
@@ -106,8 +106,8 @@ void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std
 		// Now test larger sizes by stepping up 
 		has_collision = false; 
 		while(true) {
-			if(DEBUG_LAUNCHOPTOBS)
-				printf("Step size: %f\n", step_size);
+//			if(DEBUG_LAUNCHOPTOBS)
+//				printf("Step size: %f\n", step_size);
 			step_size += OBSTALCE_GURI_CORRIDOR_SIZE;  
 			d = step_size;
 			
@@ -556,7 +556,8 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 				action_coord_vars.push_back(coord);
 
 				// Create an initial action time variable for this action
-				GRBVar t_i = model.addVar(CONST_RELAXATION(0.0), 0.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
+//				GRBVar t_i = model.addVar(CONST_RELAXATION(0.0), 0.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
+				GRBVar t_i = model.addVar(0.0, 0.0, 0.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
 				action_time_vars.push_back(t_i);
 				if(DEBUG_LAUNCHOPTOBS)
 					printf(" a_%d [%d]%d - %f\n", action_cout, E_SOCActionType::e_BaseStation, -1, 0.0);
@@ -730,7 +731,7 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			for(int i = 0, j = 1; j < boost::numeric_cast<int>(action_coord_vars.size()); j++, i++) {
 				auto coord_i = action_coord_vars.at(i);
 				auto coord_j = action_coord_vars.at(j);
-				GRBVar d_j = model.addVar(0.0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "d_"+itos(dist_cout)+"_"+itos(dist_cout+1));
+				GRBVar d_j = model.addVar(0.0, GRB_INFINITY, 0.1, GRB_CONTINUOUS, "d_"+itos(dist_cout)+"_"+itos(dist_cout+1));
 
 				// Add a constraint forcing the distance to be less than or equal to the distance from coord_i->coord_j
 				GRBVar x_i = coord_i.at(0);
@@ -820,9 +821,9 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 					printf("* %f >= d_s%d + %f + d_e%d\n",  input->GetDroneMaxDist(DRONE_I), tour, sub_tours.at(tour).tour_dist, tour);
 			}
 
-			// Set objective
-			GRBLinExpr obj = t_base;
-			model.setObjective(obj, GRB_MINIMIZE);
+//			// Set objective
+//			GRBLinExpr obj = t_base;
+//			model.setObjective(obj, GRB_MINIMIZE);
 	
 			if(DEBUG_LAUNCHOPTOBS)
 				printf("Run Gurobi\n");
@@ -1288,7 +1289,6 @@ void LaunchOptimizerOBS::findBoxCoords(double& CS_P_1x, double& CS_P_2x, double&
 	if(checkObstaclesInSquare(obstacle, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
 		// Now test smaller sizing until we are good
 		while(true) {
-			printf("Step size: %f\n", step_size);
 			if(step_size < 1) {
 				fprintf(stderr, "[%s][LaunchOptimizerOBS::findBoxCoords] Constraint cannot be placed\n", ERROR);
 				throw std::runtime_error("Constraint cannot be placed.\n");

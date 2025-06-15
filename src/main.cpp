@@ -201,9 +201,13 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "[%s][main] Path planning failed: %s\n", ERROR, e.what());
 		valid = 1;
 	}
-	catch(const std::exception& e) {
+	catch(const PathOptimizerException& e) {
 		fprintf(stderr, "[%s][main] Exception during optimization: %s", ERROR, e.what());
-		valid = 2; // TODO find a default exception value 
+		valid = 2;
+	}
+	catch(const std::exception& e) {
+		fprintf(stderr, "[%s][main] Unexpected Error: %s", ERROR, e.what());
+		valid = 3;
 	}
 
 	// Capture end time
@@ -218,7 +222,7 @@ int main(int argc, char *argv[]) {
 		par = solution.CalculatePar();
 		// Check that the solution is valid again
 		if(!solution.is_valid(&input, algorithm)) {
-			valid = 3; // TODO might need to change this number
+			valid = 4;
 		}
 	}
 
