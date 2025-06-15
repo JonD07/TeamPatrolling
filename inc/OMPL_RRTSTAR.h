@@ -54,6 +54,9 @@ private:
 	std::vector<Obstacle> subproblem_obstacles;
 	double planning_time;
 	static bool isStateValid(const ompl::base::State *state, const std::vector<Obstacle> &obstacles);
+	void retryForExactSolution(ompl::geometric::SimpleSetup& ss, std::shared_ptr<ompl::geometric::InformedRRTstar> planner);
+	void debugPrint(ompl::geometric::SimpleSetup& ss, const UGVAction& action_goal, const std::vector<Obstacle>& subproblem_obstacles);
+
 
 public:
 	OMPL_RRTSTAR();
