@@ -196,9 +196,8 @@ bool OMPL_RRTSTAR::findPathXY(
 			ob::PlannerStatus retry_solved = ss.solve(OMPL_PLANNING_TIME);
 			
 			if (retry_solved && ss.getProblemDefinition()->hasExactSolution()) {
-				printf("Found exact solution on retry!\n");
+				fprintf(stderr, "\033[32mFound exact solution on retry!\033[0m\n");			
 			}
-		}
 
 		if (!ss.getProblemDefinition()->hasExactSolution()) {
 			fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find an exact solution in the alloted time\n", WARNING);
