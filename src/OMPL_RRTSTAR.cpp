@@ -1,4 +1,5 @@
 #include "OMPL_RRTSTAR.h"
+#include "Solver.h"
 #include "defines.h"
 
 
@@ -181,10 +182,110 @@ bool OMPL_RRTSTAR::findPathXY(
 	if (solved) {
 		if (DEBUG_OMPL) printf("Found a path\n");
 
-        // Check if solution is exact
-        if (!ss.getProblemDefinition()->hasExactSolution()) {
-    		fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find an exact solution in the alloted time\n", WARNING);
-        }
+		if (DEBUG_OMPL) printf("Found a path\n");
+
+		// Check if solution is exact
+		if (!ss.getProblemDefinition()->hasExactSolution()) {
+			fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find an exact solution. Giving it more time...\n", WARNING);
+			
+			// Change the retry parameters to attempt to close the gap 
+			planner->setGoalBias(0.3); 
+			planner->setRange(20.0); // Fine-grained movement around obstacles
+			ss.getSpaceInformation()->setStateValidityCheckingResolution(0.005);
+			// Try giving it more time - this continues from where it left off
+			ob::PlannerStatus retry_solved = ss.solve(OMPL_PLANNING_TIME);
+			
+			if (retry_solved && ss.getProblemDefinition()->hasExactSolution()) {
+				printf("Found exact solution on retry!\n");
+			}
+		}
+
+		if (!ss.getProblemDefinition()->hasExactSolution()) {
+			fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find an exact solution in the alloted time\n", WARNING);
+			
+			printf("\n=== FINAL APPROACH DEBUG ===\n");
+			
+			if (ss.getProblemDefinition()->hasApproximateSolution()) {
+				auto approx_solution = ss.getProblemDefinition()->getSolutionPath();
+				auto path = std::dynamic_pointer_cast<og::PathGeometric>(approx_solution);
+				if (path && path->getStateCount() > 0) {
+					
+					// Print goal state
+					printf("Goal state: (%.10f, %.10f)\n", action_goal.fX, action_goal.fY);
+					
+					// Print last 3 path points
+					printf("\nLast 3 path points:\n");
+					size_t start_idx = path->getStateCount() >= 3 ? path->getStateCount() - 3 : 0;
+					for (size_t i = start_idx; i < path->getStateCount(); ++i) {
+						const auto* state = path->getState(i)->as<ob::SE2StateSpace::StateType>();
+						double dist_to_goal = sqrt(pow(state->getX() - action_goal.fX, 2) + pow(state->getY() - action_goal.fY, 2));
+						printf("  Point %zu: (%.10f, %.10f) dist to goal: %.6f\n", 
+								i, state->getX(), state->getY(), dist_to_goal);
+					}
+					
+					// Print all obstacles within 500 units of goal
+					printf("\nObstacles within 500 units of goal:\n");
+					int count = 0;
+					for (size_t i = 0; i < subproblem_obstacles.size(); ++i) {
+						const auto& obs = subproblem_obstacles[i];
+						double dist_to_goal = sqrt(pow(obs.location.x - action_goal.fX, 2) + 
+													pow(obs.location.y - action_goal.fY, 2));
+						if (dist_to_goal <= 500.0) {
+							double clearance = dist_to_goal - obs.radius;
+							printf("  Obstacle %zu: center (%.6f, %.6f) radius %.6f\n", 
+									i, obs.location.x, obs.location.y, obs.radius);
+							printf("    Distance to goal: %.6f, Clearance from goal: %.6f\n", 
+									dist_to_goal, clearance);
+							
+							// Check if goal is inside this obstacle
+							if (obs.containsPoint(action_goal.fX, action_goal.fY)) {
+								printf("    *** GOAL IS INSIDE THIS OBSTACLE ***\n");
+							}
+							
+							// Check clearance from last path point
+							if (path->getStateCount() > 0) {
+								const auto* last_state = path->getState(path->getStateCount()-1)->as<ob::SE2StateSpace::StateType>();
+								double dist_last_to_obs = sqrt(pow(obs.location.x - last_state->getX(), 2) + 
+																pow(obs.location.y - last_state->getY(), 2));
+								double clearance_last = dist_last_to_obs - obs.radius;
+								printf("    Clearance from last path point: %.6f\n", clearance_last);
+							}
+							count++;
+						}
+					}
+					printf("Total obstacles within 500 units: %d\n", count);
+					
+					// Test line from last path point to goal
+					if (path->getStateCount() > 0) {
+						const auto* last_state = path->getState(path->getStateCount()-1)->as<ob::SE2StateSpace::StateType>();
+						printf("\nTesting line from last path point to goal:\n");
+						printf("Last point: (%.10f, %.10f)\n", last_state->getX(), last_state->getY());
+						printf("Goal point: (%.10f, %.10f)\n", action_goal.fX, action_goal.fY);
+						
+						double line_dist = sqrt(pow(action_goal.fX - last_state->getX(), 2) + 
+												pow(action_goal.fY - last_state->getY(), 2));
+						printf("Distance: %.6f\n", line_dist);
+						
+						// Check if any obstacles block this line
+						printf("Obstacles blocking final line segment:\n");
+						bool line_blocked = false;
+						for (size_t i = 0; i < subproblem_obstacles.size(); ++i) {
+							const auto& obs = subproblem_obstacles[i];
+							if (Obstacle::checkForObstacle(last_state->getX(), last_state->getY(), 
+															action_goal.fX, action_goal.fY, obs, 0)) {
+								printf("  Blocked by obstacle %zu at (%.6f, %.6f) radius %.6f\n",
+										i, obs.location.x, obs.location.y, obs.radius);
+								line_blocked = true;
+							}
+						}
+						if (!line_blocked) {
+							printf("  *** NO OBSTACLES BLOCK FINAL LINE - OMPL ISSUE ***\n");
+						}
+					}
+				}
+			}
+			printf("=============================\n");
+		}
 
 		ss.simplifySolution();
 		const og::PathGeometric& path = ss.getSolutionPath();
@@ -196,7 +297,7 @@ bool OMPL_RRTSTAR::findPathXY(
 
 		if(resultPath->size() <= 2) {
 			fprintf(stderr,"[%s][OMPL_RRTSTAR::findPathXY] OMPL did not find a valid solution in the alloted time\n", ERROR);
-			throw std::runtime_error("OMPL: Failed to find valid solution\n");
+			throw PathPlanningException("OMPL: Failed to find valid solution\n");
 		}
 
 		if (DEBUG_OMPL) {
@@ -209,7 +310,7 @@ bool OMPL_RRTSTAR::findPathXY(
 	} else if (DEBUG_OMPL) {
 		printf("No path found :/ \n");
 		std::cerr << "Obstacle is not able to be passed around\n";
-		throw std::runtime_error("OMPL: Not able to pass obstacle\n");
+		throw PathPlanningException("OMPL: Not able to pass obstacle\n");
 	}
 
 	return !resultPath->empty();
