@@ -22,6 +22,9 @@
 
 #define DEBUG_SOL	DEBUG || 0
 
+//#define DRONE_BATTERY_ZERO	-.005 * droneA.battery_state.max_battery_energy
+#define DRONE_BATTERY_ZERO	-5000.0
+
 
 enum class E_DroneActionTypes {
 	e_LaunchFromUGV=0,	// 0

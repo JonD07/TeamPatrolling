@@ -44,7 +44,7 @@
 
 #define OBSTALCE_GURI_CORRIDOR_SIZE 20
 #define GUROBI_BOX_SIZE_LIMIT		5000.0
-#define GUROBI_OBSTACLE_BUFFER		OMPL_OBST_BUFFER_DIST
+#define GUROBI_OBSTACLE_BUFFER		1.0
 
 // Pushing action points out of obstacles
 #define OBS_MOVE_STEP_SIZE		10.0 // (meters)

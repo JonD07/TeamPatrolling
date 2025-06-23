@@ -33,7 +33,8 @@ void OMPL_RRTSTAR::retryForExactSolution(og::SimpleSetup& ss, std::shared_ptr<og
 	ob::PlannerStatus retry_solved = ss.solve(OMPL_PLANNING_TIME);
 	
 	if (retry_solved && ss.getProblemDefinition()->hasExactSolution()) {
-		fprintf(stderr, "\033[32mFound exact solution on retry!\033[0m\n");
+		if(DEBUG_OMPL)
+			fprintf(stderr, "\033[32mFound exact solution on retry!\033[0m\n");
 		return;
 	}
 	
@@ -58,7 +59,8 @@ void OMPL_RRTSTAR::retryForExactSolution(og::SimpleSetup& ss, std::shared_ptr<og
 		ob::PlannerStatus fresh_solved = ss.solve(OMPL_PLANNING_TIME);
 		
 		if (fresh_solved && ss.getProblemDefinition()->hasExactSolution()) {
-			fprintf(stderr, "\033[32mFound exact solution on fresh restart attempt %d!\033[0m\n", attempt);
+			if(DEBUG_OMPL)
+				fprintf(stderr, "\033[32mFound exact solution on fresh restart attempt %d!\033[0m\n", attempt);
 			found_exact = true;
 		} else {
 			// Try again with aggressive params for half time
@@ -69,7 +71,8 @@ void OMPL_RRTSTAR::retryForExactSolution(og::SimpleSetup& ss, std::shared_ptr<og
 			ob::PlannerStatus aggressive_solved = ss.solve(OMPL_PLANNING_TIME / 2);
 			
 			if (aggressive_solved && ss.getProblemDefinition()->hasExactSolution()) {
-				fprintf(stderr, "\033[32mFound exact solution with aggressive params on attempt %d!\033[0m\n", attempt);
+				if(DEBUG_OMPL)
+					fprintf(stderr, "\033[32mFound exact solution with aggressive params on attempt %d!\033[0m\n", attempt);
 				found_exact = true;
 			}
 		}

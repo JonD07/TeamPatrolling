@@ -731,7 +731,7 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 			for(int i = 0, j = 1; j < boost::numeric_cast<int>(action_coord_vars.size()); j++, i++) {
 				auto coord_i = action_coord_vars.at(i);
 				auto coord_j = action_coord_vars.at(j);
-				GRBVar d_j = model.addVar(0.0, GRB_INFINITY, 0.1, GRB_CONTINUOUS, "d_"+itos(dist_cout)+"_"+itos(dist_cout+1));
+				GRBVar d_j = model.addVar(0.0, GRB_INFINITY, 0.01, GRB_CONTINUOUS, "d_"+itos(dist_cout)+"_"+itos(dist_cout+1));
 
 				// Add a constraint forcing the distance to be less than or equal to the distance from coord_i->coord_j
 				GRBVar x_i = coord_i.at(0);
@@ -892,7 +892,6 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 				for(int a_i = 0; a_i < boost::numeric_cast<int>(ordered_action_list.size()); a_i++) {
 					SOCAction action_i = ordered_action_list.at(a_i);
 
-
 					// What type of action is this?
 					if(action_i.action_type == E_SOCActionType::e_BaseStation) {
 						// Do nothing... We handle this outside of this loop (before and after)
@@ -913,6 +912,7 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 							printf("Added MoveToPosition at (%.2f, %.2f) @ %.2f\n", x_j, y_j, t_j);
 					}
 					else if(action_i.action_type == E_SOCActionType::e_LaunchDrone) {
+						/// First move the UGV..
 						// Where?
 						double x_j = action_coord_vars.at(a_i).at(0).get(GRB_DoubleAttr_X);
 						double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
@@ -925,17 +925,17 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 						UGVAction moveUGV(E_UGVActionTypes::e_MoveToWaypoint, x_j, y_j, t_j, action_i.mDetails);
 						ugv_final_actions.push_back(moveUGV);
 
+						/// Now launch the drone
+						// Which drone?
+						int drone_id = action_i.ID;
+						UAV uav = input->getUAV(drone_id);
 						// Update UGV position/time
 						ugv_x_i = x_j;
 						ugv_y_i = y_j;
-						ugv_t_i = t_j;
+						// Set time as whichever came later..
+						t_j = std::max(action_time_vars.at(a_i).get(GRB_DoubleAttr_X), t_j + uav.timeNeededToLaunch);
 
-						// Launch the drone
-
-						int drone_id = action_i.ID;
-						UAV uav = input->getUAV(drone_id);
-						t_j = ugv_t_i + uav.timeNeededToLaunch;
-
+						// Add launch actions
 						UGVAction launchDrone(E_UGVActionTypes::e_LaunchDrone, ugv_x_i, ugv_y_i, t_j, drone_id);
 						ugv_final_actions.push_back(launchDrone);
 						DroneAction launchAction(E_DroneActionTypes::e_LaunchFromUGV, ugv_x_i, ugv_y_i, t_j, ugv_num, action_i.mDetails);
@@ -981,45 +981,45 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 						old_action_queues.at(drone_id).pop();
 					}
 					else if(action_i.action_type == E_SOCActionType::e_ReceiveDrone) {
-						// Move the UGV to this point, move the drone to this point, then land the drone
+						/// Move the UGV to this point, move the drone to this point, then land the drone
 						// Where?
 						double x_j = action_coord_vars.at(a_i).at(0).get(GRB_DoubleAttr_X);
 						double y_j = action_coord_vars.at(a_i).at(1).get(GRB_DoubleAttr_X);
 						// When?
 						double dist_i_j = distAtoB(ugv_x_i, ugv_y_i, x_j, y_j);
 						double t_i_j = dist_i_j/input->getUGV(ugv_num).maxDriveAndChargeSpeed;
-
+						// Time that the UGV shows up
 						double t_j = t_i_j + ugv_t_i;
-
 						// Move UGV to this location
 						UGVAction moveUGV(E_UGVActionTypes::e_MoveToWaypoint, x_j, y_j, t_j, action_i.mDetails);
 						ugv_final_actions.push_back(moveUGV);
 
-						// Update UGV position/time
+						// Update UGV position
 						ugv_x_i = x_j;
 						ugv_y_i = y_j;
-						ugv_t_i = t_j;
 
 						// Move the drone to this point
 						int drone_id = action_i.ID;
+						UAV uav = input->getUAV(drone_id);
 						double dist_drone_j = distAtoB(drone_pos_x_y_t.at(drone_id).at(0), drone_pos_x_y_t.at(drone_id).at(1), x_j, y_j);
 						double t_drone_j = drone_pos_x_y_t.at(drone_id).at(2) + dist_drone_j/input->GetDroneVMax(DRONE_I);
-						double drone_arrives = std::max(t_drone_j, t_j);
+						// Which comes first..?
+						double drone_arrives = std::max(t_drone_j, action_time_vars.at(a_i).get(GRB_DoubleAttr_X) - uav.timeNeededToLand);
+						double rendezvous_time = std::max(drone_arrives, t_j);
 
 						// Move drone to UGV
-						DroneAction moveAction(E_DroneActionTypes::e_MoveToUGV, ugv_x_i, ugv_y_i, drone_arrives, ugv_num, action_i.mDetails);
+						DroneAction moveAction(E_DroneActionTypes::e_MoveToUGV, ugv_x_i, ugv_y_i, rendezvous_time, ugv_num, action_i.mDetails);
 						drone_final_actions_j.at(drone_id).push_back(moveAction);
 
 						// Land the drone
-						UAV uav = input->getUAV(drone_id);
-						t_j = drone_arrives + uav.timeNeededToLand;
-						UGVAction landDrone(E_UGVActionTypes::e_ReceiveDrone, ugv_x_i, ugv_y_i, t_j, drone_id);
+						double land_time = rendezvous_time + uav.timeNeededToLand;
+						UGVAction landDrone(E_UGVActionTypes::e_ReceiveDrone, ugv_x_i, ugv_y_i, land_time, drone_id);
 						ugv_final_actions.push_back(landDrone);
-						DroneAction landAction(E_DroneActionTypes::e_LandOnUGV, ugv_x_i, ugv_y_i, t_j, ugv_num, action_i.mDetails);
+						DroneAction landAction(E_DroneActionTypes::e_LandOnUGV, ugv_x_i, ugv_y_i, land_time, ugv_num, action_i.mDetails);
 						drone_final_actions_j.at(drone_id).push_back(landAction);
 
 						// Update when the UGV finished doing this..
-						ugv_t_i = t_j;
+						ugv_t_i = land_time;
 					}
 				}
 

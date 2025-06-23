@@ -217,7 +217,7 @@ double Solution::CalculatePar() {
 		}
 
 		if(DEBUG_SOL) {
-			printf("\nS_i: ");
+			printf("\n  S_i: ");
 			for(double t : S_i) {
 				printf("%f ", t);
 			}
@@ -229,7 +229,7 @@ double Solution::CalculatePar() {
 	}
 
 	if(DEBUG_SOL)
-		printf("Total duration of each node kernel:\n");
+		printf(" Total duration of each node kernel:\n");
 
 	// Actually do the math for PAR
 	for(std::vector<double> S_i : S) {
@@ -240,7 +240,7 @@ double Solution::CalculatePar() {
 		}
 
 		if(DEBUG_SOL)
-			printf("%f\n", total_time);
+			printf( "  %f\n", total_time);
 
 		// Add in this node's contribution to PAR
 		for(double t_i : S_i) {
@@ -964,8 +964,8 @@ double Solution::calcUGVMovingEnergy(UGVAction& UGV_last, UGVAction& UGV_current
 	double t_duration = dist_prev_next/UGV_current_object.maxDriveAndChargeSpeed;
 	double drivingEnergy = UGV_current_object.getJoulesPerSecondDriving(UGV_current_object.maxDriveAndChargeSpeed);
 	double move_energy = drivingEnergy*t_duration; 
-	if (DEBUG_SOL) {
-		printf("The Energy calcuated from the move: [%f]\n", move_energy);
+	if(DEBUG_SOL) {
+		printf("   Energy to move: %f\n", move_energy);
 	}
 	return move_energy; 
 }
@@ -974,6 +974,9 @@ bool Solution::validateMovementAndTiming(const UGVAction& prev, const UGVAction&
     double dist = distAtoB(prev.fX, prev.fY, next.fX, next.fY);
     double expected_time = (dist / ugv.maxDriveAndChargeSpeed) + overhead_time;
     double actual_time = next.fCompletionTime - prev.fCompletionTime;
+	if(DEBUG_SOL) {
+		printf("   Expected (%.2f) vs actual (%.2f) action time\n", expected_time, actual_time);
+	}
     
     // Valid if actual time >= expected time (within tolerance)
     bool result = (actual_time + 1) >= expected_time;
@@ -1067,17 +1070,21 @@ double Solution::calcChargedEnergy(UAV drone, int drone_id, double charge_durati
 
 
 void Solution::chargeDrone(UAV& drone, int drone_ID, double time_on_UGV, PatrollingInput* input) {
-    double t_available = time_on_UGV - drone.charge_startup_t;
-    if (t_available <= 0.0) {
-        // Not enough time to begin charging
-        return;
-    }
-    
-    // Use Equation 10: E_charged = E(t(E_0) + Δt)
-    double charged_energy = calcChargedEnergy(drone, drone_ID, t_available, input);
-    
-    // Apply the charged energy
-    drone.battery_state.current_battery_energy = charged_energy;
+	double t_available = time_on_UGV - drone.charge_startup_t;
+	if (t_available <= 0.0) {
+		// Not enough time to begin charging
+		return;
+	}
+
+	// Use Equation 10: E_charged = E(t(E_0) + Δt)
+	double charged_energy = calcChargedEnergy(drone, drone_ID, t_available, input);
+
+	if(DEBUG_SOL) {
+		printf("   Charge drone for %.1f second, initial charge %.1f J, new charge %.1f\n", t_available, drone.battery_state.current_battery_energy, charged_energy);
+	}
+
+	// Apply the charged energy
+	drone.battery_state.current_battery_energy = charged_energy;
 }
 
 
@@ -1085,77 +1092,82 @@ void Solution::chargeDrone(UAV& drone, int drone_ID, double time_on_UGV, Patroll
 
 
 bool Solution::validateDroneTrip(UAV& droneA, const std::vector<DroneAction>& action_list, int& list_index) {
-    double energyPerSecond = droneA.getJoulesPerSecondFlying(droneA.maxSpeed);
-	const double DRONE_BATTERY_ZERO = -.005 * droneA.battery_state.max_battery_energy;
+	double energyPerSecond = droneA.getJoulesPerSecondFlying(droneA.maxSpeed);
+	if(list_index == 0 || list_index >= boost::numeric_cast<int>(action_list.size())) {
+		printf("Invalid starting index for drone trip validation\n");
+		return false;
+	}
 
-    if (list_index == 0 || list_index >= boost::numeric_cast<int>(action_list.size())) {
-        printf("Invalid starting index for drone trip validation\n");
-        return false;
-    }
+	// Step 1: Subtract energy to take off
+	droneA.battery_state.current_battery_energy -= droneA.energyToTakeOff;
+	if(droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
+		printf("Drone %s ran out of battery at takeoff\n", droneA.ID.c_str());
+		return false;
+	}
 
-    // Step 1: Subtract energy to take off
-    droneA.battery_state.current_battery_energy -= droneA.energyToTakeOff;
-    if (droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
-        printf("Drone %s ran out of battery at takeoff\n", droneA.ID.c_str());
-        return false;
-    }
+	list_index++; // move past the launch
 
-    list_index++; // move past the launch
+	while(true) {
+		if(list_index >= boost::numeric_cast<int>(action_list.size())) {
+			printf("Drone %s never landed on UGV\n", droneA.ID.c_str());
+			return false;
+		}
 
-    while (true) {
-        if (list_index >= boost::numeric_cast<int>(action_list.size())) {
-            printf("Drone %s never landed on UGV\n", droneA.ID.c_str());
-            return false;
-        }
+		const DroneAction& curr_action = action_list[list_index];
 
-        const DroneAction& curr_action = action_list[list_index];
-
-        if (curr_action.mActionType == E_DroneActionTypes::e_LandOnUGV) {
+		if(curr_action.mActionType == E_DroneActionTypes::e_LandOnUGV) {
 			// Step 3: Subtract energy to land
-            droneA.battery_state.current_battery_energy -= droneA.energyToLand;
-            if (droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
-                printf("Drone %s ran out of battery during landing\n", droneA.ID.c_str());
+			droneA.battery_state.current_battery_energy -= droneA.energyToLand;
+			if (droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
+				printf("Drone %s ran out of battery during landing\n", droneA.ID.c_str());
 				printf("Drone battery was this much over: %f: \n", droneA.battery_state.current_battery_energy);
 				printf("This drone action caused it: \n");
 				curr_action.print();
-                return false;
-            }
-            break;
-        }
+				return false;
+			}
+			break;
+		}
 
-        switch (curr_action.mActionType) {
-            case E_DroneActionTypes::e_MoveToNode:
-            case E_DroneActionTypes::e_MoveToUGV: {
-                const DroneAction& prev_action = action_list[list_index - 1];
-                double dist_prev_next = distAtoB(prev_action.fX, prev_action.fY, curr_action.fX, curr_action.fY);
-                double t_duration = dist_prev_next / droneA.maxSpeed;
-                double move_energy = t_duration * energyPerSecond;
+		switch (curr_action.mActionType) {
+			case E_DroneActionTypes::e_MoveToNode:
+			case E_DroneActionTypes::e_MoveToUGV: {
+				const DroneAction& prev_action = action_list[list_index - 1];
+				double dist_prev_next = distAtoB(prev_action.fX, prev_action.fY, curr_action.fX, curr_action.fY);
+				double t_duration = dist_prev_next / droneA.maxSpeed;
+				double move_energy = t_duration * energyPerSecond;
+				if(DEBUG_SOL)
+					printf("   [%d](%.2f, %.2f) -> [%d](%.2f, %.2f)\n", prev_action.mActionID, prev_action.fX, prev_action.fY,
+							curr_action.mActionID, curr_action.fX, curr_action.fY);
 
-                // Step 2: Subtract energy for this movement
-                droneA.battery_state.current_battery_energy -= move_energy;
-                if(droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
-                    printf("Drone %s ran out of battery during movement %d (has %0.1f J)\n", droneA.ID.c_str(), (int)curr_action.mActionType, droneA.battery_state.current_battery_energy);
-                    return false;
-                }
-                break;
-            }
-            default:
-                printf("Invalid drone action after launch:\n");
-                curr_action.print();
-                return false;
-        }
+				// Step 2: Subtract energy for this movement
+				droneA.battery_state.current_battery_energy -= move_energy;
+				if(droneA.battery_state.current_battery_energy < DRONE_BATTERY_ZERO) {
+					printf("Drone %s ran out of battery during movement %d (has %0.1f J)\n", droneA.ID.c_str(), (int)curr_action.mActionType, droneA.battery_state.current_battery_energy);
+					return false;
+				}
+				if(DEBUG_SOL)
+					printf("    on-board Jules: %.1f\n", droneA.battery_state.current_battery_energy);
+				break;
+			}
+			default:
+				printf("Invalid drone action after launch:\n");
+				curr_action.print();
+				return false;
+		}
 
-        list_index++;
-    }
+		list_index++;
+	}
 
 	// * If we go negative make sure to reset to prevent cascading issues
 	if (droneA.battery_state.current_battery_energy < 0) {
 		droneA.battery_state.current_battery_energy = 0; 
 	}
-    return true;
+	return true;
 }
 
 bool Solution::is_valid(PatrollingInput* input, int algorithm){
+	if(DEBUG_SOL)
+		printf("Validating solution\n");
 	// * Just trust me on this one (sorry if you are looking at this decision)
 	struct DroneMeta {
 		int action_list_index;
@@ -1164,7 +1176,10 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 	};
 
 	// * Look through the actions of each UGV	
-	for (int ugv_index = 0; ugv_index < input->GetMg(); ugv_index++){
+	for(int ugv_index = 0; ugv_index < input->GetMg(); ugv_index++) {
+		if(DEBUG_SOL)
+			printf(" Checking UGV %d\n", ugv_index);
+
 		std::vector<UGVAction> UGVActions; 
 		GetUGVActionList(ugv_index, UGVActions);
 		double ugv_energy = input->GetUGVBatCap(ugv_index); 
@@ -1193,20 +1208,8 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 			drone_map[drone_ID] = meta;
 		}
 
-		// * Going to handle the first action hard code style
-		// * Check to make sure there are no obstacles in this point 
-		for (const auto &obstacle : input->GetObstacles()) {
-			if (obstacle.containsPoint(curr_action.fX, curr_action.fY)) {
-				printf("This action: \n");
-				curr_action.print();
-				printf("Was found inside this obstacle: \n");
-				obstacle.printInfo();
-				return false;
-			}
-		}
-
 		// * First, check that its a at depot, and time is 0
-		if (!(curr_action.mActionType == E_UGVActionTypes::e_AtDepot && floatEquality(curr_action.fCompletionTime, 0))) {
+		if (!(curr_action.mActionType == E_UGVActionTypes::e_AtDepot && floatEquality(curr_action.fCompletionTime, 0.0))) {
 			printf("First action is malformed\n");
 			curr_action.print();
 			return false;
@@ -1214,14 +1217,16 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 
 		/* 
 		* 3 things that we are focusing on checking for UGVs
-		* 1. are action inside obstacles and do movement not cross through obstacles
-		* 2. Does timing match up, does it start at 0, do times increase as we go, do times increase when the should increase and stay the same when they should
-		* 3. Does the UGV correcrtly not use up all its energy
+		* 1. Are action inside obstacles and do movements cross through obstacles?
+		* 2. Are there timing mismatches? Does time start at 0, do times increase as we go, do times increase when the should increase and stay the same when they should?
+		* 3. Does the UGV exceed its energy budget?
 		*/
 		for (size_t ugv_action_index = 1; ugv_action_index < UGVActions.size(); ugv_action_index++) {
 			UGVAction prev_action = UGVActions[ugv_action_index -1];
 			curr_action = UGVActions[ugv_action_index];
-
+			if(DEBUG_SOL)
+				printf("  Action: [%d] %d(%d) -> [%d] %d(%d)\n", prev_action.mActionID, (int)prev_action.mActionType, prev_action.mDetails,
+						curr_action.mActionID, (int)curr_action.mActionType, curr_action.mDetails);
 
 			// * Do obstacle checking for both containment and interseciton 
 			// TODO this could be expensive / Need to find how to only check if it matters
@@ -1232,10 +1237,8 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 			}
 
 			UGV ugv_obj = input->getUGV(ugv_index);
-		
 
-
-			// * Now Logic is specific to action type
+			// * Logic is specific to action type
 			switch (curr_action.mActionType) {
 				case E_UGVActionTypes::e_MoveToWaypoint:
 				case E_UGVActionTypes::e_MoveToPosition:
@@ -1243,7 +1246,7 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 					// * Calc energy of the move and remove from energy we have
 					ugv_energy -= calcUGVMovingEnergy(prev_action, curr_action, ugv_obj);
 					// * Validate distance, moving, and timing
-					if (!validateMovementAndTiming(prev_action, curr_action, ugv_obj)) {
+					if(!validateMovementAndTiming(prev_action, curr_action, ugv_obj)) {
 						return false; 
 					}
 					break;
@@ -1256,7 +1259,7 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 					// * Gather our drone info 
 					int drone_ID = curr_action.mDetails;
 					auto it = drone_map.find(drone_ID);
-					if (it == drone_map.end()) {
+					if(it == drone_map.end()) {
 						printf("Error: drone_ID %d not found in drone_map\n", drone_ID);
 						printf("Known drone IDs in map: ");
 						for (const auto& pair : drone_map) {
@@ -1270,11 +1273,13 @@ bool Solution::is_valid(PatrollingInput* input, int algorithm){
 					UAV& drone_OBJ = meta.drone_obj;
 
 					// * Validate the lack of movement of the UGV
-					if (!validateMovementAndTiming(prev_action, curr_action, ugv_obj, drone_OBJ.timeNeededToLaunch)) {
+					if(!validateMovementAndTiming(prev_action, curr_action, ugv_obj, drone_OBJ.timeNeededToLaunch)) {
 						return false; 
 					}
 
-					
+					// Check drone actions
+					if(DEBUG_SOL)
+						printf("  Checking drone (%d) sub-tour\n", drone_ID);
 					int& drone_AL_index = meta.action_list_index;
 					std::vector<DroneAction> AL_list; 
 					GetDroneActionList(drone_ID, AL_list);
