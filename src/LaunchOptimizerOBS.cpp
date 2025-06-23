@@ -11,319 +11,6 @@ LaunchOptimizerOBS::LaunchOptimizerOBS() { }
 LaunchOptimizerOBS::~LaunchOptimizerOBS() { }
 
 
-void LaunchOptimizerOBS::addCorridorConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
-                            const UGVAction& p1, const UGVAction& p2, const UGVAction& p3,
-                            const Obstacle& obstacle, std::vector<Obstacle>& obstacles, int rec_count) {
-    
-	Obstacle obs_to_ignore = obstacle; 
-	const std::string obsID = std::to_string(p2.mDetails);
-    const std::string actID = std::to_string(p2.mActionID);
-    GRBVar x = act_pos_var->back()[0];
-    GRBVar y = act_pos_var->back()[1];
-
-	if(DEBUG_LAUNCHOPTOBS) {
-		printf("Constrain MoveToPosition action into boundary: a(%0.2f, %0.2f), o(%0.2f, %0.2f)\n", p2.fX, p2.fY, obstacle.location.x, obstacle.location.y);
-	}
-
-    // Are we bounding the point into a square tangent to the obstacle..?
-	if(CONVEX_SQUARE) {
-		if(rec_count > 3) {
-			fprintf(stderr, "[%s][LaunchOptimizerOBS::addCorridorConstraints] Constraint cannot be placed\n", ERROR);
-			throw std::runtime_error("Constraint cannot be placed.\n");
-		}
-
-		// We want to figure out how large we step out to create out points 
-		// CS_P_#{x,y} -> Convex Square Point 
-		double CS_P_1x, CS_P_2x, CS_P_3x, CS_P_4x, CS_P_1y, CS_P_2y, CS_P_3y, CS_P_4y;
-		// Variables Store PREVIOUS safe points before checking larger size
-		double temp_CS_P_1x, temp_CS_P_2x, temp_CS_P_3x, temp_CS_P_4x;
-		double temp_CS_P_1y, temp_CS_P_2y, temp_CS_P_3y, temp_CS_P_4y;
-
-		double o_x, o_y, o_r, a_x, a_y, v_x, v_y;
-		double m, d, h, d_x, d_y, p_x, p_y, c_x, c_y;
-		double step_size = OBSTALCE_GURI_CORRIDOR_SIZE;
-		bool has_collision;
-		
-		// INITIALIZE CS_P points with first safe size
-		o_x = obstacle.location.x, o_y = obstacle.location.y, o_r = obstacle.radius + GUROBI_OBSTACLE_BUFFER;
-		a_x = p2.fX, a_y = p2.fY;
-		d = step_size;
-		v_x = a_x - o_x; v_y = a_y - o_y;
-		m = sqrt(v_x*v_x + v_y*v_y);
-		d_x = v_x/m; d_y = v_y/m;
-		p_x = -d_y; p_y = d_x;
-		h = d/2.0;
-		c_x = o_x + (o_r + h)*d_x;
-		c_y = o_y + (o_r + h)*d_y;
-		
-		CS_P_1x = c_x + h*p_x + h*d_x; CS_P_2x = c_x + h*p_x - h*d_x;
-		CS_P_3x = c_x - h*p_x + h*d_x; CS_P_4x = c_x - h*p_x - h*d_x;
-		CS_P_1y = c_y + h*p_y + h*d_y; CS_P_2y = c_y + h*p_y - h*d_y;
-		CS_P_3y = c_y - h*p_y + h*d_y; CS_P_4y = c_y - h*p_y - h*d_y;
-				
-
-		// Check to see if there issues with the intial box
-		if(checkObstaclesInSquare(obs_to_ignore, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
-			// Now test smaller sizing until we are good
-			while(true) {
-//				if(DEBUG_LAUNCHOPTOBS)
-//					printf("Step size: %f\n", step_size);
-				if (step_size < 1) {
-					fprintf(stderr, "[%s][LaunchOptimizerOBS::addCorridorConstraints] Obstacle of interest seems to be overlapped by another obstacle\n", WARNING);
-					// Figure out which obstacle is interfering with our setup
-					const Obstacle& other_obst = getBadObstacle(obs_to_ignore, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y);
-					// Try again...
-					addCorridorConstraints(model, act_pos_var, p1, p2, p3, other_obst, obstacles, rec_count + 1);
-					return;
-				}
-
-				step_size = step_size / 2;  
-				d = step_size;
-				
-				// Calculate temp points with SMALLER step_size
-				h = d/2.0;
-				c_x = o_x + (o_r+h)*d_x; c_y = o_y + (o_r+h)*d_y;
-
-				temp_CS_P_1x = c_x + h*p_x + h*d_x; temp_CS_P_2x = c_x + h*p_x - h*d_x;
-				temp_CS_P_3x = c_x - h*p_x + h*d_x; temp_CS_P_4x = c_x - h*p_x - h*d_x;
-				temp_CS_P_1y = c_y + h*p_y + h*d_y; temp_CS_P_2y = c_y + h*p_y - h*d_y;
-				temp_CS_P_3y = c_y - h*p_y + h*d_y; temp_CS_P_4y = c_y - h*p_y - h*d_y;
-				
-				has_collision = checkObstaclesInSquare(obs_to_ignore, obstacles, temp_CS_P_1x, temp_CS_P_1y, temp_CS_P_3x, temp_CS_P_3y, temp_CS_P_4x, temp_CS_P_4y, temp_CS_P_2x, temp_CS_P_2y);
-				
-				// If NO collision, we found a safe size
-				if (!has_collision) {
-					// Update CS_P points to the new safe temp points
-					CS_P_1x = temp_CS_P_1x; CS_P_2x = temp_CS_P_2x; CS_P_3x = temp_CS_P_3x; CS_P_4x = temp_CS_P_4x;
-					CS_P_1y = temp_CS_P_1y; CS_P_2y = temp_CS_P_2y; CS_P_3y = temp_CS_P_3y; CS_P_4y = temp_CS_P_4y;
-					break; // Exit the shrinking loop
-				}
-				// If still collision, continue shrinking (no else needed)
-			}
-		}
-
-
-		// Now test larger sizes by stepping up 
-		has_collision = false; 
-		while(true) {
-//			if(DEBUG_LAUNCHOPTOBS)
-//				printf("Step size: %f\n", step_size);
-			step_size += OBSTALCE_GURI_CORRIDOR_SIZE;  
-			d = step_size;
-			
-			// Calculate temp points with larger step_size
-			h = d/2.0;
-			c_x = o_x + (o_r + h)*d_x;
-			c_y = o_y + (o_r + h)*d_y;
-
-			temp_CS_P_1x = c_x + h*p_x + h*d_x; temp_CS_P_2x = c_x + h*p_x - h*d_x;
-			temp_CS_P_3x = c_x - h*p_x + h*d_x; temp_CS_P_4x = c_x - h*p_x - h*d_x;
-			temp_CS_P_1y = c_y + h*p_y + h*d_y; temp_CS_P_2y = c_y + h*p_y - h*d_y;
-			temp_CS_P_3y = c_y - h*p_y + h*d_y; temp_CS_P_4y = c_y - h*p_y - h*d_y;
-			
-			has_collision = checkObstaclesInSquare(obs_to_ignore, obstacles, temp_CS_P_1x, temp_CS_P_1y, temp_CS_P_3x, temp_CS_P_3y, temp_CS_P_4x, temp_CS_P_4y, temp_CS_P_2x, temp_CS_P_2y);
-			
-			// If there is a collision use our safe points instead 
-			if (has_collision) {
-				// Keep previous guess
-				break; 
-			}
-			else if(step_size > GUROBI_BOX_SIZE_LIMIT) {
-				// We hit the size limiter, break
-				break;
-			}
-			else {
-				// Update CS_P points to the new safe temp points
-				CS_P_1x = temp_CS_P_1x; CS_P_2x = temp_CS_P_2x; CS_P_3x = temp_CS_P_3x; CS_P_4x = temp_CS_P_4x;
-				CS_P_1y = temp_CS_P_1y; CS_P_2y = temp_CS_P_2y; CS_P_3y = temp_CS_P_3y; CS_P_4y = temp_CS_P_4y;
-			}
-		}
-
-
-		if(checkObstaclesInSquare(obs_to_ignore, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
-			fprintf(stderr,"[%s][LaunchOptimizerOBS::addCorridorConstraints] Bad boundary!\n", ERROR);
-			throw std::runtime_error("Bad boundary\n");
-		}
-
-    	// Line connecting points P1 and P2
-    	if(a_x < o_x) {
-    		// y >= P1<-->P2
-            model->addConstr(y >= (CS_P_1y - CS_P_2y)/(CS_P_1x - CS_P_2x)*(x - CS_P_2x) + CS_P_2y, "P1_P2_" + obsID + "_" + actID);
-    	}
-    	else if(a_x > o_x) {
-    		// y <= P1<-->P2
-            model->addConstr(y <= (CS_P_1y - CS_P_2y)/(CS_P_1x - CS_P_2x)*(x - CS_P_2x) + CS_P_2y, "P1_P2_" + obsID + "_" + actID);
-    	}
-    	else {
-    		// Line P1<-->P2 is vertical (weird edge case)
-    		if(a_y > o_y) {
-    			// x >= P2.x
-                model->addConstr(x >= CS_P_2x, "P1_P2_" + obsID + "_" + actID);
-    		}
-    		else {
-    			// x <= P2.x
-                model->addConstr(x <= CS_P_2x, "P1_P2_" + obsID + "_" + actID);
-    		}
-    	}
-
-    	// Line connecting points P3 and P4
-    	if(a_x < o_x) {
-    		// y <= P3<-->P4
-            model->addConstr(y <= (CS_P_3y - CS_P_4y)/(CS_P_3x - CS_P_4x)*(x - CS_P_4x) + CS_P_4y, "P3_P4_" + obsID + "_" + actID);
-    	}
-    	else if(a_x > o_x) {
-    		// y >= P3<-->P4
-            model->addConstr(y >= (CS_P_3y - CS_P_4y)/(CS_P_3x - CS_P_4x)*(x - CS_P_4x) + CS_P_4y, "P3_P4_" + obsID + "_" + actID);
-    	}
-    	else {
-    		// Line P3<-->P4 is vertical (weird edge case)
-    		if(a_y > o_y) {
-    			// x <= P4.x
-                model->addConstr(x <= CS_P_4x, "P3_P4_" + obsID + "_" + actID);
-    		}
-    		else {
-    			// x >= P4.x
-                model->addConstr(x >= CS_P_4x, "P3_P4_" + obsID + "_" + actID);
-    		}
-    	}
-
-    	// Line connecting points P2 and P4
-    	if(a_y < o_y) {
-    		// y <= P2<-->P4
-            model->addConstr(y <= (CS_P_2y - CS_P_4y)/(CS_P_2x - CS_P_4x)*(x - CS_P_4x) + CS_P_4y, "P2_P4_" + obsID + "_" + actID);
-    	}
-    	else if(a_y > o_y) {
-    		// y >= P2<-->P4
-            model->addConstr(y >= (CS_P_2y - CS_P_4y)/(CS_P_2x - CS_P_4x)*(x - CS_P_4x) + CS_P_4y, "P2_P4_" + obsID + "_" + actID);
-    	}
-    	else {
-    		// Line P2<-->P4 is horizontal (weird edge case)
-    		if(a_x < o_x) {
-    			// x <= P4.x
-                model->addConstr(x <= CS_P_4x, "P2_P4_" + obsID + "_" + actID);
-    		}
-    		else {
-    			// x >= P4.x
-                model->addConstr(x >= CS_P_4x, "P2_P4_" + obsID + "_" + actID);
-    		}
-    	}
-
-    	// Line connecting points P1 and P3
-    	if(a_y > o_y) {
-    		// y <= P1<-->P3
-            model->addConstr(y <= (CS_P_1y - CS_P_3y)/(CS_P_1x - CS_P_3x)*(x - CS_P_3x) + CS_P_3y, "P1_P3_" + obsID + "_" + actID);
-    	}
-    	else if(a_y < o_y) {
-    		// y >= P1<-->P3
-            model->addConstr(y >= (CS_P_1y - CS_P_3y)/(CS_P_1x - CS_P_3x)*(x - CS_P_3x) + CS_P_3y, "P1_P3_" + obsID + "_" + actID);
-    	}
-    	else {
-    		// Line P1<-->P2 is vertical (weird edge case)
-    		if(a_x < o_x) {
-    			// x >= P1.x
-                model->addConstr(x >= CS_P_1x, "P1_P3_" + obsID + "_" + actID);
-    		}
-    		else {
-    			// x <= P2.x
-                model->addConstr(x <= CS_P_1x, "P1_P3_" + obsID + "_" + actID);
-    		}
-    	}
-
-		// Now we add in our line from P1 -> P2 and P2 -> P3; Note these are different than the Convex Square Points Used above
-		// ----- Segment P1 → P2 -----
-		if (p2.fX == p1.fX) {
-			// Vertical line case
-			if (p1.fX < obstacle.location.x) {
-				model->addConstr(x <= p1.fX, "constraint_name_seg12_left");
-			} else {
-				model->addConstr(x >= p1.fX, "constraint_name_seg12_right");
-			}
-		} else {
-			// Non-vertical line case
-			double slope = (p2.fY - p1.fY) / (p2.fX - p1.fX);
-			double intercept = p1.fY - slope * p1.fX;
-			double obs_y_line = slope * obstacle.location.x + intercept;
-
-			if (obstacle.location.y > obs_y_line) {
-				model->addConstr(y <= slope * x + intercept, "constraint_name_seg12_above");
-			} else {
-				model->addConstr(y >= slope * x + intercept, "constraint_name_seg12_below");
-			}
-		}
-
-		// ----- Segment P2 → P3 -----
-		if (p3.fX == p2.fX) {
-			// Vertical line case
-			if (p2.fX < obstacle.location.x) {
-				model->addConstr(x <= p2.fX, "constraint_name_seg23_left");
-			} else {
-				model->addConstr(x >= p2.fX, "constraint_name_seg23_right");
-			}
-		} else {
-			// Non-vertical line case
-			double slope = (p3.fY - p2.fY) / (p3.fX - p2.fX);
-			double intercept = p2.fY - slope * p2.fX;
-			double obs_y_line = slope * obstacle.location.x + intercept;
-
-			if (obstacle.location.y > obs_y_line) {
-				model->addConstr(y <= slope * x + intercept, "constraint_name_seg23_above");
-			} else {
-				model->addConstr(y >= slope * x + intercept, "constraint_name_seg23_below");
-			}
-		}
-    }
-	else { // No, bound point by a parallelogram
-        // ----- Segment p1 → p2 -----
-        if (p2.fX == p1.fX) {
-            if (p1.fX < obstacle.location.x) {
-                model->addConstr(x <= p1.fX, "obs_corr_" + obsID + "_act" + actID + "_seg12_left");
-                model->addConstr(x >= p1.fX - OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg12_left_buffer");
-            } else {
-                model->addConstr(x >= p1.fX, "obs_corr_" + obsID + "_act" + actID + "_seg12_right");
-                model->addConstr(x <= p1.fX + OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg12_right_buffer");
-            }
-        } else {
-            double slope = (p2.fY - p1.fY) / (p2.fX - p1.fX);
-            double intercept = p1.fY - slope * p1.fX;
-            double delta = OBSTALCE_GURI_CORRIDOR_SIZE / std::sqrt(1 + slope * slope);
-            double obs_y_line = slope * obstacle.location.x + intercept;
-
-            if (obstacle.location.y > obs_y_line) {
-                model->addConstr(y <= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg12_above");
-                model->addConstr(y >= slope * x + intercept - delta, "obs_corr_" + obsID + "_act" + actID + "_seg12_above_buffer");
-            } else {
-                model->addConstr(y >= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg12_below");
-                model->addConstr(y <= slope * x + intercept + delta, "obs_corr_" + obsID + "_act" + actID + "_seg12_below_buffer");
-            }
-        }
-
-        // ----- Segment p2 → p3 -----
-        if (p3.fX == p2.fX) {
-            if (p2.fX < obstacle.location.x) {
-                model->addConstr(x <= p2.fX, "obs_corr_" + obsID + "_act" + actID + "_seg23_left");
-                model->addConstr(x >= p2.fX - OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg23_left_buffer");
-            } else {
-                model->addConstr(x >= p2.fX, "obs_corr_" + obsID + "_act" + actID + "_seg23_right");
-                model->addConstr(x <= p2.fX + OBSTALCE_GURI_CORRIDOR_SIZE, "obs_corr_" + obsID + "_act" + actID + "_seg23_right_buffer");
-            }
-        } else {
-            double slope = (p3.fY - p2.fY) / (p3.fX - p2.fX);
-            double intercept = p2.fY - slope * p2.fX;
-            double delta = OBSTALCE_GURI_CORRIDOR_SIZE / std::sqrt(1 + slope * slope);
-            double obs_y_line = slope * obstacle.location.x + intercept;
-
-            if (obstacle.location.y > obs_y_line) {
-                model->addConstr(y <= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg23_above");
-                model->addConstr(y >= slope * x + intercept - delta, "obs_corr_" + obsID + "_act" + actID + "_seg23_above_buffer");
-            } else {
-                model->addConstr(y >= slope * x + intercept, "obs_corr_" + obsID + "_act" + actID + "_seg23_below");
-                model->addConstr(y <= slope * x + intercept + delta, "obs_corr_" + obsID + "_act" + actID + "_seg23_below_buffer");
-            }
-        }
-    }
-}
-
-
 bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_UGV, PatrollingInput* input, Solution* sol_final) {
 	if(DEBUG_LAUNCHOPTOBS)
 		printf("Optimizing UGV %d route\n", ugv_num);
@@ -556,7 +243,6 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 				action_coord_vars.push_back(coord);
 
 				// Create an initial action time variable for this action
-//				GRBVar t_i = model.addVar(CONST_RELAXATION(0.0), 0.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
 				GRBVar t_i = model.addVar(0.0, 0.0, 0.0, GRB_CONTINUOUS, "t_"+itos(action_cout));
 				action_time_vars.push_back(t_i);
 				if(DEBUG_LAUNCHOPTOBS)
@@ -624,22 +310,15 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 						}
 					}
 
-					// Find the obstacle matching the action's mdetails field
-					const Obstacle* obs = nullptr;  // Use pointer, not a reference to NULL
-					for(const Obstacle& o : input->GetObstacles()) {
-						if(o.get_id() == action.mDetails) {  // Use '==' for comparison, not '='
-							obs = &o;  // Store the address
-							break;     // Found it, no need to continue
-						}
-					}
-
-					if(obs == nullptr) {
-						throw std::runtime_error("Obstacle with matching ID not found.");
-					}
-
-					// Add corridor constraint
+					// Get the associated obstacle
+					const Obstacle* obs = getObstaclePointer(input, action);
 					std::vector<Obstacle> obstacles = input->GetObstacles();
-					addCorridorConstraints(&model, &action_coord_vars, *p1, *p2, *p3, *obs, obstacles);
+
+					// Add a box around this action
+					addFloatingBoxConstraints(&model, &action_coord_vars, action, *obs, obstacles);
+
+					// Add Point-to-Point constraints
+					addP2PConstraints(&model, &action_coord_vars, *p1, *p2, *p3, *obs);
 				}
 				// Is this a launch/receive action?
 				else if(action.action_type == E_SOCActionType::e_LaunchDrone) {
@@ -659,8 +338,11 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 
 					// Are we avoiding an obstacle?
 					if(action.mDetails > -1) {
-						// Yes, add a box around this action
-						buildBoxOnAction(input, &model, &action_coord_vars, action);
+						// Yes, get the associated obstacle
+						const Obstacle* obs = getObstaclePointer(input, action);
+						std::vector<Obstacle> obstacles = input->GetObstacles();
+						// Add a box around this action
+						addFloatingBoxConstraints(&model, &action_coord_vars, action, *obs, obstacles);
 					}
 				}
 				// Are we receiving the drone?
@@ -671,8 +353,11 @@ bool LaunchOptimizerOBS::OptLaunching(int ugv_num, std::vector<int>& drones_on_U
 
 					// Are we avoiding an obstacle?
 					if(action.mDetails > -1) {
-						// Yes, add a box around this action
-						buildBoxOnAction(input, &model, &action_coord_vars, action);
+						// Yes, get the associated obstacle
+						const Obstacle* obs = getObstaclePointer(input, action);
+						std::vector<Obstacle> obstacles = input->GetObstacles();
+						// Add a box around this action
+						addFloatingBoxConstraints(&model, &action_coord_vars, action, *obs, obstacles);
 					}
 				}
 
@@ -1173,7 +858,7 @@ double LaunchOptimizerOBS::distancePointToLineSegment(double px, double py,
 }
 
 // Returns true if the square defined by the given 4 points does not intersect with an obstacle
-bool LaunchOptimizerOBS::checkObstaclesInSquare(const Obstacle& obs_to_ignore, const std::vector<Obstacle>& obstacles,
+bool LaunchOptimizerOBS::obstaclesInSquare(const Obstacle& obs_to_ignore, const std::vector<Obstacle>& obstacles,
                            double x1, double y1, double x2, double y2,
                            double x3, double y3, double x4, double y4) {
 
@@ -1256,218 +941,267 @@ const Obstacle& LaunchOptimizerOBS::getBadObstacle(const Obstacle& obs_to_ignore
     return obs_to_ignore;
 }
 
-// Determine the maximum size of a bounding box
-void LaunchOptimizerOBS::findBoxCoords(double& CS_P_1x, double& CS_P_2x, double& CS_P_3x, double& CS_P_4x,
-		double& CS_P_1y, double& CS_P_2y, double& CS_P_3y, double& CS_P_4y, double a_x, double a_y,
-		const Obstacle& obstacle, std::vector<Obstacle>& obstacles) {
+// Add a floating box constraint
+void LaunchOptimizerOBS::addFloatingBoxConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
+		const SOCAction& p2, const Obstacle& main_obstacle, std::vector<Obstacle>& all_obstacles) {
+	const std::string obsID = std::to_string(p2.mDetails);
+    const std::string actID = std::to_string(p2.ID);
+    GRBVar x = act_pos_var->back()[0];
+    GRBVar y = act_pos_var->back()[1];
+
+	// CS_P_#{x,y} -> Convex Square Point
+	double CS_P_1x, CS_P_2x, CS_P_3x, CS_P_4x, CS_P_1y, CS_P_2y, CS_P_3y, CS_P_4y;
 	// Variables Store PREVIOUS safe points before checking larger size
 	double temp_CS_P_1x, temp_CS_P_2x, temp_CS_P_3x, temp_CS_P_4x;
 	double temp_CS_P_1y, temp_CS_P_2y, temp_CS_P_3y, temp_CS_P_4y;
+	double o_x, o_y, o_r, a_x, a_y, v_x, v_y;
+	double dist_oa;
+	double m, d, h, d_x, d_y, p_x, p_y;
 
-	double o_x, o_y, o_r;
-	double m, d, h, d_x, d_y, p_x, p_y, c_x, c_y, v_x, v_y;
-	double step_size = OBSTALCE_GURI_CORRIDOR_SIZE;
-	bool has_collision;
-
-	// INITIALIZE CS_P points with first safe size
-	o_x = obstacle.location.x, o_y = obstacle.location.y, o_r = obstacle.radius + GUROBI_OBSTACLE_BUFFER;
-	d = step_size;
+	// Initialize things that don't change...
+	o_x = main_obstacle.location.x, o_y = main_obstacle.location.y, o_r = main_obstacle.radius + GUROBI_OBSTACLE_BUFFER;
+	a_x = p2.initial_x, a_y = p2.initial_y;
+	dist_oa = distAtoB(o_x, o_y, a_x, a_y);
 	v_x = a_x - o_x; v_y = a_y - o_y;
 	m = sqrt(v_x*v_x + v_y*v_y);
 	d_x = v_x/m; d_y = v_y/m;
 	p_x = -d_y; p_y = d_x;
+
+
+	/// Start box really small...
+	d = 0.1;
 	h = d/2.0;
-	c_x = o_x + (o_r+h)*d_x; c_y = o_y + (o_r+h)*d_y;
+	CS_P_1x = a_x + h*p_x + h*d_x; CS_P_2x = a_x + h*p_x - h*d_x;
+	CS_P_3x = a_x - h*p_x + h*d_x; CS_P_4x = a_x - h*p_x - h*d_x;
+	CS_P_1y = a_y + h*p_y + h*d_y; CS_P_2y = a_y + h*p_y - h*d_y;
+	CS_P_3y = a_y - h*p_y + h*d_y; CS_P_4y = a_y - h*p_y - h*d_y;
 
-	CS_P_1x = c_x + h*p_x + h*d_x; CS_P_2x = c_x + h*p_x - h*d_x;
-	CS_P_3x = c_x - h*p_x + h*d_x; CS_P_4x = c_x - h*p_x - h*d_x;
-	CS_P_1y = c_y + h*p_y + h*d_y; CS_P_2y = c_y + h*p_y - h*d_y;
-	CS_P_3y = c_y - h*p_y + h*d_y; CS_P_4y = c_y - h*p_y - h*d_y;
+	// Verify that this very small box works (if this fails... we probably don't have a good starting point)
+	if(obstaclesInSquare(main_obstacle, all_obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
+		fprintf(stderr, "[%s][LaunchOptimizerOBS::addFloatingBoxConstraints] Constraint cannot be placed at (%0.1f, %0.1f)\n", ERROR, a_x, a_y);
+		throw std::runtime_error("Constraint cannot be placed.\n");
+	}
 
+	/// Expand box until we either: (1) hit main_obstacle or (2) hit something in all_obstacles
+	// We want the following loop to run 10 times... (plus first run)
+	double expand_size = (dist_oa - o_r)/10.0;
+	int step_count = 0;
+	while(d/2.0 + o_r <= dist_oa) {
+		// Calculate temp points
+		h = d/2.0;
+		temp_CS_P_1x = a_x + h*p_x + h*d_x; temp_CS_P_2x = a_x + h*p_x - h*d_x;
+		temp_CS_P_3x = a_x - h*p_x + h*d_x; temp_CS_P_4x = a_x - h*p_x - h*d_x;
+		temp_CS_P_1y = a_y + h*p_y + h*d_y; temp_CS_P_2y = a_y + h*p_y - h*d_y;
+		temp_CS_P_3y = a_y - h*p_y + h*d_y; temp_CS_P_4y = a_y - h*p_y - h*d_y;
+		bool has_collision = obstaclesInSquare(main_obstacle, all_obstacles, temp_CS_P_1x, temp_CS_P_1y, temp_CS_P_3x, temp_CS_P_3y, temp_CS_P_4x, temp_CS_P_4y, temp_CS_P_2x, temp_CS_P_2y);
 
-	// Check to see if there issues with the intial box
-	if(checkObstaclesInSquare(obstacle, obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
-		// Now test smaller sizing until we are good
+		// Did we collide with an obstacle?
+		if(!has_collision) {
+			// Update CS points to the new safe temp points
+			CS_P_1x = temp_CS_P_1x; CS_P_2x = temp_CS_P_2x; CS_P_3x = temp_CS_P_3x; CS_P_4x = temp_CS_P_4x;
+			CS_P_1y = temp_CS_P_1y; CS_P_2y = temp_CS_P_2y; CS_P_3y = temp_CS_P_3y; CS_P_4y = temp_CS_P_4y;
+		}
+		else {
+			// We hit something... give up and use the last best set of points
+			break;
+		}
+
+		// Update for next round
+		step_count++;
+		// Increase the size of the box
+		d = expand_size*step_count*2.0;
+	}
+
+	/// If we hit main_obstacle, expand in all other directions until we hit something else
+	if(!obstaclesInSquare(main_obstacle, all_obstacles, CS_P_1x, CS_P_1y, CS_P_3x, CS_P_3y, CS_P_4x, CS_P_4y, CS_P_2x, CS_P_2y)) {
+		// Now test larger sizes by stepping up
+		bool has_collision = false;
 		while(true) {
-			if(step_size < 1) {
-				fprintf(stderr, "[%s][LaunchOptimizerOBS::findBoxCoords] Constraint cannot be placed\n", ERROR);
-				throw std::runtime_error("Constraint cannot be placed.\n");
-			}
-
-			step_size = step_size / 2;
-			d = step_size;
-
-			// Calculate temp points with SMALLER step_size
+			// Calculate temp points with larger step_size
 			h = d/2.0;
-			c_x = o_x + (o_r+h)*d_x; c_y = o_y + (o_r+h)*d_y;
+			double c_x = o_x + (o_r + h)*d_x;
+			double c_y = o_y + (o_r + h)*d_y;
 
 			temp_CS_P_1x = c_x + h*p_x + h*d_x; temp_CS_P_2x = c_x + h*p_x - h*d_x;
 			temp_CS_P_3x = c_x - h*p_x + h*d_x; temp_CS_P_4x = c_x - h*p_x - h*d_x;
 			temp_CS_P_1y = c_y + h*p_y + h*d_y; temp_CS_P_2y = c_y + h*p_y - h*d_y;
 			temp_CS_P_3y = c_y - h*p_y + h*d_y; temp_CS_P_4y = c_y - h*p_y - h*d_y;
 
-			has_collision = checkObstaclesInSquare(obstacle, obstacles, temp_CS_P_1x, temp_CS_P_1y, temp_CS_P_3x, temp_CS_P_3y, temp_CS_P_4x, temp_CS_P_4y, temp_CS_P_2x, temp_CS_P_2y);
+			has_collision = obstaclesInSquare(main_obstacle, all_obstacles, temp_CS_P_1x, temp_CS_P_1y, temp_CS_P_3x, temp_CS_P_3y, temp_CS_P_4x, temp_CS_P_4y, temp_CS_P_2x, temp_CS_P_2y);
 
-			// If NO collision, we found a safe size
-			if(!has_collision) {
+			// If there is a collision use our safe points instead
+			if(has_collision) {
+				// Keep previous set of points
+				break;
+			}
+			else if(d > GUROBI_BOX_SIZE_LIMIT) {
+				// We hit the size limit, break
+				break;
+			}
+			else {
 				// Update CS_P points to the new safe temp points
 				CS_P_1x = temp_CS_P_1x; CS_P_2x = temp_CS_P_2x; CS_P_3x = temp_CS_P_3x; CS_P_4x = temp_CS_P_4x;
 				CS_P_1y = temp_CS_P_1y; CS_P_2y = temp_CS_P_2y; CS_P_3y = temp_CS_P_3y; CS_P_4y = temp_CS_P_4y;
-				break; // Exit the shrinking loop
 			}
-			// If still collision, continue shrinking (no else needed)
+
+			// For next round..
+			d += OBSTALCE_GURI_CORRIDOR_SIZE;
 		}
 	}
 
-
-	// Now test larger sizes by stepping up
-	has_collision = false;
-	while(true) {
-		step_size += OBSTALCE_GURI_CORRIDOR_SIZE;
-		d = step_size;
-
-		// Calculate temp points with larger step_size
-		h = d/2.0;
-		c_x = o_x + (o_r+h)*d_x; c_y = o_y + (o_r+h)*d_y;
-
-		temp_CS_P_1x = c_x + h*p_x + h*d_x; temp_CS_P_2x = c_x + h*p_x - h*d_x;
-		temp_CS_P_3x = c_x - h*p_x + h*d_x; temp_CS_P_4x = c_x - h*p_x - h*d_x;
-		temp_CS_P_1y = c_y + h*p_y + h*d_y; temp_CS_P_2y = c_y + h*p_y - h*d_y;
-		temp_CS_P_3y = c_y - h*p_y + h*d_y; temp_CS_P_4y = c_y - h*p_y - h*d_y;
-
-		has_collision = checkObstaclesInSquare(obstacle, obstacles, temp_CS_P_1x, temp_CS_P_1y, temp_CS_P_3x, temp_CS_P_3y, temp_CS_P_4x, temp_CS_P_4y, temp_CS_P_2x, temp_CS_P_2y);
-
-		// If there is a collision use our safe points instead
-		if(has_collision) {
-			break;
-		}
-		else if(step_size > GUROBI_BOX_SIZE_LIMIT) {
-			// We hit the size limiter, break
-			break;
-		}
-		else {
-			// Update CS_P points to the new safe temp points
-			CS_P_1x = temp_CS_P_1x; CS_P_2x = temp_CS_P_2x; CS_P_3x = temp_CS_P_3x; CS_P_4x = temp_CS_P_4x;
-			CS_P_1y = temp_CS_P_1y; CS_P_2y = temp_CS_P_2y; CS_P_3y = temp_CS_P_3y; CS_P_4y = temp_CS_P_4y;
-		}
-	}
-}
-
-// Similar to corridor, but just adds the box. Intended to box in actions that get pushed into obstacles.
-void LaunchOptimizerOBS::addBoxConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
-		const SOCAction& p2, const Obstacle& obstacle, std::vector<Obstacle>& obstacles) {
-	static int constraint_counter = 0;
-	const std::string aoID = itos(p2.ID) + "_" + itos(obstacle.get_id());
-    GRBVar x = act_pos_var->back()[0];
-    GRBVar y = act_pos_var->back()[1];
-
-	if(DEBUG_LAUNCHOPTOBS) {
-		printf("Constrain Launch/Land action into boundary: a[%d](%0.2f, %0.2f), o(%0.2f, %0.2f)\n", p2.ID, p2.initial_x, p2.initial_y, obstacle.location.x, obstacle.location.y);
-	}
-
-
-	// We want to figure out how large we step out to create out points
-	// CS_P_#{x,y} -> Convex Square Point
-	double P_1x, P_2x, P_3x, P_4x, P_1y, P_2y, P_3y, P_4y;
-	findBoxCoords(P_1x, P_2x, P_3x, P_4x, P_1y, P_2y, P_3y, P_4y, p2.initial_x, p2.initial_y, obstacle, obstacles);
-
-	double o_x, o_y, a_x, a_y;
-	o_x = obstacle.location.x, o_y = obstacle.location.y;
-	a_x = p2.initial_x, a_y = p2.initial_y;
-
-	if(DEBUG_LAUNCHOPTOBS)
-		printf("***** Points (%.2f, %.2f) (%.2f, %.2f) (%.2f, %.2f) (%.2f, %.2f)\n", P_1x, P_1y, P_2x, P_2y, P_3x, P_3y, P_4x, P_4y);
-
+	/// Add the actual constraints to the model
 	// Line connecting points P1 and P2
 	if(a_x < o_x) {
 		// y >= P1<-->P2
-        model->addConstr(y >= (P_1y - P_2y)/(P_1x - P_2x)*(x - P_2x) + P_2y, "P1_P2_" + aoID + "_" + itos(constraint_counter));
+        model->addConstr(y >= (CS_P_1y - CS_P_2y)/(CS_P_1x - CS_P_2x)*(x - CS_P_2x) + CS_P_2y, "P1_P2_" + obsID + "_" + actID);
 	}
 	else if(a_x > o_x) {
 		// y <= P1<-->P2
-        model->addConstr(y <= (P_1y - P_2y)/(P_1x - P_2x)*(x - P_2x) + P_2y, "P1_P2_" + aoID + "_" + itos(constraint_counter));
+        model->addConstr(y <= (CS_P_1y - CS_P_2y)/(CS_P_1x - CS_P_2x)*(x - CS_P_2x) + CS_P_2y, "P1_P2_" + obsID + "_" + actID);
 	}
 	else {
 		// Line P1<-->P2 is vertical (weird edge case)
 		if(a_y > o_y) {
 			// x >= P2.x
-            model->addConstr(x >= P_2x, "P1_P2_" + aoID + "_" + itos(constraint_counter));
+            model->addConstr(x >= CS_P_2x, "P1_P2_" + obsID + "_" + actID);
 		}
 		else {
 			// x <= P2.x
-            model->addConstr(x <= P_2x, "P1_P2_" + aoID + "_" + itos(constraint_counter));
+            model->addConstr(x <= CS_P_2x, "P1_P2_" + obsID + "_" + actID);
 		}
 	}
 
 	// Line connecting points P3 and P4
 	if(a_x < o_x) {
 		// y <= P3<-->P4
-        model->addConstr(y <= (P_3y - P_4y)/(P_3x - P_4x)*(x - P_4x) + P_4y, "P3_P4_" + aoID + "_" + itos(constraint_counter));
+        model->addConstr(y <= (CS_P_3y - CS_P_4y)/(CS_P_3x - CS_P_4x)*(x - CS_P_4x) + CS_P_4y, "P3_P4_" + obsID + "_" + actID);
 	}
 	else if(a_x > o_x) {
 		// y >= P3<-->P4
-        model->addConstr(y >= (P_3y - P_4y)/(P_3x - P_4x)*(x - P_4x) + P_4y, "P3_P4_" + aoID + "_" + itos(constraint_counter));
+        model->addConstr(y >= (CS_P_3y - CS_P_4y)/(CS_P_3x - CS_P_4x)*(x - CS_P_4x) + CS_P_4y, "P3_P4_" + obsID + "_" + actID);
 	}
 	else {
 		// Line P3<-->P4 is vertical (weird edge case)
 		if(a_y > o_y) {
 			// x <= P4.x
-            model->addConstr(x <= P_4x, "P3_P4_" + aoID + "_" + itos(constraint_counter));
+            model->addConstr(x <= CS_P_4x, "P3_P4_" + obsID + "_" + actID);
 		}
 		else {
 			// x >= P4.x
-            model->addConstr(x >= P_4x, "P3_P4_" + aoID + "_" + itos(constraint_counter));
+            model->addConstr(x >= CS_P_4x, "P3_P4_" + obsID + "_" + actID);
 		}
 	}
 
 	// Line connecting points P2 and P4
 	if(a_y < o_y) {
 		// y <= P2<-->P4
-        model->addConstr(y <= (P_2y - P_4y)/(P_2x - P_4x)*(x - P_4x) + P_4y, "P2_P4_" + aoID + "_" + itos(constraint_counter));
+        model->addConstr(y <= (CS_P_2y - CS_P_4y)/(CS_P_2x - CS_P_4x)*(x - CS_P_4x) + CS_P_4y, "P2_P4_" + obsID + "_" + actID);
 	}
 	else if(a_y > o_y) {
 		// y >= P2<-->P4
-        model->addConstr(y >= (P_2y - P_4y)/(P_2x - P_4x)*(x - P_4x) + P_4y, "P2_P4_" + aoID + "_" + itos(constraint_counter));
+        model->addConstr(y >= (CS_P_2y - CS_P_4y)/(CS_P_2x - CS_P_4x)*(x - CS_P_4x) + CS_P_4y, "P2_P4_" + obsID + "_" + actID);
 	}
 	else {
 		// Line P2<-->P4 is horizontal (weird edge case)
 		if(a_x < o_x) {
 			// x <= P4.x
-            model->addConstr(x <= P_4x, "P2_P4_" + aoID + "_" + itos(constraint_counter));
+            model->addConstr(x <= CS_P_4x, "P2_P4_" + obsID + "_" + actID);
 		}
 		else {
 			// x >= P4.x
-            model->addConstr(x >= P_4x, "P2_P4_" + aoID + "_" + itos(constraint_counter));
+            model->addConstr(x >= CS_P_4x, "P2_P4_" + obsID + "_" + actID);
 		}
 	}
 
 	// Line connecting points P1 and P3
 	if(a_y > o_y) {
 		// y <= P1<-->P3
-        model->addConstr(y <= (P_1y - P_3y)/(P_1x - P_3x)*(x - P_3x) + P_3y, "P1_P3_" + aoID + "_" + itos(constraint_counter));
+        model->addConstr(y <= (CS_P_1y - CS_P_3y)/(CS_P_1x - CS_P_3x)*(x - CS_P_3x) + CS_P_3y, "P1_P3_" + obsID + "_" + actID);
 	}
 	else if(a_y < o_y) {
 		// y >= P1<-->P3
-        model->addConstr(y >= (P_1y - P_3y)/(P_1x - P_3x)*(x - P_3x) + P_3y, "P1_P3_" + aoID + "_" + itos(constraint_counter));
+        model->addConstr(y >= (CS_P_1y - CS_P_3y)/(CS_P_1x - CS_P_3x)*(x - CS_P_3x) + CS_P_3y, "P1_P3_" + obsID + "_" + actID);
 	}
 	else {
 		// Line P1<-->P2 is vertical (weird edge case)
 		if(a_x < o_x) {
 			// x >= P1.x
-            model->addConstr(x >= P_1x, "P1_P3_" + aoID + "_" + itos(constraint_counter));
+            model->addConstr(x >= CS_P_1x, "P1_P3_" + obsID + "_" + actID);
 		}
 		else {
 			// x <= P2.x
-            model->addConstr(x <= P_1x, "P1_P3_" + aoID + "_" + itos(constraint_counter));
+            model->addConstr(x <= CS_P_1x, "P1_P3_" + obsID + "_" + actID);
+		}
+	}
+}
+
+/*
+ * Adds Point-to-Point constraints. These are intended for waypoint actions and prevent Gurobi
+ * from pushing action-to-action trajectories into an obstacle.
+ */
+void LaunchOptimizerOBS::addP2PConstraints(GRBModel* model, std::vector<std::vector<GRBVar>>* act_pos_var,
+		const UGVAction& p1, const UGVAction& p2, const UGVAction& p3, const Obstacle& obstacle) {
+    const std::string p1ID = std::to_string(p1.mActionID);
+    const std::string p2ID = std::to_string(p2.mActionID);
+    const std::string p3ID = std::to_string(p3.mActionID);
+    GRBVar x = act_pos_var->back()[0];
+    GRBVar y = act_pos_var->back()[1];
+
+	if(DEBUG_LAUNCHOPTOBS) {
+		printf("Adding Poin-2-Point constraint for: (%0.2f, %0.2f)->(%0.2f, %0.2f)->(%0.2f, %0.2f), o(%0.2f, %0.2f)\n", p1.fX, p1.fY, p2.fX, p2.fY, p3.fX, p3.fY, obstacle.location.x, obstacle.location.y);
+	}
+
+	// Now we add in our line from P1 -> P2 and P2 -> P3; Note these are different than the Convex Square Points Used above
+	// ----- Segment P1 → P2 -----
+	if(p1.fX == p2.fX) {
+		// Vertical line case
+		if(p1.fX < obstacle.location.x) {
+			model->addConstr(x <= p1.fX, "P2P_" + p1ID + "_" + p2ID + "_left");
+		}
+		else {
+			model->addConstr(x >= p1.fX, "P2P_" + p1ID + "_" + p2ID + "_right");
+		}
+	}
+	else {
+		// Non-vertical line case
+		double slope = (p2.fY - p1.fY) / (p2.fX - p1.fX);
+		double intercept = p1.fY - slope * p1.fX;
+		double obs_y_line = slope * obstacle.location.x + intercept;
+
+		if(obs_y_line < obstacle.location.y) {
+			model->addConstr(y <= slope * x + intercept, "P2P_" + p1ID + "_" + p2ID + "_above");
+		} else {
+			model->addConstr(y >= slope * x + intercept, "P2P_" + p1ID + "_" + p2ID + "_below");
 		}
 	}
 
-	constraint_counter++;
+	// ----- Segment P2 → P3 -----
+	if(p3.fX == p2.fX) {
+		// Vertical line case
+		if(p2.fX < obstacle.location.x) {
+			model->addConstr(x <= p2.fX, "P2P_" + p2ID + "_" + p3ID + "_left");
+		}
+		else {
+			model->addConstr(x >= p2.fX, "P2P_" + p2ID + "_" + p3ID + "_right");
+		}
+	}
+	else {
+		// Non-vertical line case
+		double slope = (p3.fY - p2.fY) / (p3.fX - p2.fX);
+		double intercept = p2.fY - slope * p2.fX;
+		double obs_y_line = slope * obstacle.location.x + intercept;
+
+		if(obstacle.location.y > obs_y_line) {
+			model->addConstr(y <= slope * x + intercept, "P2P_" + p2ID + "_" + p3ID + "_above");
+		}
+		else {
+			model->addConstr(y >= slope * x + intercept, "P2P_" + p2ID + "_" + p3ID + "_below");
+		}
+	}
 }
 
-// Builds a box around the action
-void LaunchOptimizerOBS::buildBoxOnAction(PatrollingInput* input, GRBModel* model,
-		std::vector<std::vector<GRBVar>>* act_pos_var, SOCAction& action) {
+// Returns a pointer to the obstacle associated with the mDetails of this SOV action
+const Obstacle* LaunchOptimizerOBS::getObstaclePointer(PatrollingInput* input, SOCAction& action) {
 	std::vector<Obstacle> obstacles = input->GetObstacles();
 
 	// Find the obstacle matching the action's mdetails field
@@ -1483,6 +1217,7 @@ void LaunchOptimizerOBS::buildBoxOnAction(PatrollingInput* input, GRBModel* mode
 		throw std::runtime_error("Obstacle with matching ID not found.");
 	}
 
-	// Add corridor constraint
-	addBoxConstraints(model, act_pos_var, action, *obs, obstacles);
+	return obs;
 }
+
+
