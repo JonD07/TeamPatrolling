@@ -243,8 +243,8 @@ int main(int argc, char *argv[]) {
 		if(SANITY_PRINT)
 			printf(" Printing results to: %s\n", buff);
 		pOutputFile = fopen(buff, "a");
-		// File format: n m runmun computed_Z estimated_Z comp-time
-		fprintf(pOutputFile, "%d %d %d %d ", input.GetN(), input.GetMa(), input.GetMg(), runnum);
+		// File format: n m_g m_a obst runmun par comp-time valid?
+		fprintf(pOutputFile, "%d %d %d %ld %d ", input.GetN(), input.GetMa(), input.GetMg(), input.GetObstacles().size(), runnum);
 		fprintf(pOutputFile, "%f %f", par, duration_s);
 		fprintf(pOutputFile, " %d\n", valid);
 		fclose(pOutputFile);
