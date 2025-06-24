@@ -63,14 +63,9 @@ void ActionSwapper::LazySwap(PatrollingInput* input, Solution* sol_final, int ug
 	}
 }
 
-/*
-*  This function is attempts to switch corresponding UGV launch and land actions that have been placed on top of each other by the optimizer
-*  First the function looks for a dummy waypoint that has a launch and land sandwhiching it
-*  If it finds one of these, it makes a dummy sol, switches the actions and runs the optimizer again and then sees if the PAR is better
-*  If its better -> switch the current soln to this temp soln and we restart the whole process from the beg of the while loop since this change could introduce new optimization potential
-*  TODO it is possible that we would need to record the successful swaps we are making if it turns out we there is a lot of repeated useless work happening every time we restart the loop
-*/
-void ActionSwapper::LLSRelaxAll(int ugv_num, std::vector<std::vector<int>>& drones_to_UGV, PatrollingInput* input, Solution* sol_current) {
+// Attempts optimizes the solution after every action swap, only keeping a swap if solution quality improves
+// TODO it is possible that we would need to record the successful swaps we are making if it turns out we there is a lot of repeated useless work happening every time we restart the loop
+void ActionSwapper::LLSRelaxAll(PatrollingInput* input, Solution* sol_current, int ugv_num, std::vector<std::vector<int>>& drones_to_UGV) {
 	if(SANITY_PRINT) {
 		printf("Attempting to perform relaxing swaps!\n");
 	}

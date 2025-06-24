@@ -85,7 +85,7 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 			}
 
 			/// Perform action swapping
-			swapper.LazySwap(input, sol_final, ugv_num, drones_to_UGV);
+			swapper.LLSRelaxAll(input, sol_final, ugv_num, drones_to_UGV);
 		}
 
 		// Are we replanning drone sub-tours?
@@ -150,11 +150,6 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 				sol_final->GenerateYAML(buffAsStdStr);
 				iter++;
 			}
-
-//			if(iter > 4) {
-//				sol_final->PrintSolution();
-//				exit(1);
-//			}
 
 			if(DEBUG_LORS) {
 				printf("** Ran optimizer, running obstacle avoidance **\n");

@@ -27,6 +27,8 @@ public:
 
 	// Used for lazy action swapping
 	void LazySwap(PatrollingInput* input, Solution* sol_final, int ugv_num, std::vector<std::vector<int>>& drones_to_UGV);
+	// Attempts optimizes the solution after every action swap, only keeping a swap if solution quality improves
+	void LLSRelaxAll(PatrollingInput* input, Solution* sol_current, int ugv_num, std::vector<std::vector<int>>& drones_to_UGV);
 protected:
 private:
 	LaunchOptimizer optimizer;
