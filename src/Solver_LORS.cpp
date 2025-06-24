@@ -28,10 +28,10 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 	 * Find Baseline Solution
 	 * Optimize solution
 	 * For each UGV...
-	 *   Perform action swapping
 	 *   For each drone
 	 *     Update-Subtours()
 	 *   end-for
+	 *   Perform action swapping
 	 *   While UGV tour has collisions
 	 *     Run obstacle avoidance
 	 *     Optimize solution
@@ -78,16 +78,6 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 	/// For each UGV...
 	int iter = 0;
 	for(int ugv_num = 0; ugv_num < input->GetMg(); ugv_num++) {
-		// Are we running the swapping logic?
-		if(bSwapping) {
-			if(DEBUG_LORS) {
-				printf("** Attempting to swap actions **\n");
-			}
-
-			/// Perform action swapping
-			swapper.LLSRelaxAll(input, sol_final, ugv_num, drones_to_UGV);
-		}
-
 		// Are we replanning drone sub-tours?
 		if(bReplanning) {
 			if(DEBUG_LORS) {
@@ -117,6 +107,16 @@ void Solver_LORS::Solve(PatrollingInput* input, Solution* sol_final) {
 					*sol_final = Solution(sol_new);
 				}
 			}
+		}
+
+		// Are we running the swapping logic?
+		if(bSwapping) {
+			if(DEBUG_LORS) {
+				printf("** Attempting to swap actions **\n");
+			}
+
+			/// Perform action swapping
+			swapper.LLSRelaxAll(input, sol_final, ugv_num, drones_to_UGV);
 		}
 
 		if(DEBUG_LORS) {
