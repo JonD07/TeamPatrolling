@@ -198,8 +198,10 @@ public:
 	// Takes in an existing solution and generates a runtime version (clears any existing solution stored here)
 	void CreateRuntimeSolution(const Solution &other);
 
-	// Prints this solution
+	// Calculates the Penalty Accumulation Rate metric
 	double CalculatePar();
+	// Calculates the worst-latency metric
+	double CalculateWorstLatency();
 
 	// Prints this solution
 	void PrintSolution();

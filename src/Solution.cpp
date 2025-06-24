@@ -254,6 +254,131 @@ double Solution::CalculatePar() {
 	return ret_val;
 }
 
+// Calculates the worst-latency metric
+double Solution::CalculateWorstLatency() {
+	double worst_latency = 0.0;
+
+	// Create a queue for times for each sensor
+	std::vector< std::priority_queue<NodeService, std::vector<NodeService>, CompareNoderService> > Visits_i;
+	for(int i = 0; i < m_input->GetN(); i++) {
+		std::priority_queue<NodeService, std::vector<NodeService>, CompareNoderService> servicing_queue;
+		Visits_i.push_back(servicing_queue);
+	}
+
+	// For each drone...
+	for(std::vector<DroneAction> action_list : m_Aa) {
+		double prev_kernel_end = 0.0;
+		// Simulate the drone's kernel for ns trials
+		for(int l = 0; l < N_S; l++) {
+			for(DroneAction action : action_list) {
+				// Did the drone visit a PoI?
+				if(action.mActionType == E_DroneActionTypes::e_MoveToNode) {
+					NodeService srv(action.fCompletionTime+prev_kernel_end, action.mActionID);
+					// Push the completion time onto the respective PoI's queue
+					Visits_i.at(action.mDetails).emplace(srv);
+				}
+				// Is this the end of the kernel?
+				if(action.mActionType == E_DroneActionTypes::e_KernelEnd) {
+					// Update when the previous kernel ends
+					prev_kernel_end = action.fCompletionTime;
+				}
+			}
+		}
+	}
+
+	// For each UGV...
+	for(std::vector<UGVAction> action_list : m_Ag) {
+		double prev_kernel_end = 0.0;
+		// Simulate the UGV's kernel for ns trials
+		for(int l = 0; l < N_S; l++) {
+			for(UGVAction action : action_list) {
+				// Did the drone visit a PoI?
+				if(action.mActionType == E_UGVActionTypes::e_MoveToNode) {
+					NodeService srv(action.fCompletionTime+prev_kernel_end, action.mActionID);
+					// Push the completion time onto the respective PoI's queue
+					Visits_i.at(action.mDetails).emplace(srv);
+				}
+				// Is this the end of the kernel?
+				if(action.mActionType == E_UGVActionTypes::e_KernelEnd) {
+					// Update when the previous kernel ends
+					prev_kernel_end = action.fCompletionTime;
+				}
+			}
+		}
+	}
+
+	// Sanity print
+	if(DEBUG_SOL) {
+		printf("Cycling through visits to build S:\n");
+	}
+
+	// Create S, a set of sets where each S_i is a set of latencies from the kernel
+	std::vector<std::vector<double>> S;
+	for(auto queue : Visits_i) {
+		// Latency list
+		std::vector<double> S_i;
+		// Get the time when the first visit occurs
+		double prev = queue.top().time;
+		prev = prev/3600.0; // Convert to hours
+		// Record the ID of the first action... we will need this to know when the kernel has restarted
+		int first_id = queue.top().ActionID;
+		queue.pop();
+
+		if(DEBUG_SOL)
+			printf(" (%d:%f)", first_id, prev);
+
+		// While the queue isn't empty and we haven't seen the first action again...
+		bool run_again = true;
+		while(!queue.empty() && run_again) {
+			double next = queue.top().time;
+			next = next/3600.0; // Convert to hours
+			S_i.push_back(next - prev);
+
+			if(DEBUG_SOL)
+				printf(" (%d:%f)", queue.top().ActionID, next);
+
+			// Did we hit the end of the kernel?
+			if(queue.top().ActionID == first_id) {
+				// We have found the repeat point..
+				run_again = false;
+			}
+			else {
+				// Get ready for the next iteration
+				prev = next;
+				queue.pop();
+			}
+		}
+
+		if(DEBUG_SOL) {
+			printf("\nS_i: ");
+			for(double t : S_i) {
+				printf("%f ", t);
+			}
+			printf("\n");
+		}
+
+		// Store S_i
+		S.push_back(S_i);
+	}
+
+	if(DEBUG_SOL)
+		printf("Total duration of each node kernel:\n");
+
+	// Figure out which latency is the worst
+	for(std::vector<double> S_i : S) {
+		for(double t_i : S_i) {
+			if(t_i > worst_latency) {
+				worst_latency = t_i;
+			}
+		}
+
+		if(DEBUG_SOL)
+			printf("New Worst Latency: %f\n", worst_latency);
+	}
+
+	return worst_latency;
+}
+
 
 // Prints this solution
 void Solution::PrintSolution() {

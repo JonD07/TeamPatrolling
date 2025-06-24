@@ -191,6 +191,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	double par = INF;
+	double worst_latency = INF;
 	int valid = 0;
 
 	try {
@@ -220,6 +221,7 @@ int main(int argc, char *argv[]) {
 	if(valid == 0) {
 		// Actually calculate PAR
 		par = solution.CalculatePar();
+		worst_latency = solution.CalculateWorstLatency();
 		// Check that the solution is valid again
 		if(!solution.is_valid(&input, algorithm)) {
 			valid = 4;
@@ -243,9 +245,9 @@ int main(int argc, char *argv[]) {
 		if(SANITY_PRINT)
 			printf(" Printing results to: %s\n", buff);
 		pOutputFile = fopen(buff, "a");
-		// File format: n m_g m_a obst runmun par comp-time valid?
+		// File format: n m_g m_a obst runmun par wl comp-time valid?
 		fprintf(pOutputFile, "%d %d %d %ld %d ", input.GetN(), input.GetMa(), input.GetMg(), input.GetObstacles().size(), runnum);
-		fprintf(pOutputFile, "%f %f", par, duration_s);
+		fprintf(pOutputFile, "%f %f %f", par, worst_latency, duration_s);
 		fprintf(pOutputFile, " %d\n", valid);
 		fclose(pOutputFile);
 	}
