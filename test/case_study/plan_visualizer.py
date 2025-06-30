@@ -12,12 +12,12 @@ import os
 import webbrowser
 
 class PlanVisualizer:
-    def __init__(self, plan_file, scenario_file):
+    def __init__(self, plan_file, scenario_file, reference_point=None):
         self.plan_file = plan_file
         self.scenario_file = scenario_file
         self.plan_data = None
         self.scenario_data = None
-        self.reference_point = None
+        self.reference_point = reference_point  # Can be overridden via command line
         self.nodes = []
         self.obstacles = []
         self.agents = []
@@ -63,7 +63,16 @@ class PlanVisualizer:
             })
             
         # Set reference point (depot at origin for coordinate conversion)
-        self.reference_point = {'lat': 38.125592, 'lng': -121.835519}  # Default from case study
+        if not self.reference_point:  # Only set if not already provided
+            # Try to extract from scenario data first
+            if 'reference_point' in self.scenario_data:
+                ref_point = self.scenario_data['reference_point']
+                self.reference_point = {'lat': ref_point['lat'], 'lng': ref_point['lng']}
+                print(f"Using reference point from scenario: {self.reference_point['lat']}, {self.reference_point['lng']}")
+            else:
+                # Fall back to default
+                self.reference_point = {'lat': 38.125592, 'lng': -121.835519}  # Default from case study
+                print(f"Using default reference point: {self.reference_point['lat']}, {self.reference_point['lng']}")
         
         print(f"Loaded {len(self.nodes)} nodes and {len(self.obstacles)} obstacles")
         
@@ -287,24 +296,83 @@ class PlanVisualizer:
             height: 3px;
             border-radius: 2px;
         }}
-        .path-controls {{
+        .view-controls {{
             position: absolute;
             top: 10px;
             left: 10px;
             background: white;
-            padding: 10px;
+            padding: 15px;
             border-radius: 5px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             z-index: 1000;
+            max-width: 250px;
+        }}
+        .control-group {{
+            margin-bottom: 15px;
+        }}
+        .control-group h5 {{
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }}
+        .control-group label {{
+            display: block;
+            margin: 5px 0;
+            font-size: 13px;
+            cursor: pointer;
+        }}
+        .control-group input[type="checkbox"] {{
+            margin-right: 8px;
+        }}
+        .preset-buttons {{
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }}
+        .preset-btn {{
+            padding: 4px 8px;
+            font-size: 11px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 3px;
+            cursor: pointer;
+        }}
+        .preset-btn:hover {{
+            background: #e9ecef;
         }}
     </style>
 </head>
 <body>
     <div id="map"></div>
     
-    <div class="path-controls">
-        <h4>Path Visibility</h4>
-        <label><input type="checkbox" id="showPaths" checked> Show Movement Paths</label>
+    <div class="view-controls">
+        <div class="control-group">
+            <h5>Quick Presets</h5>
+            <div class="preset-buttons">
+                <button class="preset-btn" onclick="setPreset('all')">All</button>
+                <button class="preset-btn" onclick="setPreset('uav-only')">UAVs Only</button>
+                <button class="preset-btn" onclick="setPreset('ugv-only')">UGVs Only</button>
+                <button class="preset-btn" onclick="setPreset('paths-only')">Paths Only</button>
+                <button class="preset-btn" onclick="setPreset('static')">Static Elements</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h5>Map Elements</h5>
+            <label><input type="checkbox" id="showDepot" checked> Depot</label>
+            <label><input type="checkbox" id="showPOIs" checked> POIs (Nodes)</label>
+            <label><input type="checkbox" id="showObstacles" checked> Obstacles</label>
+        </div>
+        
+        <div class="control-group">
+            <h5>Agents & Paths</h5>
+            <label><input type="checkbox" id="showUAVs" checked> UAV Markers</label>
+            <label><input type="checkbox" id="showUGVs" checked> UGV Markers</label>
+            <label><input type="checkbox" id="showUAVPaths" checked> UAV Paths</label>
+            <label><input type="checkbox" id="showUGVPaths" checked> UGV Paths</label>
+        </div>
     </div>
     
     <div class="legend">
@@ -326,7 +394,7 @@ class PlanVisualizer:
             <span>UGVs</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color" style="background: #f39c12;"></div>
+            <div class="legend-color" style="background: #000000;"></div>
             <span>Depot (0,0)</span>
         </div>
         <div class="legend-item">
@@ -386,6 +454,10 @@ class PlanVisualizer:
         let obstacleCircles = {{}};
         let pathLines = {{}};
         let depotMarker = null;
+        let uavMarkers = {{}};
+        let ugvMarkers = {{}};
+        let uavPaths = {{}};
+        let ugvPaths = {{}};
 
         function initMap() {{
             // Initialize map
@@ -411,12 +483,12 @@ class PlanVisualizer:
                 map: map,
                 title: 'Depot (0,0)',
                 icon: {{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 12,
-                fillColor: '#f000000',
-                    fillOpacity: 1,
-                    strokeColor: '#d68910',
-                    strokeWeight: 3
+                    path: 'M -8,-8 L 8,-8 L 8,8 L -8,8 Z',
+                    scale: 1,
+                    fillColor: 'transparent',
+                    fillOpacity: 0,
+                    strokeColor: '#000000',
+                    strokeWeight: 2
                 }}
             }});
 
@@ -462,7 +534,7 @@ class PlanVisualizer:
                     title: agent.id,
                     icon: {{
                         path: agent.type === 'UAV' ? google.maps.SymbolPath.FORWARD_CLOSED_ARROW : google.maps.SymbolPath.CIRCLE,
-                        scale: agent.type === 'UAV' ? 8 : 12,
+                        scale: agent.type === 'UAV' ? 4 : 6,
                         fillColor: color,
                         fillOpacity: 1,
                         strokeColor: '#fff',
@@ -470,35 +542,52 @@ class PlanVisualizer:
                     }}
                 }});
                 agentMarkers[agent.id] = marker;
+                
+                // Separate UAV and UGV markers for filtering
+                if (agent.type === 'UAV') {{
+                    uavMarkers[agent.id] = marker;
+                }} else {{
+                    ugvMarkers[agent.id] = marker;
+                }}
 
-                // Create path for this agent
+                // Create path for this agent by collecting all movement coordinates
                 const pathCoordinates = [];
-                let currentPos = data.reference_point;
+                
+                // Start from depot
+                pathCoordinates.push(data.reference_point);
                 
                 agent.actions.forEach(action => {{
-                    if (action.type === 'move_to_location' && action.origin_lat && action.dest_lat) {{
-                        // Add origin and destination to path
-                        pathCoordinates.push({{ lat: action.origin_lat, lng: action.origin_lng }});
+                    if (action.type === 'move_to_location' && action.dest_lat && action.dest_lng) {{
+                        // Add destination to path
                         pathCoordinates.push({{ lat: action.dest_lat, lng: action.dest_lng }});
-                        currentPos = {{ lat: action.dest_lat, lng: action.dest_lng }};
-                    }} else if (action.lat && action.lng) {{
-                        // Add current position for non-movement actions
+                    }} else if (action.lat && action.lng && action.type !== 'start' && action.type !== 'end') {{
+                        // Add position for service actions, takeoffs, landings, etc.
                         pathCoordinates.push({{ lat: action.lat, lng: action.lng }});
-                        currentPos = {{ lat: action.lat, lng: action.lng }};
                     }}
                 }});
 
-                // Create the path polyline
+                // Create the path polyline if we have multiple points
                 if (pathCoordinates.length > 1) {{
                     const path = new google.maps.Polyline({{
                         path: pathCoordinates,
                         geodesic: true,
                         strokeColor: color,
-                        strokeOpacity: 0.6,
+                        strokeOpacity: 0.7,
                         strokeWeight: agent.type === 'UAV' ? 2 : 3,
                         map: map
                     }});
                     pathLines[agent.id] = path;
+                    
+                    // Separate UAV and UGV paths for filtering
+                    if (agent.type === 'UAV') {{
+                        uavPaths[agent.id] = path;
+                    }} else {{
+                        ugvPaths[agent.id] = path;
+                    }}
+                    
+                    console.log(`Created path for ${{agent.id}} with ${{pathCoordinates.length}} points`);
+                }} else {{
+                    console.log(`No path created for ${{agent.id}} - insufficient coordinates`);
                 }}
             }});
 
@@ -539,10 +628,44 @@ class PlanVisualizer:
                 animationSpeed = parseFloat(e.target.value);
             }};
 
-            document.getElementById('showPaths').onchange = (e) => {{
-                const showPaths = e.target.checked;
-                Object.values(pathLines).forEach(path => {{
-                    path.setVisible(showPaths);
+            // Set up view filter controls
+            document.getElementById('showDepot').onchange = (e) => {{
+                if (depotMarker) depotMarker.setVisible(e.target.checked);
+            }};
+            
+            document.getElementById('showPOIs').onchange = (e) => {{
+                Object.values(nodeMarkers).forEach(marker => {{
+                    marker.setVisible(e.target.checked);
+                }});
+            }};
+            
+            document.getElementById('showObstacles').onchange = (e) => {{
+                Object.values(obstacleCircles).forEach(circle => {{
+                    circle.setVisible(e.target.checked);
+                }});
+            }};
+            
+            document.getElementById('showUAVs').onchange = (e) => {{
+                Object.values(uavMarkers).forEach(marker => {{
+                    marker.setVisible(e.target.checked);
+                }});
+            }};
+            
+            document.getElementById('showUGVs').onchange = (e) => {{
+                Object.values(ugvMarkers).forEach(marker => {{
+                    marker.setVisible(e.target.checked);
+                }});
+            }};
+            
+            document.getElementById('showUAVPaths').onchange = (e) => {{
+                Object.values(uavPaths).forEach(path => {{
+                    if (path) path.setVisible(e.target.checked);
+                }});
+            }};
+            
+            document.getElementById('showUGVPaths').onchange = (e) => {{
+                Object.values(ugvPaths).forEach(path => {{
+                    if (path) path.setVisible(e.target.checked);
                 }});
             }};
         }}
@@ -618,6 +741,52 @@ class PlanVisualizer:
             document.getElementById('agentStatus').innerHTML = statusHtml;
         }}
 
+        function setPreset(preset) {{
+            // Reset all checkboxes
+            const checkboxes = ['showDepot', 'showPOIs', 'showObstacles', 'showUAVs', 'showUGVs', 'showUAVPaths', 'showUGVPaths'];
+            
+            switch(preset) {{
+                case 'all':
+                    checkboxes.forEach(id => {{
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    }});
+                    break;
+                    
+                case 'uav-only':
+                    checkboxes.forEach(id => document.getElementById(id).checked = false);
+                    ['showDepot', 'showPOIs', 'showObstacles', 'showUAVs', 'showUAVPaths'].forEach(id => {{
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    }});
+                    break;
+                    
+                case 'ugv-only':
+                    checkboxes.forEach(id => document.getElementById(id).checked = false);
+                    ['showDepot', 'showPOIs', 'showObstacles', 'showUGVs', 'showUGVPaths'].forEach(id => {{
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    }});
+                    break;
+                    
+                case 'paths-only':
+                    checkboxes.forEach(id => document.getElementById(id).checked = false);
+                    ['showDepot', 'showUAVPaths', 'showUGVPaths'].forEach(id => {{
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    }});
+                    break;
+                    
+                case 'static':
+                    checkboxes.forEach(id => document.getElementById(id).checked = false);
+                    ['showDepot', 'showPOIs', 'showObstacles'].forEach(id => {{
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    }});
+                    break;
+            }}
+        }}
+
         window.initMap = initMap;
     </script>
     
@@ -639,9 +808,10 @@ class PlanVisualizer:
 
 def main():
     parser = argparse.ArgumentParser(description='Visualize patrol plan execution on Google Maps')
-    parser.add_argument('plan_file', help='Path to output_plan.yaml file')
     parser.add_argument('scenario_file', help='Path to scenario YAML file')
-    parser.add_argument('--output', help='Output HTML file path (default: visualizations/plan_visualization.html)')
+    parser.add_argument('plan_file', help='Path to output_plan.yaml file')
+    parser.add_argument('--output', help='Output HTML file path (default: visualizations/{scenario_name}_visualization.html)')
+    parser.add_argument('--reference-point', help='Reference point coordinates as "lat,lng" (overrides scenario file)', type=str)
     parser.add_argument('--open-browser', action='store_true', help='Open browser automatically after generating')
     
     args = parser.parse_args()
@@ -651,8 +821,19 @@ def main():
         scenario_basename = os.path.splitext(os.path.basename(args.scenario_file))[0]
         args.output = os.path.join('visualizations', f'{scenario_basename}_visualization.html')
     
+    # Parse reference point if provided
+    reference_point = None
+    if args.reference_point:
+        try:
+            lat_str, lng_str = args.reference_point.split(',')
+            reference_point = {'lat': float(lat_str.strip()), 'lng': float(lng_str.strip())}
+            print(f"Using command-line reference point: {reference_point['lat']}, {reference_point['lng']}")
+        except (ValueError, IndexError):
+            print(f"❌ Invalid reference point format: {args.reference_point}. Expected format: 'lat,lng'")
+            return 1
+    
     # Create visualizer and load data
-    visualizer = PlanVisualizer(args.plan_file, args.scenario_file)
+    visualizer = PlanVisualizer(args.plan_file, args.scenario_file, reference_point)
     try:
         visualizer.load_data()
     except Exception as e:
