@@ -1,0 +1,5089 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plan Visualizer - plan_every_UAV_action_02</title>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        #map { height: 70vh; }
+        #controls { 
+            height: 30vh; 
+            padding: 20px; 
+            background: #f5f5f5; 
+            border-top: 1px solid #ddd;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        #timeline {
+            flex: 1;
+            margin: 0 10px;
+        }
+        .info-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .info-box {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .info-box h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #007cba;
+            color: white;
+        }
+        button:hover { background: #005a87; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+        .legend-line {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        .view-controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 250px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group h5 {
+            margin: 0 0 8px 0;
+            color: #333;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .control-group label {
+            display: block;
+            margin: 5px 0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .control-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .preset-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .preset-btn {
+            padding: 4px 8px;
+            font-size: 11px;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .preset-btn:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="view-controls">
+        <div class="control-group">
+            <h5>Quick Presets</h5>
+            <div class="preset-buttons">
+                <button class="preset-btn" onclick="setPreset('all')">All</button>
+                <button class="preset-btn" onclick="setPreset('uav-only')">UAVs Only</button>
+                <button class="preset-btn" onclick="setPreset('ugv-only')">UGVs Only</button>
+                <button class="preset-btn" onclick="setPreset('paths-only')">Paths Only</button>
+                <button class="preset-btn" onclick="setPreset('static')">Static Elements</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <h5>Map Elements</h5>
+            <label><input type="checkbox" id="showDepot" checked> Depot</label>
+            <label><input type="checkbox" id="showPOIs" checked> POIs (Nodes)</label>
+            <label><input type="checkbox" id="showObstacles" checked> Obstacles</label>
+        </div>
+        
+        <div class="control-group">
+            <h5>Agents & Paths</h5>
+            <label><input type="checkbox" id="showUAVs" checked> UAV Markers</label>
+            <label><input type="checkbox" id="showUGVs" checked> UGV Markers</label>
+            <label><input type="checkbox" id="showUAVPaths" checked> UAV Paths</label>
+            <label><input type="checkbox" id="showUGVPaths" checked> UGV Paths</label>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h4>Legend</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #4CAF50;"></div>
+            <span>POIs (Nodes)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #F44336;"></div>
+            <span>Obstacles</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #2196F3;"></div>
+            <span>UAVs</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #FF9800;"></div>
+            <span>UGVs</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: #f39c12;"></div>
+            <span>Depot (0,0)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-line" style="background: #2196F3;"></div>
+            <span>UAV Paths</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-line" style="background: #FF9800;"></div>
+            <span>UGV Paths</span>
+        </div>
+    </div>
+    
+    <div id="controls">
+        <div class="control-row">
+            <button id="playBtn">Play</button>
+            <button id="pauseBtn" disabled>Pause</button>
+            <button id="resetBtn">Reset</button>
+            <span>Time: <span id="currentTime">0.0</span> / <span id="totalTime">0.0</span> seconds</span>
+            <input type="range" id="timeline" min="0" max="100" value="0" step="0.1">
+            <span>Speed: </span>
+            <select id="speedSelect">
+                <option value="0.5">0.5x</option>
+                <option value="1" selected>1x</option>
+                <option value="2">2x</option>
+                <option value="5">5x</option>
+                <option value="10">10x</option>
+            </select>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-box">
+                <h4>Current Actions</h4>
+                <div id="currentActions">No active actions</div>
+            </div>
+            <div class="info-box">
+                <h4>Agent Status</h4>
+                <div id="agentStatus">Loading...</div>
+            </div>
+            <div class="info-box">
+                <h4>Plan Info</h4>
+                <div id="planInfo">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Embedded data
+        const data = {
+  "reference_point": {
+    "lat": 38.125592,
+    "lng": -121.835519
+  },
+  "nodes": [
+    {
+      "id": "n_0000",
+      "type": "air_only",
+      "lat": 38.12674313165557,
+      "lng": -121.83676510553312,
+      "x": -109.0,
+      "y": 128.0
+    },
+    {
+      "id": "n_0001",
+      "type": "air_only",
+      "lat": 38.126976955273115,
+      "lng": -121.83518746733523,
+      "x": 29.0,
+      "y": 154.0
+    },
+    {
+      "id": "n_0002",
+      "type": "air_only",
+      "lat": 38.1262305183402,
+      "lng": -121.8335983969765,
+      "x": 168.0,
+      "y": 71.0
+    }
+  ],
+  "obstacles": [
+    {
+      "id": "o_01",
+      "type": "circle",
+      "lat": 38.12633843693291,
+      "lng": -121.83588482914735,
+      "radius": 15.0,
+      "x": -32.0,
+      "y": 83.0
+    },
+    {
+      "id": "o_02",
+      "type": "circle",
+      "lat": 38.12614058617961,
+      "lng": -121.83462729145337,
+      "radius": 15.0,
+      "x": 78.0,
+      "y": 61.0
+    }
+  ],
+  "agents": [
+    {
+      "id": "UAV_01",
+      "type": "UAV",
+      "actions": [
+        {
+          "type": "start",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "perch_on_UGV",
+          "start_time": 0.0,
+          "end_time": 16.0,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "origin": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "destination": {
+              "x": -17.3,
+              "y": -4.4
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.0,
+          "dest_x": -17.3,
+          "dest_y": -4.4,
+          "origin_lat": 38.125592,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.125552429849336,
+          "dest_lng": -121.83571677638278
+        },
+        {
+          "type": "takeoff_from_UGV",
+          "start_time": 16.0,
+          "end_time": 26.0,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": -17.3,
+              "y": -4.4
+            }
+          },
+          "x": -17.3,
+          "y": -4.4,
+          "lat": 38.125552429849336,
+          "lng": -121.83571677638278
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 26.0,
+          "end_time": 47.5,
+          "parameters": {
+            "origin": {
+              "x": -17.3,
+              "y": -4.4
+            },
+            "destination": {
+              "x": -249.0,
+              "y": -118.0
+            }
+          },
+          "origin_x": -17.3,
+          "origin_y": -4.4,
+          "dest_x": -249.0,
+          "dest_y": -118.0,
+          "origin_lat": 38.125552429849336,
+          "origin_lng": -121.83571677638278,
+          "dest_lat": 38.12453080050501,
+          "dest_lng": -121.83836560805271
+        },
+        {
+          "type": "service_node",
+          "start_time": 47.5,
+          "end_time": 47.5,
+          "parameters": {
+            "node_ID": "n_0014",
+            "location": {
+              "x": -249.0,
+              "y": -118.0
+            }
+          },
+          "x": -249.0,
+          "y": -118.0,
+          "lat": 38.12453080050501,
+          "lng": -121.83836560805271
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 47.5,
+          "end_time": 100.1,
+          "parameters": {
+            "origin": {
+              "x": -249.0,
+              "y": -118.0
+            },
+            "destination": {
+              "x": -835.0,
+              "y": -351.0
+            }
+          },
+          "origin_x": -249.0,
+          "origin_y": -118.0,
+          "dest_x": -835.0,
+          "dest_y": -351.0,
+          "origin_lat": 38.12453080050501,
+          "origin_lng": -121.83836560805271,
+          "dest_lat": 38.12243538116322,
+          "dest_lng": -121.84506485431328
+        },
+        {
+          "type": "service_node",
+          "start_time": 100.1,
+          "end_time": 100.1,
+          "parameters": {
+            "node_ID": "n_0013",
+            "location": {
+              "x": -835.0,
+              "y": -351.0
+            }
+          },
+          "x": -835.0,
+          "y": -351.0,
+          "lat": 38.12243538116322,
+          "lng": -121.84506485431328
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 100.1,
+          "end_time": 127.1,
+          "parameters": {
+            "origin": {
+              "x": -835.0,
+              "y": -351.0
+            },
+            "destination": {
+              "x": -1148.0,
+              "y": -265.0
+            }
+          },
+          "origin_x": -835.0,
+          "origin_y": -351.0,
+          "dest_x": -1148.0,
+          "dest_y": -265.0,
+          "origin_lat": 38.12243538116322,
+          "origin_lng": -121.84506485431328,
+          "dest_lat": 38.12320879774431,
+          "dest_lng": -121.84864312066065
+        },
+        {
+          "type": "service_node",
+          "start_time": 127.1,
+          "end_time": 127.1,
+          "parameters": {
+            "node_ID": "n_0012",
+            "location": {
+              "x": -1148.0,
+              "y": -265.0
+            }
+          },
+          "x": -1148.0,
+          "y": -265.0,
+          "lat": 38.12320879774431,
+          "lng": -121.84864312066065
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 127.1,
+          "end_time": 167.2,
+          "parameters": {
+            "origin": {
+              "x": -1148.0,
+              "y": -265.0
+            },
+            "destination": {
+              "x": -1331.0,
+              "y": 180.0
+            }
+          },
+          "origin_x": -1148.0,
+          "origin_y": -265.0,
+          "dest_x": -1331.0,
+          "dest_y": 180.0,
+          "origin_lat": 38.12320879774431,
+          "origin_lng": -121.84864312066065,
+          "dest_lat": 38.12721077889065,
+          "dest_lng": -121.85073520609697
+        },
+        {
+          "type": "service_node",
+          "start_time": 167.2,
+          "end_time": 167.2,
+          "parameters": {
+            "node_ID": "n_0011",
+            "location": {
+              "x": -1331.0,
+              "y": 180.0
+            }
+          },
+          "x": -1331.0,
+          "y": 180.0,
+          "lat": 38.12721077889065,
+          "lng": -121.85073520609697
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 167.2,
+          "end_time": 234.3,
+          "parameters": {
+            "origin": {
+              "x": -1331.0,
+              "y": 180.0
+            },
+            "destination": {
+              "x": -531.0,
+              "y": 276.0
+            }
+          },
+          "origin_x": -1331.0,
+          "origin_y": 180.0,
+          "dest_x": -531.0,
+          "dest_y": 276.0,
+          "origin_lat": 38.12721077889065,
+          "origin_lng": -121.85073520609697,
+          "dest_lat": 38.12807412763233,
+          "dest_lng": -121.84158947741359
+        },
+        {
+          "type": "service_node",
+          "start_time": 234.3,
+          "end_time": 234.3,
+          "parameters": {
+            "node_ID": "n_0016",
+            "location": {
+              "x": -531.0,
+              "y": 276.0
+            }
+          },
+          "x": -531.0,
+          "y": 276.0,
+          "lat": 38.12807412763233,
+          "lng": -121.84158947741359
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 234.3,
+          "end_time": 256.5,
+          "parameters": {
+            "origin": {
+              "x": -531.0,
+              "y": 276.0
+            },
+            "destination": {
+              "x": -315.0,
+              "y": 122.0
+            }
+          },
+          "origin_x": -531.0,
+          "origin_y": 276.0,
+          "dest_x": -315.0,
+          "dest_y": 122.0,
+          "origin_lat": 38.12807412763233,
+          "origin_lng": -121.84158947741359,
+          "dest_lat": 38.12668917235922,
+          "dest_lng": -121.83912013066909
+        },
+        {
+          "type": "service_node",
+          "start_time": 256.5,
+          "end_time": 256.5,
+          "parameters": {
+            "node_ID": "n_0015",
+            "location": {
+              "x": -315.0,
+              "y": 122.0
+            }
+          },
+          "x": -315.0,
+          "y": 122.0,
+          "lat": 38.12668917235922,
+          "lng": -121.83912013066909
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 256.5,
+          "end_time": 283.5,
+          "parameters": {
+            "origin": {
+              "x": -315.0,
+              "y": 122.0
+            },
+            "destination": {
+              "x": -13.1,
+              "y": 3.2
+            }
+          },
+          "origin_x": -315.0,
+          "origin_y": 122.0,
+          "dest_x": -13.1,
+          "dest_y": 3.2,
+          "origin_lat": 38.12668917235922,
+          "origin_lng": -121.83912013066909,
+          "dest_lat": 38.125620778291385,
+          "dest_lng": -121.83566876130719
+        },
+        {
+          "type": "land_on_UGV",
+          "start_time": 283.5,
+          "end_time": 343.5,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "location": {
+              "x": -13.1,
+              "y": 3.2
+            },
+            "start_progress": 0.0,
+            "end_progress": 1.0
+          },
+          "x": -13.1,
+          "y": 3.2,
+          "lat": 38.125620778291385,
+          "lng": -121.83566876130719
+        },
+        {
+          "type": "end",
+          "start_time": 972.2,
+          "end_time": 972.2,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        }
+      ]
+    },
+    {
+      "id": "UAV_02",
+      "type": "UAV",
+      "actions": [
+        {
+          "type": "start",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "perch_on_UGV",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "origin": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "destination": {
+              "x": 0.0,
+              "y": 0.1
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.0,
+          "dest_x": 0.0,
+          "dest_y": 0.1,
+          "origin_lat": 38.125592,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.835519
+        },
+        {
+          "type": "takeoff_from_UGV",
+          "start_time": 0.0,
+          "end_time": 10.0,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.0,
+              "y": 0.1
+            }
+          },
+          "x": 0.0,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.835519
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 10.0,
+          "end_time": 158.1,
+          "parameters": {
+            "origin": {
+              "x": 0.0,
+              "y": 0.1
+            },
+            "destination": {
+              "x": -1750.0,
+              "y": 309.0
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.1,
+          "dest_x": -1750.0,
+          "dest_y": 309.0,
+          "origin_lat": 38.1255928993216,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.12837090376229,
+          "dest_lng": -121.85552528149489
+        },
+        {
+          "type": "service_node",
+          "start_time": 158.1,
+          "end_time": 158.1,
+          "parameters": {
+            "node_ID": "n_0008",
+            "location": {
+              "x": -1750.0,
+              "y": 309.0
+            }
+          },
+          "x": -1750.0,
+          "y": 309.0,
+          "lat": 38.12837090376229,
+          "lng": -121.85552528149489
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 158.1,
+          "end_time": 197.6,
+          "parameters": {
+            "origin": {
+              "x": -1750.0,
+              "y": 309.0
+            },
+            "destination": {
+              "x": -1990.0,
+              "y": -100.0
+            }
+          },
+          "origin_x": -1750.0,
+          "origin_y": 309.0,
+          "dest_x": -1990.0,
+          "dest_y": -100.0,
+          "origin_lat": 38.12837090376229,
+          "origin_lng": -121.85552528149489,
+          "dest_lat": 38.12469267839408,
+          "dest_lng": -121.8582690000999
+        },
+        {
+          "type": "service_node",
+          "start_time": 197.6,
+          "end_time": 197.6,
+          "parameters": {
+            "node_ID": "n_0009",
+            "location": {
+              "x": -1990.0,
+              "y": -100.0
+            }
+          },
+          "x": -1990.0,
+          "y": -100.0,
+          "lat": 38.12469267839408,
+          "lng": -121.8582690000999
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 197.6,
+          "end_time": 224.7,
+          "parameters": {
+            "origin": {
+              "x": -1990.0,
+              "y": -100.0
+            },
+            "destination": {
+              "x": -2137.0,
+              "y": 189.0
+            }
+          },
+          "origin_x": -1990.0,
+          "origin_y": -100.0,
+          "dest_x": -2137.0,
+          "dest_y": 189.0,
+          "origin_lat": 38.12469267839408,
+          "origin_lng": -121.8582690000999,
+          "dest_lat": 38.127291717835185,
+          "dest_lng": -121.85994952774547
+        },
+        {
+          "type": "service_node",
+          "start_time": 224.7,
+          "end_time": 224.7,
+          "parameters": {
+            "node_ID": "n_0007",
+            "location": {
+              "x": -2137.0,
+              "y": 189.0
+            }
+          },
+          "x": -2137.0,
+          "y": 189.0,
+          "lat": 38.127291717835185,
+          "lng": -121.85994952774547
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 224.7,
+          "end_time": 248.5,
+          "parameters": {
+            "origin": {
+              "x": -2137.0,
+              "y": 189.0
+            },
+            "destination": {
+              "x": -2163.0,
+              "y": 474.0
+            }
+          },
+          "origin_x": -2137.0,
+          "origin_y": 189.0,
+          "dest_x": -2163.0,
+          "dest_y": 474.0,
+          "origin_lat": 38.127291717835185,
+          "origin_lng": -121.85994952774547,
+          "dest_lat": 38.12985478441205,
+          "dest_lng": -121.86024676392768
+        },
+        {
+          "type": "service_node",
+          "start_time": 248.5,
+          "end_time": 248.5,
+          "parameters": {
+            "node_ID": "n_0006",
+            "location": {
+              "x": -2163.0,
+              "y": 474.0
+            }
+          },
+          "x": -2163.0,
+          "y": 474.0,
+          "lat": 38.12985478441205,
+          "lng": -121.86024676392768
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 248.5,
+          "end_time": 297.8,
+          "parameters": {
+            "origin": {
+              "x": -2163.0,
+              "y": 474.0
+            },
+            "destination": {
+              "x": -2724.0,
+              "y": 286.0
+            }
+          },
+          "origin_x": -2163.0,
+          "origin_y": 474.0,
+          "dest_x": -2724.0,
+          "dest_y": 286.0,
+          "origin_lat": 38.12985478441205,
+          "origin_lng": -121.86024676392768,
+          "dest_lat": 38.12816405979292,
+          "dest_lng": -121.8666602061669
+        },
+        {
+          "type": "service_node",
+          "start_time": 297.8,
+          "end_time": 297.8,
+          "parameters": {
+            "node_ID": "n_0005",
+            "location": {
+              "x": -2724.0,
+              "y": 286.0
+            }
+          },
+          "x": -2724.0,
+          "y": 286.0,
+          "lat": 38.12816405979292,
+          "lng": -121.8666602061669
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 297.8,
+          "end_time": 326.1,
+          "parameters": {
+            "origin": {
+              "x": -2724.0,
+              "y": 286.0
+            },
+            "destination": {
+              "x": -2461.0,
+              "y": 72.0
+            }
+          },
+          "origin_x": -2724.0,
+          "origin_y": 286.0,
+          "dest_x": -2461.0,
+          "dest_y": 72.0,
+          "origin_lat": 38.12816405979292,
+          "origin_lng": -121.8666602061669,
+          "dest_lat": 38.12623951155626,
+          "dest_lng": -121.86365354786224
+        },
+        {
+          "type": "service_node",
+          "start_time": 326.1,
+          "end_time": 326.1,
+          "parameters": {
+            "node_ID": "n_0004",
+            "location": {
+              "x": -2461.0,
+              "y": 72.0
+            }
+          },
+          "x": -2461.0,
+          "y": 72.0,
+          "lat": 38.12623951155626,
+          "lng": -121.86365354786224
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 326.1,
+          "end_time": 350.5,
+          "parameters": {
+            "origin": {
+              "x": -2461.0,
+              "y": 72.0
+            },
+            "destination": {
+              "x": -2570.0,
+              "y": -200.0
+            }
+          },
+          "origin_x": -2461.0,
+          "origin_y": 72.0,
+          "dest_x": -2570.0,
+          "dest_y": -200.0,
+          "origin_lat": 38.12623951155626,
+          "origin_lng": -121.86365354786224,
+          "dest_lat": 38.12379335678816,
+          "dest_lng": -121.86489965339536
+        },
+        {
+          "type": "service_node",
+          "start_time": 350.5,
+          "end_time": 350.5,
+          "parameters": {
+            "node_ID": "n_0003",
+            "location": {
+              "x": -2570.0,
+              "y": -200.0
+            }
+          },
+          "x": -2570.0,
+          "y": -200.0,
+          "lat": 38.12379335678816,
+          "lng": -121.86489965339536
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 350.5,
+          "end_time": 382.6,
+          "parameters": {
+            "origin": {
+              "x": -2570.0,
+              "y": -200.0
+            },
+            "destination": {
+              "x": -2514.0,
+              "y": -581.0
+            }
+          },
+          "origin_x": -2570.0,
+          "origin_y": -200.0,
+          "dest_x": -2514.0,
+          "dest_y": -581.0,
+          "origin_lat": 38.12379335678816,
+          "origin_lng": -121.86489965339536,
+          "dest_lat": 38.12036694146961,
+          "dest_lng": -121.86425945238751
+        },
+        {
+          "type": "service_node",
+          "start_time": 382.6,
+          "end_time": 382.6,
+          "parameters": {
+            "node_ID": "n_0000",
+            "location": {
+              "x": -2514.0,
+              "y": -581.0
+            }
+          },
+          "x": -2514.0,
+          "y": -581.0,
+          "lat": 38.12036694146961,
+          "lng": -121.86425945238751
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 382.6,
+          "end_time": 404.3,
+          "parameters": {
+            "origin": {
+              "x": -2514.0,
+              "y": -581.0
+            },
+            "destination": {
+              "x": -2293.0,
+              "y": -442.0
+            }
+          },
+          "origin_x": -2514.0,
+          "origin_y": -581.0,
+          "dest_x": -2293.0,
+          "dest_y": -442.0,
+          "origin_lat": 38.12036694146961,
+          "origin_lng": -121.86425945238751,
+          "dest_lat": 38.121616998501835,
+          "dest_lng": -121.86173294483874
+        },
+        {
+          "type": "service_node",
+          "start_time": 404.3,
+          "end_time": 404.3,
+          "parameters": {
+            "node_ID": "n_0001",
+            "location": {
+              "x": -2293.0,
+              "y": -442.0
+            }
+          },
+          "x": -2293.0,
+          "y": -442.0,
+          "lat": 38.121616998501835,
+          "lng": -121.86173294483874
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 404.3,
+          "end_time": 441.7,
+          "parameters": {
+            "origin": {
+              "x": -2293.0,
+              "y": -442.0
+            },
+            "destination": {
+              "x": -1853.0,
+              "y": -529.0
+            }
+          },
+          "origin_x": -2293.0,
+          "origin_y": -442.0,
+          "dest_x": -1853.0,
+          "dest_y": -529.0,
+          "origin_lat": 38.121616998501835,
+          "origin_lng": -121.86173294483874,
+          "dest_lat": 38.12083458870469,
+          "dest_lng": -121.85670279406287
+        },
+        {
+          "type": "service_node",
+          "start_time": 441.7,
+          "end_time": 441.7,
+          "parameters": {
+            "node_ID": "n_0002",
+            "location": {
+              "x": -1853.0,
+              "y": -529.0
+            }
+          },
+          "x": -1853.0,
+          "y": -529.0,
+          "lat": 38.12083458870469,
+          "lng": -121.85670279406287
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 441.7,
+          "end_time": 470.0,
+          "parameters": {
+            "origin": {
+              "x": -1853.0,
+              "y": -529.0
+            },
+            "destination": {
+              "x": -1691.0,
+              "y": -231.0
+            }
+          },
+          "origin_x": -1853.0,
+          "origin_y": -529.0,
+          "dest_x": -1691.0,
+          "dest_y": -231.0,
+          "origin_lat": 38.12083458870469,
+          "origin_lng": -121.85670279406287,
+          "dest_lat": 38.123514567090325,
+          "dest_lng": -121.85485078400448
+        },
+        {
+          "type": "service_node",
+          "start_time": 470.0,
+          "end_time": 470.0,
+          "parameters": {
+            "node_ID": "n_0010",
+            "location": {
+              "x": -1691.0,
+              "y": -231.0
+            }
+          },
+          "x": -1691.0,
+          "y": -231.0,
+          "lat": 38.123514567090325,
+          "lng": -121.85485078400448
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 470.0,
+          "end_time": 612.2,
+          "parameters": {
+            "origin": {
+              "x": -1691.0,
+              "y": -231.0
+            },
+            "destination": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "origin_x": -1691.0,
+          "origin_y": -231.0,
+          "dest_x": 0.0,
+          "dest_y": 0.0,
+          "origin_lat": 38.123514567090325,
+          "origin_lng": -121.85485078400448,
+          "dest_lat": 38.125592,
+          "dest_lng": -121.835519
+        },
+        {
+          "type": "land_on_UGV",
+          "start_time": 612.2,
+          "end_time": 672.2,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "start_progress": 0.0,
+            "end_progress": 1.0
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "end",
+          "start_time": 972.2,
+          "end_time": 972.2,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        }
+      ]
+    },
+    {
+      "id": "UAV_03",
+      "type": "UAV",
+      "actions": [
+        {
+          "type": "start",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "perch_on_UGV",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "origin": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "destination": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.0,
+          "dest_x": 0.1,
+          "dest_y": 0.1,
+          "origin_lat": 38.125592,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.83551785678392
+        },
+        {
+          "type": "takeoff_from_UGV",
+          "start_time": 0.0,
+          "end_time": 10.0,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "x": 0.1,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.83551785678392
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 10.0,
+          "end_time": 56.9,
+          "parameters": {
+            "origin": {
+              "x": 0.1,
+              "y": 0.1
+            },
+            "destination": {
+              "x": -176.0,
+              "y": 534.0
+            }
+          },
+          "origin_x": 0.1,
+          "origin_y": 0.1,
+          "dest_x": -176.0,
+          "dest_y": 534.0,
+          "origin_lat": 38.1255928993216,
+          "origin_lng": -121.83551785678392,
+          "dest_lat": 38.1303943773756,
+          "dest_lng": -121.83753106031035
+        },
+        {
+          "type": "service_node",
+          "start_time": 56.9,
+          "end_time": 56.9,
+          "parameters": {
+            "node_ID": "n_0029",
+            "location": {
+              "x": -176.0,
+              "y": 534.0
+            }
+          },
+          "x": -176.0,
+          "y": 534.0,
+          "lat": 38.1303943773756,
+          "lng": -121.83753106031035
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 56.9,
+          "end_time": 183.8,
+          "parameters": {
+            "origin": {
+              "x": -176.0,
+              "y": 534.0
+            },
+            "destination": {
+              "x": 1175.0,
+              "y": -169.0
+            }
+          },
+          "origin_x": -176.0,
+          "origin_y": 534.0,
+          "dest_x": 1175.0,
+          "dest_y": -169.0,
+          "origin_lat": 38.1303943773756,
+          "origin_lng": -121.83753106031035,
+          "dest_lat": 38.12407214648599,
+          "dest_lng": -121.8220862109963
+        },
+        {
+          "type": "service_node",
+          "start_time": 183.8,
+          "end_time": 183.8,
+          "parameters": {
+            "node_ID": "n_0017",
+            "location": {
+              "x": 1175.0,
+              "y": -169.0
+            }
+          },
+          "x": 1175.0,
+          "y": -169.0,
+          "lat": 38.12407214648599,
+          "lng": -121.8220862109963
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 183.8,
+          "end_time": 218.8,
+          "parameters": {
+            "origin": {
+              "x": 1175.0,
+              "y": -169.0
+            },
+            "destination": {
+              "x": 1470.0,
+              "y": 130.0
+            }
+          },
+          "origin_x": 1175.0,
+          "origin_y": -169.0,
+          "dest_x": 1470.0,
+          "dest_y": 130.0,
+          "origin_lat": 38.12407214648599,
+          "origin_lng": -121.8220862109963,
+          "dest_lat": 38.12676111808769,
+          "dest_lng": -121.8187137235443
+        },
+        {
+          "type": "service_node",
+          "start_time": 218.8,
+          "end_time": 218.8,
+          "parameters": {
+            "node_ID": "n_0018",
+            "location": {
+              "x": 1470.0,
+              "y": 130.0
+            }
+          },
+          "x": 1470.0,
+          "y": 130.0,
+          "lat": 38.12676111808769,
+          "lng": -121.8187137235443
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 218.8,
+          "end_time": 238.3,
+          "parameters": {
+            "origin": {
+              "x": 1470.0,
+              "y": 130.0
+            },
+            "destination": {
+              "x": 1277.0,
+              "y": 263.0
+            }
+          },
+          "origin_x": 1470.0,
+          "origin_y": 130.0,
+          "dest_x": 1277.0,
+          "dest_y": 263.0,
+          "origin_lat": 38.12676111808769,
+          "origin_lng": -121.8187137235443,
+          "dest_lat": 38.127957215823564,
+          "dest_lng": -121.82092013058917
+        },
+        {
+          "type": "service_node",
+          "start_time": 238.3,
+          "end_time": 238.3,
+          "parameters": {
+            "node_ID": "n_0019",
+            "location": {
+              "x": 1277.0,
+              "y": 263.0
+            }
+          },
+          "x": 1277.0,
+          "y": 263.0,
+          "lat": 38.127957215823564,
+          "lng": -121.82092013058917
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 238.3,
+          "end_time": 260.4,
+          "parameters": {
+            "origin": {
+              "x": 1277.0,
+              "y": 263.0
+            },
+            "destination": {
+              "x": 1050.0,
+              "y": 398.0
+            }
+          },
+          "origin_x": 1277.0,
+          "origin_y": 263.0,
+          "dest_x": 1050.0,
+          "dest_y": 398.0,
+          "origin_lat": 38.127957215823564,
+          "origin_lng": -121.82092013058917,
+          "dest_lat": 38.129171299991555,
+          "dest_lng": -121.82351523110307
+        },
+        {
+          "type": "service_node",
+          "start_time": 260.4,
+          "end_time": 260.4,
+          "parameters": {
+            "node_ID": "n_0020",
+            "location": {
+              "x": 1050.0,
+              "y": 398.0
+            }
+          },
+          "x": 1050.0,
+          "y": 398.0,
+          "lat": 38.129171299991555,
+          "lng": -121.82351523110307
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 260.4,
+          "end_time": 276.6,
+          "parameters": {
+            "origin": {
+              "x": 1050.0,
+              "y": 398.0
+            },
+            "destination": {
+              "x": 898.0,
+              "y": 520.0
+            }
+          },
+          "origin_x": 1050.0,
+          "origin_y": 398.0,
+          "dest_x": 898.0,
+          "dest_y": 520.0,
+          "origin_lat": 38.129171299991555,
+          "origin_lng": -121.82351523110307,
+          "dest_lat": 38.13026847235078,
+          "dest_lng": -121.82525291955291
+        },
+        {
+          "type": "service_node",
+          "start_time": 276.6,
+          "end_time": 276.6,
+          "parameters": {
+            "node_ID": "n_0021",
+            "location": {
+              "x": 898.0,
+              "y": 520.0
+            }
+          },
+          "x": 898.0,
+          "y": 520.0,
+          "lat": 38.13026847235078,
+          "lng": -121.82525291955291
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 276.6,
+          "end_time": 520.2,
+          "parameters": {
+            "origin": {
+              "x": 898.0,
+              "y": 520.0
+            },
+            "destination": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "origin_x": 898.0,
+          "origin_y": 520.0,
+          "dest_x": 0.1,
+          "dest_y": 0.1,
+          "origin_lat": 38.13026847235078,
+          "origin_lng": -121.82525291955291,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.83551785678392
+        },
+        {
+          "type": "land_on_UGV",
+          "start_time": 520.2,
+          "end_time": 580.2,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "location": {
+              "x": 0.1,
+              "y": 0.1
+            },
+            "start_progress": 0.0,
+            "end_progress": 1.0
+          },
+          "x": 0.1,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.83551785678392
+        },
+        {
+          "type": "end",
+          "start_time": 880.2,
+          "end_time": 880.2,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        }
+      ]
+    },
+    {
+      "id": "UAV_04",
+      "type": "UAV",
+      "actions": [
+        {
+          "type": "start",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "perch_on_UGV",
+          "start_time": 0.0,
+          "end_time": 10.0,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "origin": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "destination": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.0,
+          "dest_x": 0.1,
+          "dest_y": 0.1,
+          "origin_lat": 38.125592,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.83551785678392
+        },
+        {
+          "type": "takeoff_from_UGV",
+          "start_time": 10.0,
+          "end_time": 20.0,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "x": 0.1,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.83551785678392
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 20.0,
+          "end_time": 124.9,
+          "parameters": {
+            "origin": {
+              "x": 0.1,
+              "y": 0.1
+            },
+            "destination": {
+              "x": 887.0,
+              "y": 893.0
+            }
+          },
+          "origin_x": 0.1,
+          "origin_y": 0.1,
+          "dest_x": 887.0,
+          "dest_y": 893.0,
+          "origin_lat": 38.1255928993216,
+          "origin_lng": -121.83551785678392,
+          "dest_lat": 38.13362294194085,
+          "dest_lng": -121.8253786733223
+        },
+        {
+          "type": "service_node",
+          "start_time": 124.9,
+          "end_time": 124.9,
+          "parameters": {
+            "node_ID": "n_0022",
+            "location": {
+              "x": 887.0,
+              "y": 893.0
+            }
+          },
+          "x": 887.0,
+          "y": 893.0,
+          "lat": 38.13362294194085,
+          "lng": -121.8253786733223
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 124.9,
+          "end_time": 143.4,
+          "parameters": {
+            "origin": {
+              "x": 887.0,
+              "y": 893.0
+            },
+            "destination": {
+              "x": 726.0,
+              "y": 1045.0
+            }
+          },
+          "origin_x": 887.0,
+          "origin_y": 893.0,
+          "dest_x": 726.0,
+          "dest_y": 1045.0,
+          "origin_lat": 38.13362294194085,
+          "origin_lng": -121.8253786733223,
+          "dest_lat": 38.13498991078185,
+          "dest_lng": -121.82721925121984
+        },
+        {
+          "type": "service_node",
+          "start_time": 143.4,
+          "end_time": 143.4,
+          "parameters": {
+            "node_ID": "n_0023",
+            "location": {
+              "x": 726.0,
+              "y": 1045.0
+            }
+          },
+          "x": 726.0,
+          "y": 1045.0,
+          "lat": 38.13498991078185,
+          "lng": -121.82721925121984
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 143.4,
+          "end_time": 200.3,
+          "parameters": {
+            "origin": {
+              "x": 726.0,
+              "y": 1045.0
+            },
+            "destination": {
+              "x": 1312.0,
+              "y": 1395.0
+            }
+          },
+          "origin_x": 726.0,
+          "origin_y": 1045.0,
+          "dest_x": 1312.0,
+          "dest_y": 1395.0,
+          "origin_lat": 38.13498991078185,
+          "origin_lng": -121.82721925121984,
+          "dest_lat": 38.13813753640257,
+          "dest_lng": -121.82052000495926
+        },
+        {
+          "type": "service_node",
+          "start_time": 200.3,
+          "end_time": 200.3,
+          "parameters": {
+            "node_ID": "n_0028",
+            "location": {
+              "x": 1312.0,
+              "y": 1395.0
+            }
+          },
+          "x": 1312.0,
+          "y": 1395.0,
+          "lat": 38.13813753640257,
+          "lng": -121.82052000495926
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 200.3,
+          "end_time": 221.3,
+          "parameters": {
+            "origin": {
+              "x": 1312.0,
+              "y": 1395.0
+            },
+            "destination": {
+              "x": 1500.0,
+              "y": 1226.0
+            }
+          },
+          "origin_x": 1312.0,
+          "origin_y": 1395.0,
+          "dest_x": 1500.0,
+          "dest_y": 1226.0,
+          "origin_lat": 38.13813753640257,
+          "origin_lng": -121.82052000495926,
+          "dest_lat": 38.13661768288856,
+          "dest_lng": -121.81837075871867
+        },
+        {
+          "type": "service_node",
+          "start_time": 221.3,
+          "end_time": 221.3,
+          "parameters": {
+            "node_ID": "n_0027",
+            "location": {
+              "x": 1500.0,
+              "y": 1226.0
+            }
+          },
+          "x": 1500.0,
+          "y": 1226.0,
+          "lat": 38.13661768288856,
+          "lng": -121.81837075871867
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 221.3,
+          "end_time": 239.6,
+          "parameters": {
+            "origin": {
+              "x": 1500.0,
+              "y": 1226.0
+            },
+            "destination": {
+              "x": 1648.0,
+              "y": 1064.0
+            }
+          },
+          "origin_x": 1500.0,
+          "origin_y": 1226.0,
+          "dest_x": 1648.0,
+          "dest_y": 1064.0,
+          "origin_lat": 38.13661768288856,
+          "origin_lng": -121.81837075871867,
+          "dest_lat": 38.135160781886974,
+          "dest_lng": -121.81667879891225
+        },
+        {
+          "type": "service_node",
+          "start_time": 239.6,
+          "end_time": 239.6,
+          "parameters": {
+            "node_ID": "n_0026",
+            "location": {
+              "x": 1648.0,
+              "y": 1064.0
+            }
+          },
+          "x": 1648.0,
+          "y": 1064.0,
+          "lat": 38.135160781886974,
+          "lng": -121.81667879891225
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 239.6,
+          "end_time": 292.9,
+          "parameters": {
+            "origin": {
+              "x": 1648.0,
+              "y": 1064.0
+            },
+            "destination": {
+              "x": 1747.0,
+              "y": 432.0
+            }
+          },
+          "origin_x": 1648.0,
+          "origin_y": 1064.0,
+          "dest_x": 1747.0,
+          "dest_y": 432.0,
+          "origin_lat": 38.135160781886974,
+          "origin_lng": -121.81667879891225,
+          "dest_lat": 38.12947706933757,
+          "dest_lng": -121.81554701498769
+        },
+        {
+          "type": "service_node",
+          "start_time": 292.9,
+          "end_time": 292.9,
+          "parameters": {
+            "node_ID": "n_0025",
+            "location": {
+              "x": 1747.0,
+              "y": 432.0
+            }
+          },
+          "x": 1747.0,
+          "y": 432.0,
+          "lat": 38.12947706933757,
+          "lng": -121.81554701498769
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 292.9,
+          "end_time": 320.2,
+          "parameters": {
+            "origin": {
+              "x": 1747.0,
+              "y": 432.0
+            },
+            "destination": {
+              "x": 1535.0,
+              "y": 682.0
+            }
+          },
+          "origin_x": 1747.0,
+          "origin_y": 432.0,
+          "dest_x": 1535.0,
+          "dest_y": 682.0,
+          "origin_lat": 38.12947706933757,
+          "origin_lng": -121.81554701498769,
+          "dest_lat": 38.13172537335236,
+          "dest_lng": -121.81797063308878
+        },
+        {
+          "type": "service_node",
+          "start_time": 320.2,
+          "end_time": 320.2,
+          "parameters": {
+            "node_ID": "n_0024",
+            "location": {
+              "x": 1535.0,
+              "y": 682.0
+            }
+          },
+          "x": 1535.0,
+          "y": 682.0,
+          "lat": 38.13172537335236,
+          "lng": -121.81797063308878
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 320.2,
+          "end_time": 460.2,
+          "parameters": {
+            "origin": {
+              "x": 1535.0,
+              "y": 682.0
+            },
+            "destination": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "origin_x": 1535.0,
+          "origin_y": 682.0,
+          "dest_x": 0.1,
+          "dest_y": 0.1,
+          "origin_lat": 38.13172537335236,
+          "origin_lng": -121.81797063308878,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.83551785678392
+        },
+        {
+          "type": "land_on_UGV",
+          "start_time": 460.2,
+          "end_time": 520.2,
+          "parameters": {
+            "pad_ID": "pad_01",
+            "location": {
+              "x": 0.1,
+              "y": 0.1
+            },
+            "start_progress": 0.0,
+            "end_progress": 1.0
+          },
+          "x": 0.1,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.83551785678392
+        },
+        {
+          "type": "end",
+          "start_time": 880.2,
+          "end_time": 880.2,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        }
+      ]
+    },
+    {
+      "id": "UGV_01",
+      "type": "UGV",
+      "actions": [
+        {
+          "type": "start",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "origin": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "destination": {
+              "x": 0.0,
+              "y": 0.1
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.0,
+          "dest_x": 0.0,
+          "dest_y": 0.1,
+          "origin_lat": 38.125592,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.835519
+        },
+        {
+          "type": "allow_takeoff_by_UAV",
+          "start_time": 0.0,
+          "end_time": 10.0,
+          "parameters": {
+            "UAV_ID": "UAV_02",
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.0,
+              "y": 0.1
+            }
+          },
+          "x": 0.0,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.835519
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 10.0,
+          "end_time": 16.0,
+          "parameters": {
+            "origin": {
+              "x": 0.0,
+              "y": 0.1
+            },
+            "destination": {
+              "x": -17.3,
+              "y": -4.4
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.1,
+          "dest_x": -17.3,
+          "dest_y": -4.4,
+          "origin_lat": 38.1255928993216,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.125552429849336,
+          "dest_lng": -121.83571677638278
+        },
+        {
+          "type": "allow_takeoff_by_UAV",
+          "start_time": 16.0,
+          "end_time": 26.0,
+          "parameters": {
+            "UAV_ID": "UAV_01",
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": -17.3,
+              "y": -4.4
+            }
+          },
+          "x": -17.3,
+          "y": -4.4,
+          "lat": 38.125552429849336,
+          "lng": -121.83571677638278
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 26.0,
+          "end_time": 28.9,
+          "parameters": {
+            "origin": {
+              "x": -17.3,
+              "y": -4.4
+            },
+            "destination": {
+              "x": -13.1,
+              "y": 3.2
+            }
+          },
+          "origin_x": -17.3,
+          "origin_y": -4.4,
+          "dest_x": -13.1,
+          "dest_y": 3.2,
+          "origin_lat": 38.125552429849336,
+          "origin_lng": -121.83571677638278,
+          "dest_lat": 38.125620778291385,
+          "dest_lng": -121.83566876130719
+        },
+        {
+          "type": "allow_landing_by_UAV",
+          "start_time": 283.5,
+          "end_time": 343.5,
+          "parameters": {
+            "UAV_ID": "UAV_01",
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": -13.1,
+              "y": 3.2
+            }
+          },
+          "x": -13.1,
+          "y": 3.2,
+          "lat": 38.125620778291385,
+          "lng": -121.83566876130719
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 343.5,
+          "end_time": 348.0,
+          "parameters": {
+            "origin": {
+              "x": -13.1,
+              "y": 3.2
+            },
+            "destination": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "origin_x": -13.1,
+          "origin_y": 3.2,
+          "dest_x": 0.0,
+          "dest_y": 0.0,
+          "origin_lat": 38.125620778291385,
+          "origin_lng": -121.83566876130719,
+          "dest_lat": 38.125592,
+          "dest_lng": -121.835519
+        },
+        {
+          "type": "allow_landing_by_UAV",
+          "start_time": 612.2,
+          "end_time": 672.2,
+          "parameters": {
+            "UAV_ID": "UAV_02",
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 672.2,
+          "end_time": 672.2,
+          "parameters": {
+            "origin": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "destination": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.0,
+          "dest_x": 0.0,
+          "dest_y": 0.0,
+          "origin_lat": 38.125592,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.125592,
+          "dest_lng": -121.835519
+        },
+        {
+          "type": "swap_battery",
+          "start_time": 672.2,
+          "end_time": 972.2,
+          "parameters": {
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "end",
+          "start_time": 972.2,
+          "end_time": 972.2,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        }
+      ]
+    },
+    {
+      "id": "UGV_02",
+      "type": "UGV",
+      "actions": [
+        {
+          "type": "start",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 0.0,
+          "end_time": 0.0,
+          "parameters": {
+            "origin": {
+              "x": 0.0,
+              "y": 0.0
+            },
+            "destination": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "origin_x": 0.0,
+          "origin_y": 0.0,
+          "dest_x": 0.1,
+          "dest_y": 0.1,
+          "origin_lat": 38.125592,
+          "origin_lng": -121.835519,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.83551785678392
+        },
+        {
+          "type": "allow_takeoff_by_UAV",
+          "start_time": 0.0,
+          "end_time": 10.0,
+          "parameters": {
+            "UAV_ID": "UAV_03",
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "x": 0.1,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.83551785678392
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 10.0,
+          "end_time": 10.0,
+          "parameters": {
+            "origin": {
+              "x": 0.1,
+              "y": 0.1
+            },
+            "destination": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "origin_x": 0.1,
+          "origin_y": 0.1,
+          "dest_x": 0.1,
+          "dest_y": 0.1,
+          "origin_lat": 38.1255928993216,
+          "origin_lng": -121.83551785678392,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.83551785678392
+        },
+        {
+          "type": "allow_takeoff_by_UAV",
+          "start_time": 10.0,
+          "end_time": 20.0,
+          "parameters": {
+            "UAV_ID": "UAV_04",
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "x": 0.1,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.83551785678392
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 20.0,
+          "end_time": 20.0,
+          "parameters": {
+            "origin": {
+              "x": 0.1,
+              "y": 0.1
+            },
+            "destination": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "origin_x": 0.1,
+          "origin_y": 0.1,
+          "dest_x": 0.1,
+          "dest_y": 0.1,
+          "origin_lat": 38.1255928993216,
+          "origin_lng": -121.83551785678392,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.83551785678392
+        },
+        {
+          "type": "allow_landing_by_UAV",
+          "start_time": 460.2,
+          "end_time": 520.2,
+          "parameters": {
+            "UAV_ID": "UAV_04",
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "x": 0.1,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.83551785678392
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 520.2,
+          "end_time": 520.2,
+          "parameters": {
+            "origin": {
+              "x": 0.1,
+              "y": 0.1
+            },
+            "destination": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "origin_x": 0.1,
+          "origin_y": 0.1,
+          "dest_x": 0.1,
+          "dest_y": 0.1,
+          "origin_lat": 38.1255928993216,
+          "origin_lng": -121.83551785678392,
+          "dest_lat": 38.1255928993216,
+          "dest_lng": -121.83551785678392
+        },
+        {
+          "type": "allow_landing_by_UAV",
+          "start_time": 520.2,
+          "end_time": 580.2,
+          "parameters": {
+            "UAV_ID": "UAV_03",
+            "pad_ID": "pad_01",
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.1,
+              "y": 0.1
+            }
+          },
+          "x": 0.1,
+          "y": 0.1,
+          "lat": 38.1255928993216,
+          "lng": -121.83551785678392
+        },
+        {
+          "type": "move_to_location",
+          "start_time": 580.2,
+          "end_time": 580.2,
+          "parameters": {
+            "origin": {
+              "x": 0.1,
+              "y": 0.1
+            },
+            "destination": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "origin_x": 0.1,
+          "origin_y": 0.1,
+          "dest_x": 0.0,
+          "dest_y": 0.0,
+          "origin_lat": 38.1255928993216,
+          "origin_lng": -121.83551785678392,
+          "dest_lat": 38.125592,
+          "dest_lng": -121.835519
+        },
+        {
+          "type": "swap_battery",
+          "start_time": 580.2,
+          "end_time": 880.2,
+          "parameters": {
+            "start_progress": 0.0,
+            "end_progress": 1.0,
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        },
+        {
+          "type": "end",
+          "start_time": 972.2,
+          "end_time": 972.2,
+          "parameters": {
+            "location": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "x": 0.0,
+          "y": 0.0,
+          "lat": 38.125592,
+          "lng": -121.835519
+        }
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "start",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "perch_on_UGV",
+        "start_time": 0.0,
+        "end_time": 16.0,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "origin": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "destination": {
+            "x": -17.3,
+            "y": -4.4
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.0,
+        "dest_x": -17.3,
+        "dest_y": -4.4
+      },
+      "start_time": 0.0,
+      "end_time": 16.0
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "start",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "perch_on_UGV",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "origin": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "destination": {
+            "x": 0.0,
+            "y": 0.1
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.0,
+        "dest_x": 0.0,
+        "dest_y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "takeoff_from_UGV",
+        "start_time": 0.0,
+        "end_time": 10.0,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.0,
+            "y": 0.1
+          }
+        },
+        "x": 0.0,
+        "y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 10.0
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "start",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "perch_on_UGV",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "origin": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "destination": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.0,
+        "dest_x": 0.1,
+        "dest_y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "takeoff_from_UGV",
+        "start_time": 0.0,
+        "end_time": 10.0,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "x": 0.1,
+        "y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 10.0
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "start",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "perch_on_UGV",
+        "start_time": 0.0,
+        "end_time": 10.0,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "origin": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "destination": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.0,
+        "dest_x": 0.1,
+        "dest_y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 10.0
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "start",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "origin": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "destination": {
+            "x": 0.0,
+            "y": 0.1
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.0,
+        "dest_x": 0.0,
+        "dest_y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "allow_takeoff_by_UAV",
+        "start_time": 0.0,
+        "end_time": 10.0,
+        "parameters": {
+          "UAV_ID": "UAV_02",
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.0,
+            "y": 0.1
+          }
+        },
+        "x": 0.0,
+        "y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 10.0
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "start",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 0.0,
+        "end_time": 0.0,
+        "parameters": {
+          "origin": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "destination": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.0,
+        "dest_x": 0.1,
+        "dest_y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 0.0
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "allow_takeoff_by_UAV",
+        "start_time": 0.0,
+        "end_time": 10.0,
+        "parameters": {
+          "UAV_ID": "UAV_03",
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "x": 0.1,
+        "y": 0.1
+      },
+      "start_time": 0.0,
+      "end_time": 10.0
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 10.0,
+        "end_time": 158.1,
+        "parameters": {
+          "origin": {
+            "x": 0.0,
+            "y": 0.1
+          },
+          "destination": {
+            "x": -1750.0,
+            "y": 309.0
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.1,
+        "dest_x": -1750.0,
+        "dest_y": 309.0
+      },
+      "start_time": 10.0,
+      "end_time": 158.1
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 10.0,
+        "end_time": 56.9,
+        "parameters": {
+          "origin": {
+            "x": 0.1,
+            "y": 0.1
+          },
+          "destination": {
+            "x": -176.0,
+            "y": 534.0
+          }
+        },
+        "origin_x": 0.1,
+        "origin_y": 0.1,
+        "dest_x": -176.0,
+        "dest_y": 534.0
+      },
+      "start_time": 10.0,
+      "end_time": 56.9
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "takeoff_from_UGV",
+        "start_time": 10.0,
+        "end_time": 20.0,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "x": 0.1,
+        "y": 0.1
+      },
+      "start_time": 10.0,
+      "end_time": 20.0
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 10.0,
+        "end_time": 16.0,
+        "parameters": {
+          "origin": {
+            "x": 0.0,
+            "y": 0.1
+          },
+          "destination": {
+            "x": -17.3,
+            "y": -4.4
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.1,
+        "dest_x": -17.3,
+        "dest_y": -4.4
+      },
+      "start_time": 10.0,
+      "end_time": 16.0
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 10.0,
+        "end_time": 10.0,
+        "parameters": {
+          "origin": {
+            "x": 0.1,
+            "y": 0.1
+          },
+          "destination": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "origin_x": 0.1,
+        "origin_y": 0.1,
+        "dest_x": 0.1,
+        "dest_y": 0.1
+      },
+      "start_time": 10.0,
+      "end_time": 10.0
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "allow_takeoff_by_UAV",
+        "start_time": 10.0,
+        "end_time": 20.0,
+        "parameters": {
+          "UAV_ID": "UAV_04",
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "x": 0.1,
+        "y": 0.1
+      },
+      "start_time": 10.0,
+      "end_time": 20.0
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "takeoff_from_UGV",
+        "start_time": 16.0,
+        "end_time": 26.0,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": -17.3,
+            "y": -4.4
+          }
+        },
+        "x": -17.3,
+        "y": -4.4
+      },
+      "start_time": 16.0,
+      "end_time": 26.0
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "allow_takeoff_by_UAV",
+        "start_time": 16.0,
+        "end_time": 26.0,
+        "parameters": {
+          "UAV_ID": "UAV_01",
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": -17.3,
+            "y": -4.4
+          }
+        },
+        "x": -17.3,
+        "y": -4.4
+      },
+      "start_time": 16.0,
+      "end_time": 26.0
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 20.0,
+        "end_time": 124.9,
+        "parameters": {
+          "origin": {
+            "x": 0.1,
+            "y": 0.1
+          },
+          "destination": {
+            "x": 887.0,
+            "y": 893.0
+          }
+        },
+        "origin_x": 0.1,
+        "origin_y": 0.1,
+        "dest_x": 887.0,
+        "dest_y": 893.0
+      },
+      "start_time": 20.0,
+      "end_time": 124.9
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 20.0,
+        "end_time": 20.0,
+        "parameters": {
+          "origin": {
+            "x": 0.1,
+            "y": 0.1
+          },
+          "destination": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "origin_x": 0.1,
+        "origin_y": 0.1,
+        "dest_x": 0.1,
+        "dest_y": 0.1
+      },
+      "start_time": 20.0,
+      "end_time": 20.0
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 26.0,
+        "end_time": 47.5,
+        "parameters": {
+          "origin": {
+            "x": -17.3,
+            "y": -4.4
+          },
+          "destination": {
+            "x": -249.0,
+            "y": -118.0
+          }
+        },
+        "origin_x": -17.3,
+        "origin_y": -4.4,
+        "dest_x": -249.0,
+        "dest_y": -118.0
+      },
+      "start_time": 26.0,
+      "end_time": 47.5
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 26.0,
+        "end_time": 28.9,
+        "parameters": {
+          "origin": {
+            "x": -17.3,
+            "y": -4.4
+          },
+          "destination": {
+            "x": -13.1,
+            "y": 3.2
+          }
+        },
+        "origin_x": -17.3,
+        "origin_y": -4.4,
+        "dest_x": -13.1,
+        "dest_y": 3.2
+      },
+      "start_time": 26.0,
+      "end_time": 28.9
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "service_node",
+        "start_time": 47.5,
+        "end_time": 47.5,
+        "parameters": {
+          "node_ID": "n_0014",
+          "location": {
+            "x": -249.0,
+            "y": -118.0
+          }
+        },
+        "x": -249.0,
+        "y": -118.0
+      },
+      "start_time": 47.5,
+      "end_time": 47.5
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 47.5,
+        "end_time": 100.1,
+        "parameters": {
+          "origin": {
+            "x": -249.0,
+            "y": -118.0
+          },
+          "destination": {
+            "x": -835.0,
+            "y": -351.0
+          }
+        },
+        "origin_x": -249.0,
+        "origin_y": -118.0,
+        "dest_x": -835.0,
+        "dest_y": -351.0
+      },
+      "start_time": 47.5,
+      "end_time": 100.1
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "service_node",
+        "start_time": 56.9,
+        "end_time": 56.9,
+        "parameters": {
+          "node_ID": "n_0029",
+          "location": {
+            "x": -176.0,
+            "y": 534.0
+          }
+        },
+        "x": -176.0,
+        "y": 534.0
+      },
+      "start_time": 56.9,
+      "end_time": 56.9
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 56.9,
+        "end_time": 183.8,
+        "parameters": {
+          "origin": {
+            "x": -176.0,
+            "y": 534.0
+          },
+          "destination": {
+            "x": 1175.0,
+            "y": -169.0
+          }
+        },
+        "origin_x": -176.0,
+        "origin_y": 534.0,
+        "dest_x": 1175.0,
+        "dest_y": -169.0
+      },
+      "start_time": 56.9,
+      "end_time": 183.8
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "service_node",
+        "start_time": 100.1,
+        "end_time": 100.1,
+        "parameters": {
+          "node_ID": "n_0013",
+          "location": {
+            "x": -835.0,
+            "y": -351.0
+          }
+        },
+        "x": -835.0,
+        "y": -351.0
+      },
+      "start_time": 100.1,
+      "end_time": 100.1
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 100.1,
+        "end_time": 127.1,
+        "parameters": {
+          "origin": {
+            "x": -835.0,
+            "y": -351.0
+          },
+          "destination": {
+            "x": -1148.0,
+            "y": -265.0
+          }
+        },
+        "origin_x": -835.0,
+        "origin_y": -351.0,
+        "dest_x": -1148.0,
+        "dest_y": -265.0
+      },
+      "start_time": 100.1,
+      "end_time": 127.1
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "service_node",
+        "start_time": 124.9,
+        "end_time": 124.9,
+        "parameters": {
+          "node_ID": "n_0022",
+          "location": {
+            "x": 887.0,
+            "y": 893.0
+          }
+        },
+        "x": 887.0,
+        "y": 893.0
+      },
+      "start_time": 124.9,
+      "end_time": 124.9
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 124.9,
+        "end_time": 143.4,
+        "parameters": {
+          "origin": {
+            "x": 887.0,
+            "y": 893.0
+          },
+          "destination": {
+            "x": 726.0,
+            "y": 1045.0
+          }
+        },
+        "origin_x": 887.0,
+        "origin_y": 893.0,
+        "dest_x": 726.0,
+        "dest_y": 1045.0
+      },
+      "start_time": 124.9,
+      "end_time": 143.4
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "service_node",
+        "start_time": 127.1,
+        "end_time": 127.1,
+        "parameters": {
+          "node_ID": "n_0012",
+          "location": {
+            "x": -1148.0,
+            "y": -265.0
+          }
+        },
+        "x": -1148.0,
+        "y": -265.0
+      },
+      "start_time": 127.1,
+      "end_time": 127.1
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 127.1,
+        "end_time": 167.2,
+        "parameters": {
+          "origin": {
+            "x": -1148.0,
+            "y": -265.0
+          },
+          "destination": {
+            "x": -1331.0,
+            "y": 180.0
+          }
+        },
+        "origin_x": -1148.0,
+        "origin_y": -265.0,
+        "dest_x": -1331.0,
+        "dest_y": 180.0
+      },
+      "start_time": 127.1,
+      "end_time": 167.2
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "service_node",
+        "start_time": 143.4,
+        "end_time": 143.4,
+        "parameters": {
+          "node_ID": "n_0023",
+          "location": {
+            "x": 726.0,
+            "y": 1045.0
+          }
+        },
+        "x": 726.0,
+        "y": 1045.0
+      },
+      "start_time": 143.4,
+      "end_time": 143.4
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 143.4,
+        "end_time": 200.3,
+        "parameters": {
+          "origin": {
+            "x": 726.0,
+            "y": 1045.0
+          },
+          "destination": {
+            "x": 1312.0,
+            "y": 1395.0
+          }
+        },
+        "origin_x": 726.0,
+        "origin_y": 1045.0,
+        "dest_x": 1312.0,
+        "dest_y": 1395.0
+      },
+      "start_time": 143.4,
+      "end_time": 200.3
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 158.1,
+        "end_time": 158.1,
+        "parameters": {
+          "node_ID": "n_0008",
+          "location": {
+            "x": -1750.0,
+            "y": 309.0
+          }
+        },
+        "x": -1750.0,
+        "y": 309.0
+      },
+      "start_time": 158.1,
+      "end_time": 158.1
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 158.1,
+        "end_time": 197.6,
+        "parameters": {
+          "origin": {
+            "x": -1750.0,
+            "y": 309.0
+          },
+          "destination": {
+            "x": -1990.0,
+            "y": -100.0
+          }
+        },
+        "origin_x": -1750.0,
+        "origin_y": 309.0,
+        "dest_x": -1990.0,
+        "dest_y": -100.0
+      },
+      "start_time": 158.1,
+      "end_time": 197.6
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "service_node",
+        "start_time": 167.2,
+        "end_time": 167.2,
+        "parameters": {
+          "node_ID": "n_0011",
+          "location": {
+            "x": -1331.0,
+            "y": 180.0
+          }
+        },
+        "x": -1331.0,
+        "y": 180.0
+      },
+      "start_time": 167.2,
+      "end_time": 167.2
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 167.2,
+        "end_time": 234.3,
+        "parameters": {
+          "origin": {
+            "x": -1331.0,
+            "y": 180.0
+          },
+          "destination": {
+            "x": -531.0,
+            "y": 276.0
+          }
+        },
+        "origin_x": -1331.0,
+        "origin_y": 180.0,
+        "dest_x": -531.0,
+        "dest_y": 276.0
+      },
+      "start_time": 167.2,
+      "end_time": 234.3
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "service_node",
+        "start_time": 183.8,
+        "end_time": 183.8,
+        "parameters": {
+          "node_ID": "n_0017",
+          "location": {
+            "x": 1175.0,
+            "y": -169.0
+          }
+        },
+        "x": 1175.0,
+        "y": -169.0
+      },
+      "start_time": 183.8,
+      "end_time": 183.8
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 183.8,
+        "end_time": 218.8,
+        "parameters": {
+          "origin": {
+            "x": 1175.0,
+            "y": -169.0
+          },
+          "destination": {
+            "x": 1470.0,
+            "y": 130.0
+          }
+        },
+        "origin_x": 1175.0,
+        "origin_y": -169.0,
+        "dest_x": 1470.0,
+        "dest_y": 130.0
+      },
+      "start_time": 183.8,
+      "end_time": 218.8
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 197.6,
+        "end_time": 197.6,
+        "parameters": {
+          "node_ID": "n_0009",
+          "location": {
+            "x": -1990.0,
+            "y": -100.0
+          }
+        },
+        "x": -1990.0,
+        "y": -100.0
+      },
+      "start_time": 197.6,
+      "end_time": 197.6
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 197.6,
+        "end_time": 224.7,
+        "parameters": {
+          "origin": {
+            "x": -1990.0,
+            "y": -100.0
+          },
+          "destination": {
+            "x": -2137.0,
+            "y": 189.0
+          }
+        },
+        "origin_x": -1990.0,
+        "origin_y": -100.0,
+        "dest_x": -2137.0,
+        "dest_y": 189.0
+      },
+      "start_time": 197.6,
+      "end_time": 224.7
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "service_node",
+        "start_time": 200.3,
+        "end_time": 200.3,
+        "parameters": {
+          "node_ID": "n_0028",
+          "location": {
+            "x": 1312.0,
+            "y": 1395.0
+          }
+        },
+        "x": 1312.0,
+        "y": 1395.0
+      },
+      "start_time": 200.3,
+      "end_time": 200.3
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 200.3,
+        "end_time": 221.3,
+        "parameters": {
+          "origin": {
+            "x": 1312.0,
+            "y": 1395.0
+          },
+          "destination": {
+            "x": 1500.0,
+            "y": 1226.0
+          }
+        },
+        "origin_x": 1312.0,
+        "origin_y": 1395.0,
+        "dest_x": 1500.0,
+        "dest_y": 1226.0
+      },
+      "start_time": 200.3,
+      "end_time": 221.3
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "service_node",
+        "start_time": 218.8,
+        "end_time": 218.8,
+        "parameters": {
+          "node_ID": "n_0018",
+          "location": {
+            "x": 1470.0,
+            "y": 130.0
+          }
+        },
+        "x": 1470.0,
+        "y": 130.0
+      },
+      "start_time": 218.8,
+      "end_time": 218.8
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 218.8,
+        "end_time": 238.3,
+        "parameters": {
+          "origin": {
+            "x": 1470.0,
+            "y": 130.0
+          },
+          "destination": {
+            "x": 1277.0,
+            "y": 263.0
+          }
+        },
+        "origin_x": 1470.0,
+        "origin_y": 130.0,
+        "dest_x": 1277.0,
+        "dest_y": 263.0
+      },
+      "start_time": 218.8,
+      "end_time": 238.3
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "service_node",
+        "start_time": 221.3,
+        "end_time": 221.3,
+        "parameters": {
+          "node_ID": "n_0027",
+          "location": {
+            "x": 1500.0,
+            "y": 1226.0
+          }
+        },
+        "x": 1500.0,
+        "y": 1226.0
+      },
+      "start_time": 221.3,
+      "end_time": 221.3
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 221.3,
+        "end_time": 239.6,
+        "parameters": {
+          "origin": {
+            "x": 1500.0,
+            "y": 1226.0
+          },
+          "destination": {
+            "x": 1648.0,
+            "y": 1064.0
+          }
+        },
+        "origin_x": 1500.0,
+        "origin_y": 1226.0,
+        "dest_x": 1648.0,
+        "dest_y": 1064.0
+      },
+      "start_time": 221.3,
+      "end_time": 239.6
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 224.7,
+        "end_time": 224.7,
+        "parameters": {
+          "node_ID": "n_0007",
+          "location": {
+            "x": -2137.0,
+            "y": 189.0
+          }
+        },
+        "x": -2137.0,
+        "y": 189.0
+      },
+      "start_time": 224.7,
+      "end_time": 224.7
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 224.7,
+        "end_time": 248.5,
+        "parameters": {
+          "origin": {
+            "x": -2137.0,
+            "y": 189.0
+          },
+          "destination": {
+            "x": -2163.0,
+            "y": 474.0
+          }
+        },
+        "origin_x": -2137.0,
+        "origin_y": 189.0,
+        "dest_x": -2163.0,
+        "dest_y": 474.0
+      },
+      "start_time": 224.7,
+      "end_time": 248.5
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "service_node",
+        "start_time": 234.3,
+        "end_time": 234.3,
+        "parameters": {
+          "node_ID": "n_0016",
+          "location": {
+            "x": -531.0,
+            "y": 276.0
+          }
+        },
+        "x": -531.0,
+        "y": 276.0
+      },
+      "start_time": 234.3,
+      "end_time": 234.3
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 234.3,
+        "end_time": 256.5,
+        "parameters": {
+          "origin": {
+            "x": -531.0,
+            "y": 276.0
+          },
+          "destination": {
+            "x": -315.0,
+            "y": 122.0
+          }
+        },
+        "origin_x": -531.0,
+        "origin_y": 276.0,
+        "dest_x": -315.0,
+        "dest_y": 122.0
+      },
+      "start_time": 234.3,
+      "end_time": 256.5
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "service_node",
+        "start_time": 238.3,
+        "end_time": 238.3,
+        "parameters": {
+          "node_ID": "n_0019",
+          "location": {
+            "x": 1277.0,
+            "y": 263.0
+          }
+        },
+        "x": 1277.0,
+        "y": 263.0
+      },
+      "start_time": 238.3,
+      "end_time": 238.3
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 238.3,
+        "end_time": 260.4,
+        "parameters": {
+          "origin": {
+            "x": 1277.0,
+            "y": 263.0
+          },
+          "destination": {
+            "x": 1050.0,
+            "y": 398.0
+          }
+        },
+        "origin_x": 1277.0,
+        "origin_y": 263.0,
+        "dest_x": 1050.0,
+        "dest_y": 398.0
+      },
+      "start_time": 238.3,
+      "end_time": 260.4
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "service_node",
+        "start_time": 239.6,
+        "end_time": 239.6,
+        "parameters": {
+          "node_ID": "n_0026",
+          "location": {
+            "x": 1648.0,
+            "y": 1064.0
+          }
+        },
+        "x": 1648.0,
+        "y": 1064.0
+      },
+      "start_time": 239.6,
+      "end_time": 239.6
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 239.6,
+        "end_time": 292.9,
+        "parameters": {
+          "origin": {
+            "x": 1648.0,
+            "y": 1064.0
+          },
+          "destination": {
+            "x": 1747.0,
+            "y": 432.0
+          }
+        },
+        "origin_x": 1648.0,
+        "origin_y": 1064.0,
+        "dest_x": 1747.0,
+        "dest_y": 432.0
+      },
+      "start_time": 239.6,
+      "end_time": 292.9
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 248.5,
+        "end_time": 248.5,
+        "parameters": {
+          "node_ID": "n_0006",
+          "location": {
+            "x": -2163.0,
+            "y": 474.0
+          }
+        },
+        "x": -2163.0,
+        "y": 474.0
+      },
+      "start_time": 248.5,
+      "end_time": 248.5
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 248.5,
+        "end_time": 297.8,
+        "parameters": {
+          "origin": {
+            "x": -2163.0,
+            "y": 474.0
+          },
+          "destination": {
+            "x": -2724.0,
+            "y": 286.0
+          }
+        },
+        "origin_x": -2163.0,
+        "origin_y": 474.0,
+        "dest_x": -2724.0,
+        "dest_y": 286.0
+      },
+      "start_time": 248.5,
+      "end_time": 297.8
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "service_node",
+        "start_time": 256.5,
+        "end_time": 256.5,
+        "parameters": {
+          "node_ID": "n_0015",
+          "location": {
+            "x": -315.0,
+            "y": 122.0
+          }
+        },
+        "x": -315.0,
+        "y": 122.0
+      },
+      "start_time": 256.5,
+      "end_time": 256.5
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 256.5,
+        "end_time": 283.5,
+        "parameters": {
+          "origin": {
+            "x": -315.0,
+            "y": 122.0
+          },
+          "destination": {
+            "x": -13.1,
+            "y": 3.2
+          }
+        },
+        "origin_x": -315.0,
+        "origin_y": 122.0,
+        "dest_x": -13.1,
+        "dest_y": 3.2
+      },
+      "start_time": 256.5,
+      "end_time": 283.5
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "service_node",
+        "start_time": 260.4,
+        "end_time": 260.4,
+        "parameters": {
+          "node_ID": "n_0020",
+          "location": {
+            "x": 1050.0,
+            "y": 398.0
+          }
+        },
+        "x": 1050.0,
+        "y": 398.0
+      },
+      "start_time": 260.4,
+      "end_time": 260.4
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 260.4,
+        "end_time": 276.6,
+        "parameters": {
+          "origin": {
+            "x": 1050.0,
+            "y": 398.0
+          },
+          "destination": {
+            "x": 898.0,
+            "y": 520.0
+          }
+        },
+        "origin_x": 1050.0,
+        "origin_y": 398.0,
+        "dest_x": 898.0,
+        "dest_y": 520.0
+      },
+      "start_time": 260.4,
+      "end_time": 276.6
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "service_node",
+        "start_time": 276.6,
+        "end_time": 276.6,
+        "parameters": {
+          "node_ID": "n_0021",
+          "location": {
+            "x": 898.0,
+            "y": 520.0
+          }
+        },
+        "x": 898.0,
+        "y": 520.0
+      },
+      "start_time": 276.6,
+      "end_time": 276.6
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 276.6,
+        "end_time": 520.2,
+        "parameters": {
+          "origin": {
+            "x": 898.0,
+            "y": 520.0
+          },
+          "destination": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "origin_x": 898.0,
+        "origin_y": 520.0,
+        "dest_x": 0.1,
+        "dest_y": 0.1
+      },
+      "start_time": 276.6,
+      "end_time": 520.2
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "land_on_UGV",
+        "start_time": 283.5,
+        "end_time": 343.5,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "location": {
+            "x": -13.1,
+            "y": 3.2
+          },
+          "start_progress": 0.0,
+          "end_progress": 1.0
+        },
+        "x": -13.1,
+        "y": 3.2
+      },
+      "start_time": 283.5,
+      "end_time": 343.5
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "allow_landing_by_UAV",
+        "start_time": 283.5,
+        "end_time": 343.5,
+        "parameters": {
+          "UAV_ID": "UAV_01",
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": -13.1,
+            "y": 3.2
+          }
+        },
+        "x": -13.1,
+        "y": 3.2
+      },
+      "start_time": 283.5,
+      "end_time": 343.5
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "service_node",
+        "start_time": 292.9,
+        "end_time": 292.9,
+        "parameters": {
+          "node_ID": "n_0025",
+          "location": {
+            "x": 1747.0,
+            "y": 432.0
+          }
+        },
+        "x": 1747.0,
+        "y": 432.0
+      },
+      "start_time": 292.9,
+      "end_time": 292.9
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 292.9,
+        "end_time": 320.2,
+        "parameters": {
+          "origin": {
+            "x": 1747.0,
+            "y": 432.0
+          },
+          "destination": {
+            "x": 1535.0,
+            "y": 682.0
+          }
+        },
+        "origin_x": 1747.0,
+        "origin_y": 432.0,
+        "dest_x": 1535.0,
+        "dest_y": 682.0
+      },
+      "start_time": 292.9,
+      "end_time": 320.2
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 297.8,
+        "end_time": 297.8,
+        "parameters": {
+          "node_ID": "n_0005",
+          "location": {
+            "x": -2724.0,
+            "y": 286.0
+          }
+        },
+        "x": -2724.0,
+        "y": 286.0
+      },
+      "start_time": 297.8,
+      "end_time": 297.8
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 297.8,
+        "end_time": 326.1,
+        "parameters": {
+          "origin": {
+            "x": -2724.0,
+            "y": 286.0
+          },
+          "destination": {
+            "x": -2461.0,
+            "y": 72.0
+          }
+        },
+        "origin_x": -2724.0,
+        "origin_y": 286.0,
+        "dest_x": -2461.0,
+        "dest_y": 72.0
+      },
+      "start_time": 297.8,
+      "end_time": 326.1
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "service_node",
+        "start_time": 320.2,
+        "end_time": 320.2,
+        "parameters": {
+          "node_ID": "n_0024",
+          "location": {
+            "x": 1535.0,
+            "y": 682.0
+          }
+        },
+        "x": 1535.0,
+        "y": 682.0
+      },
+      "start_time": 320.2,
+      "end_time": 320.2
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 320.2,
+        "end_time": 460.2,
+        "parameters": {
+          "origin": {
+            "x": 1535.0,
+            "y": 682.0
+          },
+          "destination": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "origin_x": 1535.0,
+        "origin_y": 682.0,
+        "dest_x": 0.1,
+        "dest_y": 0.1
+      },
+      "start_time": 320.2,
+      "end_time": 460.2
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 326.1,
+        "end_time": 326.1,
+        "parameters": {
+          "node_ID": "n_0004",
+          "location": {
+            "x": -2461.0,
+            "y": 72.0
+          }
+        },
+        "x": -2461.0,
+        "y": 72.0
+      },
+      "start_time": 326.1,
+      "end_time": 326.1
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 326.1,
+        "end_time": 350.5,
+        "parameters": {
+          "origin": {
+            "x": -2461.0,
+            "y": 72.0
+          },
+          "destination": {
+            "x": -2570.0,
+            "y": -200.0
+          }
+        },
+        "origin_x": -2461.0,
+        "origin_y": 72.0,
+        "dest_x": -2570.0,
+        "dest_y": -200.0
+      },
+      "start_time": 326.1,
+      "end_time": 350.5
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 343.5,
+        "end_time": 348.0,
+        "parameters": {
+          "origin": {
+            "x": -13.1,
+            "y": 3.2
+          },
+          "destination": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "origin_x": -13.1,
+        "origin_y": 3.2,
+        "dest_x": 0.0,
+        "dest_y": 0.0
+      },
+      "start_time": 343.5,
+      "end_time": 348.0
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 350.5,
+        "end_time": 350.5,
+        "parameters": {
+          "node_ID": "n_0003",
+          "location": {
+            "x": -2570.0,
+            "y": -200.0
+          }
+        },
+        "x": -2570.0,
+        "y": -200.0
+      },
+      "start_time": 350.5,
+      "end_time": 350.5
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 350.5,
+        "end_time": 382.6,
+        "parameters": {
+          "origin": {
+            "x": -2570.0,
+            "y": -200.0
+          },
+          "destination": {
+            "x": -2514.0,
+            "y": -581.0
+          }
+        },
+        "origin_x": -2570.0,
+        "origin_y": -200.0,
+        "dest_x": -2514.0,
+        "dest_y": -581.0
+      },
+      "start_time": 350.5,
+      "end_time": 382.6
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 382.6,
+        "end_time": 382.6,
+        "parameters": {
+          "node_ID": "n_0000",
+          "location": {
+            "x": -2514.0,
+            "y": -581.0
+          }
+        },
+        "x": -2514.0,
+        "y": -581.0
+      },
+      "start_time": 382.6,
+      "end_time": 382.6
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 382.6,
+        "end_time": 404.3,
+        "parameters": {
+          "origin": {
+            "x": -2514.0,
+            "y": -581.0
+          },
+          "destination": {
+            "x": -2293.0,
+            "y": -442.0
+          }
+        },
+        "origin_x": -2514.0,
+        "origin_y": -581.0,
+        "dest_x": -2293.0,
+        "dest_y": -442.0
+      },
+      "start_time": 382.6,
+      "end_time": 404.3
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 404.3,
+        "end_time": 404.3,
+        "parameters": {
+          "node_ID": "n_0001",
+          "location": {
+            "x": -2293.0,
+            "y": -442.0
+          }
+        },
+        "x": -2293.0,
+        "y": -442.0
+      },
+      "start_time": 404.3,
+      "end_time": 404.3
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 404.3,
+        "end_time": 441.7,
+        "parameters": {
+          "origin": {
+            "x": -2293.0,
+            "y": -442.0
+          },
+          "destination": {
+            "x": -1853.0,
+            "y": -529.0
+          }
+        },
+        "origin_x": -2293.0,
+        "origin_y": -442.0,
+        "dest_x": -1853.0,
+        "dest_y": -529.0
+      },
+      "start_time": 404.3,
+      "end_time": 441.7
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 441.7,
+        "end_time": 441.7,
+        "parameters": {
+          "node_ID": "n_0002",
+          "location": {
+            "x": -1853.0,
+            "y": -529.0
+          }
+        },
+        "x": -1853.0,
+        "y": -529.0
+      },
+      "start_time": 441.7,
+      "end_time": 441.7
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 441.7,
+        "end_time": 470.0,
+        "parameters": {
+          "origin": {
+            "x": -1853.0,
+            "y": -529.0
+          },
+          "destination": {
+            "x": -1691.0,
+            "y": -231.0
+          }
+        },
+        "origin_x": -1853.0,
+        "origin_y": -529.0,
+        "dest_x": -1691.0,
+        "dest_y": -231.0
+      },
+      "start_time": 441.7,
+      "end_time": 470.0
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "land_on_UGV",
+        "start_time": 460.2,
+        "end_time": 520.2,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "location": {
+            "x": 0.1,
+            "y": 0.1
+          },
+          "start_progress": 0.0,
+          "end_progress": 1.0
+        },
+        "x": 0.1,
+        "y": 0.1
+      },
+      "start_time": 460.2,
+      "end_time": 520.2
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "allow_landing_by_UAV",
+        "start_time": 460.2,
+        "end_time": 520.2,
+        "parameters": {
+          "UAV_ID": "UAV_04",
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "x": 0.1,
+        "y": 0.1
+      },
+      "start_time": 460.2,
+      "end_time": 520.2
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "service_node",
+        "start_time": 470.0,
+        "end_time": 470.0,
+        "parameters": {
+          "node_ID": "n_0010",
+          "location": {
+            "x": -1691.0,
+            "y": -231.0
+          }
+        },
+        "x": -1691.0,
+        "y": -231.0
+      },
+      "start_time": 470.0,
+      "end_time": 470.0
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 470.0,
+        "end_time": 612.2,
+        "parameters": {
+          "origin": {
+            "x": -1691.0,
+            "y": -231.0
+          },
+          "destination": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "origin_x": -1691.0,
+        "origin_y": -231.0,
+        "dest_x": 0.0,
+        "dest_y": 0.0
+      },
+      "start_time": 470.0,
+      "end_time": 612.2
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "land_on_UGV",
+        "start_time": 520.2,
+        "end_time": 580.2,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "location": {
+            "x": 0.1,
+            "y": 0.1
+          },
+          "start_progress": 0.0,
+          "end_progress": 1.0
+        },
+        "x": 0.1,
+        "y": 0.1
+      },
+      "start_time": 520.2,
+      "end_time": 580.2
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 520.2,
+        "end_time": 520.2,
+        "parameters": {
+          "origin": {
+            "x": 0.1,
+            "y": 0.1
+          },
+          "destination": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "origin_x": 0.1,
+        "origin_y": 0.1,
+        "dest_x": 0.1,
+        "dest_y": 0.1
+      },
+      "start_time": 520.2,
+      "end_time": 520.2
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "allow_landing_by_UAV",
+        "start_time": 520.2,
+        "end_time": 580.2,
+        "parameters": {
+          "UAV_ID": "UAV_03",
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.1,
+            "y": 0.1
+          }
+        },
+        "x": 0.1,
+        "y": 0.1
+      },
+      "start_time": 520.2,
+      "end_time": 580.2
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 580.2,
+        "end_time": 580.2,
+        "parameters": {
+          "origin": {
+            "x": 0.1,
+            "y": 0.1
+          },
+          "destination": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "origin_x": 0.1,
+        "origin_y": 0.1,
+        "dest_x": 0.0,
+        "dest_y": 0.0
+      },
+      "start_time": 580.2,
+      "end_time": 580.2
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "swap_battery",
+        "start_time": 580.2,
+        "end_time": 880.2,
+        "parameters": {
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 580.2,
+      "end_time": 880.2
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "land_on_UGV",
+        "start_time": 612.2,
+        "end_time": 672.2,
+        "parameters": {
+          "pad_ID": "pad_01",
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "start_progress": 0.0,
+          "end_progress": 1.0
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 612.2,
+      "end_time": 672.2
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "allow_landing_by_UAV",
+        "start_time": 612.2,
+        "end_time": 672.2,
+        "parameters": {
+          "UAV_ID": "UAV_02",
+          "pad_ID": "pad_01",
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 612.2,
+      "end_time": 672.2
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "move_to_location",
+        "start_time": 672.2,
+        "end_time": 672.2,
+        "parameters": {
+          "origin": {
+            "x": 0.0,
+            "y": 0.0
+          },
+          "destination": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "origin_x": 0.0,
+        "origin_y": 0.0,
+        "dest_x": 0.0,
+        "dest_y": 0.0
+      },
+      "start_time": 672.2,
+      "end_time": 672.2
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "swap_battery",
+        "start_time": 672.2,
+        "end_time": 972.2,
+        "parameters": {
+          "start_progress": 0.0,
+          "end_progress": 1.0,
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 672.2,
+      "end_time": 972.2
+    },
+    {
+      "agent_id": "UAV_03",
+      "action": {
+        "type": "end",
+        "start_time": 880.2,
+        "end_time": 880.2,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 880.2,
+      "end_time": 880.2
+    },
+    {
+      "agent_id": "UAV_04",
+      "action": {
+        "type": "end",
+        "start_time": 880.2,
+        "end_time": 880.2,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 880.2,
+      "end_time": 880.2
+    },
+    {
+      "agent_id": "UAV_01",
+      "action": {
+        "type": "end",
+        "start_time": 972.2,
+        "end_time": 972.2,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 972.2,
+      "end_time": 972.2
+    },
+    {
+      "agent_id": "UAV_02",
+      "action": {
+        "type": "end",
+        "start_time": 972.2,
+        "end_time": 972.2,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 972.2,
+      "end_time": 972.2
+    },
+    {
+      "agent_id": "UGV_01",
+      "action": {
+        "type": "end",
+        "start_time": 972.2,
+        "end_time": 972.2,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 972.2,
+      "end_time": 972.2
+    },
+    {
+      "agent_id": "UGV_02",
+      "action": {
+        "type": "end",
+        "start_time": 972.2,
+        "end_time": 972.2,
+        "parameters": {
+          "location": {
+            "x": 0.0,
+            "y": 0.0
+          }
+        },
+        "x": 0.0,
+        "y": 0.0
+      },
+      "start_time": 972.2,
+      "end_time": 972.2
+    }
+  ],
+  "total_time": 972.2,
+  "plan_id": "plan_every_UAV_action_02"
+};
+        
+        let map;
+        let currentTime = 0;
+        let totalTime = 0;
+        let isPlaying = false;
+        let animationSpeed = 1;
+        let agentMarkers = {};
+        let nodeMarkers = {};
+        let obstacleCircles = {};
+        let pathLines = {};
+        let depotMarker = null;
+        let uavMarkers = {};
+        let ugvMarkers = {};
+        let uavPaths = {};
+        let ugvPaths = {};
+
+        function initMap() {
+            // Initialize map
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 16,
+                center: data.reference_point,
+                mapTypeId: 'satellite'
+            });
+            
+            totalTime = data.total_time;
+            document.getElementById('totalTime').textContent = totalTime.toFixed(1);
+            document.getElementById('timeline').max = totalTime;
+            document.getElementById('planInfo').innerHTML = `
+                <strong>${data.plan_id}</strong><br>
+                Nodes: ${data.nodes.length}<br>
+                Obstacles: ${data.obstacles.length}<br>
+                Agents: ${data.agents.length}
+            `;
+
+            // Add depot marker at reference point
+            depotMarker = new google.maps.Marker({
+                position: data.reference_point,
+                map: map,
+                title: 'Depot (0,0)',
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 12,
+                fillColor: '#f39c12',
+                    fillOpacity: 1,
+                    strokeColor: '#d68910',
+                    strokeWeight: 3
+                }
+            });
+
+            // Add nodes to map
+            data.nodes.forEach(node => {
+                const marker = new google.maps.Marker({
+                    position: { lat: node.lat, lng: node.lng },
+                    map: map,
+                    title: `${node.id} (${node.x}, ${node.y})`,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#4CAF50',
+                        fillOpacity: 0.8,
+                        strokeColor: '#2E7D32',
+                        strokeWeight: 2
+                    }
+                });
+                nodeMarkers[node.id] = marker;
+            });
+
+            // Add obstacles to map
+            data.obstacles.forEach(obstacle => {
+                const circle = new google.maps.Circle({
+                    strokeColor: '#F44336',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: '#F44336',
+                    fillOpacity: 0.2,
+                    map: map,
+                    center: { lat: obstacle.lat, lng: obstacle.lng },
+                    radius: obstacle.radius
+                });
+                obstacleCircles[obstacle.id] = circle;
+            });
+
+            // Initialize agent markers and paths
+            data.agents.forEach(agent => {
+                const color = agent.type === 'UAV' ? '#2196F3' : '#FF9800';
+                const marker = new google.maps.Marker({
+                    position: data.reference_point,
+                    map: map,
+                    title: agent.id,
+                    icon: {
+                        path: agent.type === 'UAV' ? google.maps.SymbolPath.FORWARD_CLOSED_ARROW : google.maps.SymbolPath.CIRCLE,
+                        scale: agent.type === 'UAV' ? 8 : 12,
+                        fillColor: color,
+                        fillOpacity: 1,
+                        strokeColor: '#fff',
+                        strokeWeight: 2
+                    }
+                });
+                agentMarkers[agent.id] = marker;
+                
+                // Separate UAV and UGV markers for filtering
+                if (agent.type === 'UAV') {
+                    uavMarkers[agent.id] = marker;
+                } else {
+                    ugvMarkers[agent.id] = marker;
+                }
+
+                // Create path for this agent by collecting all movement coordinates
+                const pathCoordinates = [];
+                
+                // Start from depot
+                pathCoordinates.push(data.reference_point);
+                
+                agent.actions.forEach(action => {
+                    if (action.type === 'move_to_location' && action.dest_lat && action.dest_lng) {
+                        // Add destination to path
+                        pathCoordinates.push({ lat: action.dest_lat, lng: action.dest_lng });
+                    } else if (action.lat && action.lng && action.type !== 'start' && action.type !== 'end') {
+                        // Add position for service actions, takeoffs, landings, etc.
+                        pathCoordinates.push({ lat: action.lat, lng: action.lng });
+                    }
+                });
+
+                // Create the path polyline if we have multiple points
+                if (pathCoordinates.length > 1) {
+                    const path = new google.maps.Polyline({
+                        path: pathCoordinates,
+                        geodesic: true,
+                        strokeColor: color,
+                        strokeOpacity: 0.7,
+                        strokeWeight: agent.type === 'UAV' ? 2 : 3,
+                        map: map
+                    });
+                    pathLines[agent.id] = path;
+                    
+                    // Separate UAV and UGV paths for filtering
+                    if (agent.type === 'UAV') {
+                        uavPaths[agent.id] = path;
+                    } else {
+                        ugvPaths[agent.id] = path;
+                    }
+                    
+                    console.log(`Created path for ${agent.id} with ${pathCoordinates.length} points`);
+                } else {
+                    console.log(`No path created for ${agent.id} - insufficient coordinates`);
+                }
+            });
+
+            // Set up controls
+            setupControls();
+            updateVisualization();
+        }
+
+        function setupControls() {
+            document.getElementById('playBtn').onclick = () => {
+                isPlaying = true;
+                document.getElementById('playBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+                animate();
+            };
+
+            document.getElementById('pauseBtn').onclick = () => {
+                isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+            };
+
+            document.getElementById('resetBtn').onclick = () => {
+                isPlaying = false;
+                currentTime = 0;
+                document.getElementById('timeline').value = 0;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+                updateVisualization();
+            };
+
+            document.getElementById('timeline').oninput = (e) => {
+                currentTime = parseFloat(e.target.value);
+                updateVisualization();
+            };
+
+            document.getElementById('speedSelect').onchange = (e) => {
+                animationSpeed = parseFloat(e.target.value);
+            };
+
+            // Set up view filter controls
+            document.getElementById('showDepot').onchange = (e) => {
+                if (depotMarker) depotMarker.setVisible(e.target.checked);
+            };
+            
+            document.getElementById('showPOIs').onchange = (e) => {
+                Object.values(nodeMarkers).forEach(marker => {
+                    marker.setVisible(e.target.checked);
+                });
+            };
+            
+            document.getElementById('showObstacles').onchange = (e) => {
+                Object.values(obstacleCircles).forEach(circle => {
+                    circle.setVisible(e.target.checked);
+                });
+            };
+            
+            document.getElementById('showUAVs').onchange = (e) => {
+                Object.values(uavMarkers).forEach(marker => {
+                    marker.setVisible(e.target.checked);
+                });
+            };
+            
+            document.getElementById('showUGVs').onchange = (e) => {
+                Object.values(ugvMarkers).forEach(marker => {
+                    marker.setVisible(e.target.checked);
+                });
+            };
+            
+            document.getElementById('showUAVPaths').onchange = (e) => {
+                Object.values(uavPaths).forEach(path => {
+                    if (path) path.setVisible(e.target.checked);
+                });
+            };
+            
+            document.getElementById('showUGVPaths').onchange = (e) => {
+                Object.values(ugvPaths).forEach(path => {
+                    if (path) path.setVisible(e.target.checked);
+                });
+            };
+        }
+
+        function animate() {
+            if (!isPlaying) return;
+
+            currentTime += 0.1 * animationSpeed;
+            if (currentTime >= totalTime) {
+                currentTime = totalTime;
+                isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+            }
+
+            document.getElementById('timeline').value = currentTime;
+            updateVisualization();
+
+            if (isPlaying) {
+                setTimeout(animate, 100);
+            }
+        }
+
+        function updateVisualization() {
+            document.getElementById('currentTime').textContent = currentTime.toFixed(1);
+
+            // Update agent positions and show current actions
+            const currentActions = [];
+            const agentStatuses = {};
+
+            data.agents.forEach(agent => {
+                // Find current action for this agent
+                let currentAction = null;
+                for (const action of agent.actions) {
+                    if (currentTime >= action.start_time && currentTime <= action.end_time) {
+                        currentAction = action;
+                        break;
+                    }
+                }
+
+                if (currentAction) {
+                    // Update agent position based on action
+                    let position = data.reference_point;
+                    
+                    if (currentAction.type === 'move_to_location' && currentAction.origin_lat && currentAction.dest_lat) {
+                        // Interpolate position during movement
+                        const progress = (currentTime - currentAction.start_time) / (currentAction.end_time - currentAction.start_time);
+                        const lat = currentAction.origin_lat + (currentAction.dest_lat - currentAction.origin_lat) * progress;
+                        const lng = currentAction.origin_lng + (currentAction.dest_lng - currentAction.origin_lng) * progress;
+                        position = { lat, lng };
+                    } else if (currentAction.lat && currentAction.lng) {
+                        position = { lat: currentAction.lat, lng: currentAction.lng };
+                    }
+
+                    agentMarkers[agent.id].setPosition(position);
+                    
+                    currentActions.push(`${agent.id}: ${currentAction.type}`);
+                    agentStatuses[agent.id] = currentAction.type;
+                } else {
+                    // Agent is idle or finished
+                    agentStatuses[agent.id] = 'idle';
+                    agentMarkers[agent.id].setPosition(data.reference_point);
+                }
+            });
+
+            // Update info panels
+            document.getElementById('currentActions').innerHTML = currentActions.length > 0 ? 
+                currentActions.join('<br>') : 'No active actions';
+
+            const statusHtml = Object.entries(agentStatuses)
+                .map(([id, status]) => `${id}: ${status}`)
+                .join('<br>');
+            document.getElementById('agentStatus').innerHTML = statusHtml;
+        }
+
+        function setPreset(preset) {
+            // Reset all checkboxes
+            const checkboxes = ['showDepot', 'showPOIs', 'showObstacles', 'showUAVs', 'showUGVs', 'showUAVPaths', 'showUGVPaths'];
+            
+            switch(preset) {
+                case 'all':
+                    checkboxes.forEach(id => {
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    });
+                    break;
+                    
+                case 'uav-only':
+                    checkboxes.forEach(id => document.getElementById(id).checked = false);
+                    ['showDepot', 'showPOIs', 'showObstacles', 'showUAVs', 'showUAVPaths'].forEach(id => {
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    });
+                    break;
+                    
+                case 'ugv-only':
+                    checkboxes.forEach(id => document.getElementById(id).checked = false);
+                    ['showDepot', 'showPOIs', 'showObstacles', 'showUGVs', 'showUGVPaths'].forEach(id => {
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    });
+                    break;
+                    
+                case 'paths-only':
+                    checkboxes.forEach(id => document.getElementById(id).checked = false);
+                    ['showDepot', 'showUAVPaths', 'showUGVPaths'].forEach(id => {
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    });
+                    break;
+                    
+                case 'static':
+                    checkboxes.forEach(id => document.getElementById(id).checked = false);
+                    ['showDepot', 'showPOIs', 'showObstacles'].forEach(id => {
+                        document.getElementById(id).checked = true;
+                        document.getElementById(id).dispatchEvent(new Event('change'));
+                    });
+                    break;
+            }
+        }
+
+        window.initMap = initMap;
+    </script>
+    
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBdHvpnztZfdKPJSz8ctXWCDnaIFxMEWkg&callback=initMap"></script>
+</body>
+</html>

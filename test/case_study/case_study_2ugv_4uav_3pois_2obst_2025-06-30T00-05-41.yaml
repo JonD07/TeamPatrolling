@@ -1,0 +1,121 @@
+ID: case_study_case_study_2ugv_4uav_3pois_2obst_2025-06-30T00-05-41.yaml
+time: 0.0
+description: Case study scenario generated from coordinate data with 3 POIs and 2 obstacles
+agents:
+- ID: UAV_01
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_01
+- ID: UAV_02
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_02
+- ID: UAV_03
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_03
+- ID: UAV_04
+  type: UAV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 360381.0
+    current_battery_energy: 360381.0
+  stratum: docked
+  charging_pad_ID: pad_04
+- ID: UGV_01
+  type: UGV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 25010000.0
+    current_battery_energy: 25010000.0
+  charging_pads:
+  - ID: pad_01
+    mode: occupied
+    UAV_ID: UAV_01
+    is_charging: true
+  - ID: pad_02
+    mode: occupied
+    UAV_ID: UAV_02
+    is_charging: true
+- ID: UGV_02
+  type: UGV
+  subtype: standard
+  location:
+    x: 0.0
+    y: 0.0
+  battery_state:
+    max_battery_energy: 25010000.0
+    current_battery_energy: 25010000.0
+  charging_pads:
+  - ID: pad_03
+    mode: occupied
+    UAV_ID: UAV_03
+    is_charging: true
+  - ID: pad_04
+    mode: occupied
+    UAV_ID: UAV_04
+    is_charging: true
+scenario:
+  description: Case study scenario with depot at origin (0,0)
+  type: persistent_surveillance
+  subtype: case_study
+  nodes:
+  - ID: n_0000
+    type: air_only
+    location:
+      x: -109.0
+      y: 128.0
+    time_last_service: 0.0
+  - ID: n_0001
+    type: air_only
+    location:
+      x: 29.0
+      y: 154.0
+    time_last_service: 0.0
+  - ID: n_0002
+    type: air_only
+    location:
+      x: 168.0
+      y: 71.0
+    time_last_service: 0.0
+  connections: []
+  obstacles:
+  - type: circle
+    ID: o_01
+    location:
+      x: -32.0
+      y: 83.0
+    radius: 15.0
+  - type: circle
+    ID: o_02
+    location:
+      x: 78.0
+      y: 61.0
+    radius: 15.0
